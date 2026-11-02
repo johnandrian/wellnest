@@ -188,6 +188,7 @@ export const exportRest = internalQuery({
       dailyCheckins: await ctx.db.query("dailyLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       appointments: (await ctx.db.query("visits").withIndex("by_user_and_start", (q) => q.eq("userId", userId)).take(take)).map(({ remindJobId, ...r }) => r),
       careTeam: await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
+      emergencyPlan: await ctx.db.query("emergencyPlans").withIndex("by_user", (q) => q.eq("userId", userId)).take(1),
     };
   },
 });
@@ -229,7 +230,7 @@ const STEPS = {
   health: ["healthDays"],
   reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
-  appointments: ["visits", "careTeam"],
+  appointments: ["visits", "careTeam", "emergencyPlans"],
   facts: ["memoryFacts"],
   journal: ["symptomEntries", "dailyLogs", "trackerEntries", "exerciseLogs", "exercises"],
 } as const;
@@ -317,6 +318,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
     }
     case "pushTokens":
     case "shareLinks":
+    case "emergencyPlans":
     case "careTeam":
     case "medicationEvents":
     case "sideEffects":

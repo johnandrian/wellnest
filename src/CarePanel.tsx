@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
+import { EmergencyCard } from "./EmergencyCard";
 
 type Kind = "er" | "urgent_care" | "pharmacy" | "doctor";
 type Place = { name: string; lat: number; lon: number; km: number; phone?: string; address?: string; hours?: string; open24?: boolean };
@@ -65,6 +66,7 @@ export function CarePanel({ s }: { s: Strings }) {
         <Text style={styles.emergencyText}>{s.careCall911}</Text>
       </Pressable>
 
+      <EmergencyCard s={s} />
       <TelehealthCard s={s} />
 
       <Text style={styles.section}>{s.careNearby}</Text>

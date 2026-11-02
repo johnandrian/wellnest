@@ -9,6 +9,7 @@ import { slot, urgency as visitUrgency } from "./lib/telehealth";
 import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
 import { asthmaDetails, painDetails, seizureDetails, tracker } from "./lib/trackers";
 import { section } from "./lib/report";
+import { asthmaPlan, contact, planSection } from "./lib/emergency";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -234,6 +235,15 @@ export default defineSchema({
     status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
     remindJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_user_and_start", ["userId", "startsAt"]),
+
+  // The user's emergency action plan, one per user (convex/emergency.ts).
+  emergencyPlans: defineTable({
+    userId: v.id("users"),
+    sections: v.array(planSection),
+    contacts: v.array(contact),
+    asthma: v.optional(asthmaPlan),
+    notes: v.optional(v.string()),
+  }).index("by_user", ["userId"]),
 
   // Read-only share links for carers and doctors (convex/share.ts).
   shareLinks: defineTable({

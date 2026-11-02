@@ -109,6 +109,7 @@ export const respond = internalAction({
       const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId, now });
       const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId });
       const care: { upcoming: string; team: string } = await ctx.runQuery(internal.visits.contextFor, { userId, now });
+      const emergencyPlan: string = routed.urgent ? await ctx.runQuery(internal.emergency.textFor, { userId }) : "";
 
       // 4. Triage: Jev's emergency answer from step 2.
       urgent = routed.urgent;
@@ -152,6 +153,7 @@ export const respond = internalAction({
         medications,
         facts,
         care,
+        emergencyPlan,
         today: localToday(user),
         visit: (name, rawArgs) => {
           const args = parseArgs(rawArgs);
@@ -387,6 +389,7 @@ async function runCore(opts: {
   medications: string;
   facts: string[];
   care: { upcoming: string; team: string };
+  emergencyPlan: string;
   today: string;
   visit: (name: string, rawArgs: string) => Promise<string>;
   findCare: (rawArgs: string) => Promise<string>;
@@ -423,6 +426,10 @@ ${opts.medications}`);
   if (opts.healthConnected) system.push(HEALTH_PROMPT);
   if (opts.image) system.push(PHOTO_PROMPT);
   if (urgent) system.push(URGENT_PROMPT);
+  if (urgent && opts.emergencyPlan) {
+    system.push(`The user's own emergency plan (written with their doctors; point them to the relevant steps):
+${opts.emergencyPlan}`);
+  }
   if (analysis === "offer") system.push(OFFER_ANALYSIS_PROMPT);
   if (analysis !== "none" && opts.healthInAnalysis) system.push(HEALTH_IN_ANALYSIS_PROMPT);
   if (analysis === "run") system.push(RUN_ANALYSIS_PROMPT);

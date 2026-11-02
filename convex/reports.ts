@@ -14,6 +14,7 @@ import { dailySince } from "./journal";
 import { trackersSince } from "./trackers";
 import { adherence } from "./exercises";
 import { visitsText } from "./visits";
+import { emergencyData } from "./emergency";
 
 const DAY_MS = 86_400_000;
 const TITLES = { en: "Health report", es: "Informe de salud", el: "Αναφορά υγείας" } as const;
@@ -88,7 +89,7 @@ export async function gather(ctx: QueryCtx, userId: Id<"users">, from: string, t
     team: want("appointments")
       ? (await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(50)).map(({ name, role, clinic, phone, email }) => ({ name, role, clinic, phone, email }))
       : [],
-    emergency: null,
+    emergency: want("emergency") ? await emergencyData(ctx, userId) : null,
   };
 }
 
