@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,9 +26,10 @@ import { PulseRing, ThinkingDots } from "./Motion";
 import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { VisitPanel } from "./VisitPanel";
+import { RemindersPanel } from "./RemindersPanel";
 
 // The panels that open under the header.
-type Panel = "settings" | "visit";
+type Panel = "settings" | "visit" | "reminders";
 
 // One tap sends these from the empty chat, so first-time users (and judges) can try it right away.
 const STARTERS = [
@@ -55,6 +56,8 @@ export function Chat() {
   const me = useQuery(api.chat.me);
   const send = useMutation(api.chat.send);
   const clearChat = useMutation(api.chat.clear);
+  const setTimeZone = useMutation(api.chat.setTimeZone);
+  const logDose = useMutation(api.reminders.log);
   const [text, setText] = useState("");
   const [panel, setPanel] = useState<Panel | null>(null);
   const toggle = (p: Panel) => setPanel((open) => (open === p ? null : p));
@@ -78,6 +81,12 @@ export function Chat() {
 
   const voice = useVoice(!!me?.voiceMode, messages, submit);
   const health = useHealthSync();
+
+  // Medication reminders fire at local times, so the backend needs this device's time zone.
+  useEffect(() => {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    void setTimeZone({ timeZone, utcOffsetMin: -new Date().getTimezoneOffset() }).catch(() => {});
+  }, [setTimeZone]);
 
   const clear = async () => {
     if (!(await confirmClear())) return;
@@ -114,6 +123,14 @@ export function Chat() {
           )}
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+            onPress={() => toggle("reminders")}
+            accessibilityRole="button"
+            accessibilityLabel={panel === "reminders" ? "Close reminders" : "Medication reminders"}
+          >
+            <Ionicons name={panel === "reminders" ? "close" : "medkit-outline"} size={21} color={colors.text} />
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             onPress={() => toggle("visit")}
             accessibilityRole="button"
             accessibilityLabel={panel === "visit" ? "Close visit summary" : "Visit summary"}
@@ -132,6 +149,7 @@ export function Chat() {
       </View>
 
       {panel === "visit" && <VisitPanel />}
+      {panel === "reminders" && <RemindersPanel />}
       {panel === "settings" && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} />}
 
       {messages === undefined ? (
@@ -173,12 +191,36 @@ export function Chat() {
                 styles.bubble,
                 item.role === "user" ? styles.userBubble : styles.botBubble,
                 item.urgent && styles.urgentBubble,
+                item.kind === "reminder" && styles.reminderBubble,
               ]}
             >
               {item.role === "user" ? (
                 <Text style={styles.userText}>{item.text}</Text>
               ) : (
                 <Markdown text={item.text} style={styles.botText} />
+              )}
+              {item.reminder && (
+                <View style={styles.doseRow}>
+                  {(["taken", "skipped"] as const).map((status) => {
+                    const on = item.reminder!.status === status;
+                    return (
+                      <Pressable
+                        key={status}
+                        style={[styles.doseButton, on && styles.doseButtonOn]}
+                        onPress={() => void logDose({ messageId: item._id, status })}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                      >
+                        <Ionicons
+                          name={status === "taken" ? "checkmark" : "close"}
+                          size={15}
+                          color={on ? "#fff" : colors.primary}
+                        />
+                        <Text style={[styles.doseText, on && styles.doseTextOn]}>{status === "taken" ? "Taken" : "Skip"}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
               {item.channel === "telegram" && (
                 <Text style={styles.channel}>{item.voice ? "Voice note via Telegram" : "via Telegram"}</Text>
@@ -390,6 +432,12 @@ const styles = StyleSheet.create({
   userBubble: { backgroundColor: colors.bubbleUser, alignSelf: "flex-end", borderBottomRightRadius: 4 },
   botBubble: { backgroundColor: colors.bubbleBot, alignSelf: "flex-start", borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
   urgentBubble: { backgroundColor: colors.urgentBg, borderColor: colors.danger },
+  reminderBubble: { backgroundColor: colors.primarySoft, borderColor: colors.mint },
+  doseRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  doseButton: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  doseButtonOn: { backgroundColor: colors.primary },
+  doseText: { color: colors.primary, fontWeight: "600", fontSize: 13 },
+  doseTextOn: { color: "#fff" },
   userText: { color: "#fff", fontSize: 16 },
   botText: { color: colors.text, fontSize: 16, lineHeight: 22 },
   channel: { fontSize: 11, color: colors.muted, marginTop: 4 },

@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, healthDataTool, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { analyzeSymptomsTool, healthDataTool, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -96,6 +96,8 @@ export const respond = internalAction({
         console.error("memory step failed", e);
       }
 
+      const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId, now });
+
       // 4. Triage: Jev's emergency answer from step 2.
       urgent = routed.urgent;
 
@@ -128,6 +130,26 @@ export const respond = internalAction({
         typing,
         saveLocation: (location) =>
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
+        medications,
+        reminder: (name, rawArgs) => {
+          const args = parseArgs(rawArgs);
+          const medName = typeof args.name === "string" ? args.name : "";
+          if (name === "cancel_medication_reminder") {
+            return ctx.runMutation(internal.reminders.cancelFromChat, { userId, name: medName });
+          }
+          const times = Array.isArray(args.times) ? args.times.filter((t): t is string => typeof t === "string") : [];
+          const everyHours = Number(args.every_hours);
+          if (!times.length && !(everyHours > 0)) return Promise.resolve("Tool error: give times or every_hours.");
+          return ctx.runMutation(internal.reminders.addFromChat, {
+            userId,
+            name: medName,
+            dose: typeof args.dose === "string" ? args.dose : undefined,
+            days: typeof args.days === "number" ? args.days : undefined,
+            schedule: times.length
+              ? { kind: "daily", times }
+              : { kind: "interval", everyHours, firstAt: Date.now() + everyHours * 3_600_000 },
+          });
+        },
         prepareVisit: (rawArgs) => {
           const args = parseArgs(rawArgs);
           return ctx.runMutation(internal.visit.request, {
@@ -205,6 +227,8 @@ async function runCore(opts: {
   location?: string;
   typing: () => void;
   saveLocation: (location: string) => Promise<null>;
+  medications: string;
+  reminder: (name: string, rawArgs: string) => Promise<string>;
   prepareVisit: (rawArgs: string) => Promise<string>;
   healthConnected: boolean;
   healthInAnalysis: boolean;
@@ -214,6 +238,8 @@ async function runCore(opts: {
   const { message, memory, history, urgent, analysis, location } = opts;
   const system = [SYSTEM_PROMPT];
   if (location) system.push(`User's saved location: ${location}`);
+  if (opts.medications) system.push(`Medication reminders the user has set up:
+${opts.medications}`);
   if (memory.length) {
     system.push(
       "Relevant past messages:\n" + memory.map((m) => `- [${m.role}] ${m.text}`).join("\n"),
@@ -229,6 +255,7 @@ async function runCore(opts: {
     ...toolDefs,
     saveLocationTool,
     visitSummaryTool,
+    ...reminderTools,
     ...(opts.healthConnected ? [healthDataTool] : []),
     ...(analysis === "run" ? [analyzeSymptomsTool] : []),
   ];
@@ -254,6 +281,8 @@ async function runCore(opts: {
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "set_medication_reminder" || call.function.name === "cancel_medication_reminder") {
+        result = await opts.reminder(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "prepare_visit_summary") {
         result = await opts.prepareVisit(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "get_health_data") {

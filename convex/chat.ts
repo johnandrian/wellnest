@@ -67,6 +67,20 @@ export const setVoiceMode = mutation({
   },
 });
 
+// The app reports its time zone on start, so medication reminders fire at local times.
+export const setTimeZone = mutation({
+  args: { timeZone: v.string(), utcOffsetMin: v.number() },
+  handler: async (ctx, { timeZone, utcOffsetMin }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    const user = await ctx.db.get(userId);
+    const zone = timeZone.slice(0, 64);
+    const offset = Math.max(-14 * 60, Math.min(14 * 60, Math.round(utcOffsetMin)));
+    if (user?.timeZone === zone && user.utcOffsetMin === offset) return;
+    await ctx.db.patch(userId, { timeZone: zone, utcOffsetMin: offset });
+  },
+});
+
 export const setLocation = mutation({
   args: { location: v.string() },
   handler: async (ctx, { location }) => {

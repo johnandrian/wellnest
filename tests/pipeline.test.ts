@@ -69,6 +69,8 @@ describe("app chat", () => {
       "bio_research",
       "save_location",
       "prepare_visit_summary",
+      "set_medication_reminder",
+      "cancel_medication_reminder",
     ]);
     expect(cx.every((c) => c.body.max_tokens === undefined && c.body.stream === false)).toBe(true);
   });

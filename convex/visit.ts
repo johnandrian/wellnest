@@ -131,7 +131,7 @@ export const generate = internalAction({
     if (!data || data.row.status !== "generating") return;
     const today = dateDaysAgo(now, 0);
     try {
-      const medications: string = await ctx.runQuery(internal.visit.medicationsText, { userId: data.row.userId });
+      const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId: data.row.userId, now });
       const material = visitMaterial({
         reason: data.row.reason,
         days: data.row.days,
@@ -159,11 +159,6 @@ export const generate = internalAction({
   },
 });
 
-// Filled in by medication reminders (convex/reminders.ts); empty until the user sets some up.
-export const medicationsText = internalQuery({
-  args: { userId: v.id("users") },
-  handler: async () => "",
-});
 
 export const finish = internalMutation({
   args: { id: v.id("visitSummaries"), text: v.optional(v.string()), error: v.optional(v.string()) },

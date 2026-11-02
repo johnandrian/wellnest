@@ -92,6 +92,39 @@ export const visitSummaryTool: ToolDef = {
   },
 };
 
+// Handled in the pipeline: medication reminders (convex/reminders.ts).
+export const reminderTools: ToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "set_medication_reminder",
+      description:
+        "Set a recurring reminder for a medication or supplement. Reminders appear in the Wellnest app chat with " +
+        "Taken / Skip buttons. Use when the user asks to be reminded. Give either times (daily at those local times) or " +
+        "every_hours. Confirm the name, dose and schedule back to the user.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "e.g. 'Ibuprofen'" },
+          dose: { type: "string", description: "e.g. '400 mg' or '1 tablet'" },
+          times: { type: "array", items: { type: "string" }, description: "Local 24h times, e.g. ['08:00', '20:00']" },
+          every_hours: { type: "number", description: "Instead of times: every N hours (1-72), starting N hours from now" },
+          days: { type: "integer", description: "How many days the course lasts, if it ends" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_medication_reminder",
+      description: "Stop the reminders for a medication the user names.",
+      parameters: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    },
+  },
+];
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { healthMetrics } from "./lib/health";
+import { schedule } from "./lib/reminders";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -76,6 +77,9 @@ export default defineSchema({
     // "Clear chat": messages before this time are hidden and left out of the model's context and memory.
     // They aren't deleted, so the daily message limit still counts them.
     chatClearedAt: v.optional(v.number()),
+    // IANA zone from the app (e.g. "America/Los_Angeles"), for medication reminder times; the offset is a fallback.
+    timeZone: v.optional(v.string()),
+    utcOffsetMin: v.optional(v.number()),
     // Apple Health link (convex/health.ts). Set on the first sync; removed on disconnect.
     health: v.optional(
       v.object({
@@ -97,8 +101,17 @@ export default defineSchema({
     channel,
     embedding: v.optional(v.array(v.float64())),
     urgent: v.optional(v.boolean()),
-    // "links": the shopper's store links under a reply. Shown, but never read aloud in voice mode.
-    kind: v.optional(v.literal("links")),
+    // "links": the shopper's store links under a reply. "reminder": a medication reminder (convex/reminders.ts).
+    // Both are shown but never read aloud in voice mode.
+    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"))),
+    // On a reminder: which dose, and the user's Taken / Skip.
+    reminder: v.optional(
+      v.object({
+        medicationId: v.id("medications"),
+        dueAt: v.number(),
+        status: v.optional(v.union(v.literal("taken"), v.literal("skipped"))),
+      }),
+    ),
     // A user message that came in as a Telegram voice note (text is the transcript); the reply is also spoken.
     voice: v.optional(v.boolean()),
   })
@@ -116,6 +129,29 @@ export default defineSchema({
     source: v.literal("apple_health"),
     metrics: healthMetrics,
   }).index("by_user_and_date", ["userId", "date"]),
+
+  // Medication reminders (convex/reminders.ts). Stopped ones are kept (active false) for the dose history.
+  medications: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    dose: v.optional(v.string()),
+    schedule,
+    timeZone: v.string(),
+    utcOffsetMin: v.number(),
+    active: v.boolean(),
+    nextAt: v.optional(v.number()),
+    jobId: v.optional(v.id("_scheduled_functions")),
+    endsAt: v.optional(v.number()), // a course of N days
+    stoppedAt: v.optional(v.number()),
+  }).index("by_user_and_active", ["userId", "active"]),
+
+  // Taken / Skip answers to reminders.
+  doseLogs: defineTable({
+    userId: v.id("users"),
+    medicationId: v.id("medications"),
+    dueAt: v.number(),
+    status: v.union(v.literal("taken"), v.literal("skipped")),
+  }).index("by_medication_and_due", ["medicationId", "dueAt"]),
 
   // Doctor-visit summaries (convex/visit.ts).
   visitSummaries: defineTable({
