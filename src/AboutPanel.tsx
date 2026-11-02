@@ -10,7 +10,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors } from "./theme";
 import type { Strings } from "./i18n";
 
-type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "everything";
+type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "everything";
 
 function confirm(title: string, message: string, action: string, cancel: string): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
@@ -113,6 +113,12 @@ export function AboutPanel({ s }: { s: Strings }) {
       value: s.remindersValue.replace("{n}", count(counts.reminders)).replace("{d}", count(counts.doses)),
       category: counts.reminders.n ? "reminders" : undefined,
       what: s.whatReminders,
+    },
+    {
+      label: s.rowAppointments,
+      value: s.appointmentsValue.replace("{n}", count(counts.visits)).replace("{t}", count(counts.careTeam)),
+      category: counts.visits.n || counts.careTeam.n ? "appointments" : undefined,
+      what: s.whatAppointments,
     },
     { label: s.rowSummaries, value: count(counts.summaries), category: counts.summaries.n ? "summaries" : undefined, what: s.whatSummaries },
   ];

@@ -74,6 +74,8 @@ describe("app chat", () => {
       "set_medication_reminder",
       "update_medication",
       "cancel_medication_reminder",
+      "add_appointment",
+      "add_care_team_member",
       "remember_fact",
       "forget_fact",
       "log_symptom",

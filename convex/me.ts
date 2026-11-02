@@ -110,6 +110,8 @@ export const overview = query({
     const analyses = await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const facts = await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS);
     const journal = await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const visits = await ctx.db.query("visits").withIndex("by_user_and_start", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const team = await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     return {
       profile: {
         email: user.email ?? null,
@@ -130,6 +132,8 @@ export const overview = query({
         summaries: count(summaries),
         analyses: count(analyses),
         journal: count(journal),
+        visits: count(visits),
+        careTeam: count(team),
       },
       since: first?._creationTime ?? null,
       chatClearedAt: user.chatClearedAt ?? null,
@@ -179,6 +183,8 @@ export const exportRest = internalQuery({
       symptomAnalyses: await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomJournal: await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       dailyCheckins: await ctx.db.query("dailyLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
+      appointments: (await ctx.db.query("visits").withIndex("by_user_and_start", (q) => q.eq("userId", userId)).take(take)).map(({ remindJobId, ...r }) => r),
+      careTeam: await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
     };
   },
 });
@@ -211,6 +217,7 @@ const category = v.union(
   v.literal("summaries"),
   v.literal("facts"),
   v.literal("journal"),
+  v.literal("appointments"),
   v.literal("everything"),
 );
 
@@ -219,6 +226,7 @@ const STEPS = {
   health: ["healthDays"],
   reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
+  appointments: ["visits", "careTeam"],
   facts: ["memoryFacts"],
   journal: ["symptomEntries", "dailyLogs"],
 } as const;
@@ -274,6 +282,14 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       }
       return rows.length;
     }
+    case "visits": {
+      const rows = await ctx.db.query("visits").withIndex("by_user_and_start", (q) => q.eq("userId", userId)).take(BATCH);
+      for (const r of rows) {
+        if (r.remindJobId) await ctx.scheduler.cancel(r.remindJobId).catch(() => {});
+        await ctx.db.delete(r._id);
+      }
+      return rows.length;
+    }
     case "appointments": {
       const rows = await ctx.db.query("appointments").withIndex("by_user", (q) => q.eq("userId", userId)).take(BATCH);
       for (const a of rows) {
@@ -292,6 +308,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       return rows.length;
     }
     case "pushTokens":
+    case "careTeam":
     case "medicationEvents":
     case "sideEffects":
     case "checkins":

@@ -6,8 +6,9 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, telehealthTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, telehealthTool, toolDefs, visitSummaryTool, visitTools } from "./lib/tools";
 import { careForModel } from "./care";
+import { localToday } from "./journal";
 import { journalText } from "./lib/journal";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
@@ -106,6 +107,7 @@ export const respond = internalAction({
 
       const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId, now });
       const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId });
+      const care: { upcoming: string; team: string } = await ctx.runQuery(internal.visits.contextFor, { userId, now });
 
       // 4. Triage: Jev's emergency answer from step 2.
       urgent = routed.urgent;
@@ -148,6 +150,25 @@ export const respond = internalAction({
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
         facts,
+        care,
+        today: localToday(user),
+        visit: (name, rawArgs) => {
+          const args = parseArgs(rawArgs);
+          const str = (k: string) => (typeof args[k] === "string" ? (args[k] as string) : undefined);
+          if (name === "add_care_team_member") {
+            return ctx.runMutation(internal.visits.addMemberFromChat, { userId, name: str("name") ?? "", role: str("role"), phone: str("phone"), clinic: str("clinic") });
+          }
+          const kind = str("kind");
+          return ctx.runMutation(internal.visits.addFromChat, {
+            userId,
+            title: str("title") ?? "",
+            date: str("date") ?? "",
+            time: str("time") ?? "",
+            kind: kind === "video" || kind === "phone" || kind === "in_person" ? kind : undefined,
+            clinician: str("clinician"),
+            location: str("location"),
+          });
+        },
         telehealth: (rawArgs) => {
           const args = parseArgs(rawArgs);
           return ctx.runMutation(internal.telehealth.suggestFromChat, {
@@ -309,6 +330,9 @@ async function runCore(opts: {
   saveLocation: (location: string) => Promise<null>;
   medications: string;
   facts: string[];
+  care: { upcoming: string; team: string };
+  today: string;
+  visit: (name: string, rawArgs: string) => Promise<string>;
   findCare: (rawArgs: string) => Promise<string>;
   telehealth: (rawArgs: string) => Promise<string>;
   fact: (name: string, rawArgs: string) => Promise<string>;
@@ -330,6 +354,9 @@ async function runCore(opts: {
       ? `Saved facts about the user (they can edit these; call forget_fact if one turns out wrong):\n${opts.facts.map((f) => `- ${f}`).join("\n")}`
       : "No saved facts about the user yet. When they mention a lasting health fact (allergy, condition, regular medication), call remember_fact.",
   );
+  system.push(`Today is ${opts.today} (the user's local date).`);
+  if (opts.care.upcoming) system.push(`The user's upcoming appointments:\n${opts.care.upcoming}`);
+  if (opts.care.team) system.push(`The user's care team:\n${opts.care.team}`);
   if (opts.medications) system.push(`Medication reminders the user has set up:
 ${opts.medications}`);
   if (memory.length) {
@@ -351,6 +378,7 @@ ${opts.medications}`);
     ...(urgent ? [] : [telehealthTool]),
     visitSummaryTool,
     ...reminderTools,
+    ...visitTools,
     ...factTools,
     ...journalTools,
     ...(opts.healthConnected ? [healthDataTool] : []),
@@ -387,6 +415,8 @@ ${opts.medications}`);
         result = urgent
           ? "Tool error: this is an emergency; send the user to 911 or the ER, not a video visit."
           : await opts.telehealth(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
+      } else if (call.function.name === "add_appointment" || call.function.name === "add_care_team_member") {
+        result = await opts.visit(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "find_care") {
         result = await opts.findCare(call.function.arguments);
       } else if (["log_symptom", "get_symptom_journal", "log_how_i_feel"].includes(call.function.name)) {

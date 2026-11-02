@@ -135,6 +135,8 @@ describe("overview, export and deletion", () => {
       summaries: { n: 1, more: false },
       analyses: { n: 1, more: false },
       journal: { n: 0, more: false },
+      visits: { n: 0, more: false },
+      careTeam: { n: 0, more: false },
     });
     expect((await other.as.query(api.me.overview))!.counts.messages.n).toBe(0);
     expect(await t.query(api.me.overview)).toBeNull();

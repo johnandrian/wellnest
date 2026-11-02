@@ -226,6 +226,44 @@ export const journalTools: ToolDef[] = [
   },
 ];
 
+// Handled in the pipeline: appointments and the care team (convex/visits.ts).
+export const visitTools: ToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "add_appointment",
+      description:
+        "Add an appointment the user tells you about (GP, specialist, physio, scan, blood test...) to their calendar, " +
+        "with a reminder 2 hours before. Use their local date and 24h time. If a weekday is given, work out the date " +
+        "from today's date.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "e.g. 'Rheumatology follow-up'" },
+          date: { type: "string", description: "YYYY-MM-DD" },
+          time: { type: "string", description: "HH:MM, 24h" },
+          kind: { type: "string", enum: ["in_person", "video", "phone"] },
+          clinician: { type: "string", description: "Who it's with, if said" },
+          location: { type: "string" },
+        },
+        required: ["title", "date", "time"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_care_team_member",
+      description: "Save someone in the user's care team (a doctor, nurse, therapist, pharmacist) when they mention them with details worth keeping.",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string" }, role: { type: "string" }, phone: { type: "string" }, clinic: { type: "string" } },
+        required: ["name"],
+      },
+    },
+  },
+];
+
 // Handled in the pipeline: nearby care from OpenStreetMap (convex/care.ts).
 export const findCareTool: ToolDef = {
   type: "function",

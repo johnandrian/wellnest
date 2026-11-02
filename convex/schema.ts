@@ -205,6 +205,32 @@ export default defineSchema({
     source: entrySource,
   }).index("by_user_and_date", ["userId", "date"]),
 
+  // The user's care team: doctors, nurses, therapists, pharmacists (convex/visits.ts).
+  careTeam: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    role: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    clinic: v.optional(v.string()),
+    address: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  }).index("by_user", ["userId"]),
+
+  // Appointments of any kind, with prep notes and meeting notes (convex/visits.ts).
+  visits: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    kind: v.union(v.literal("in_person"), v.literal("video"), v.literal("phone")),
+    startsAt: v.number(),
+    clinicianId: v.optional(v.id("careTeam")),
+    location: v.optional(v.string()),
+    prep: v.optional(v.string()), // questions and things to bring
+    notes: v.optional(v.string()), // what was said, written afterwards
+    status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
+    remindJobId: v.optional(v.id("_scheduled_functions")),
+  }).index("by_user_and_start", ["userId", "startsAt"]),
+
   // The daily check-in: mood, energy and sleep quality, 1-5 (convex/daily.ts).
   dailyLogs: defineTable({
     userId: v.id("users"),

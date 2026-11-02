@@ -140,7 +140,7 @@ export function Chat() {
   const health = useHealthSync();
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
-  const pushToken = usePush(s, (kind) => openHub(kind === "reminders" ? "reminders" : "care"));
+  const pushToken = usePush(s, (kind) => openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : "care"));
 
   // Medication reminders fire at local times, so the backend needs this device's time zone.
   useEffect(() => {

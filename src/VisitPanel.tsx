@@ -16,15 +16,15 @@ const PERIODS = [
   { days: 90, label: (s: Strings) => s.lastNDays.replace("{n}", "90") },
 ];
 
-export function VisitPanel({ s }: { s: Strings }) {
+export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: string }) {
   const latest = useQuery(api.visit.latest);
   const create = useMutation(api.visit.create);
   const remove = useMutation(api.visit.remove);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(initialReason ?? "");
   const [days, setDays] = useState(30);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [composing, setComposing] = useState(false);
+  const [composing, setComposing] = useState(!!initialReason);
 
   const generating = latest?.status === "generating";
   const showForm = composing || !latest || latest.status === "failed";

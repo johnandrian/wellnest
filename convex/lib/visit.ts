@@ -52,6 +52,7 @@ export function visitMaterial(opts: {
   medications?: string;
   facts?: string[];
   journal?: string;
+  appointments?: string;
 }): string {
   const parts = [
     `Today: ${opts.today}. Period covered: the last ${opts.days} days.`,
@@ -59,6 +60,7 @@ export function visitMaterial(opts: {
   ];
   if (opts.facts?.length) parts.push(`Facts the patient saved in Wellnest:\n${opts.facts.map((f) => `- ${f}`).join("\n")}`);
   if (opts.medications) parts.push(`Medications and reminders the patient set up in Wellnest:\n${opts.medications}`);
+  if (opts.appointments) parts.push(`Appointments, with the patient's questions and notes:\n${opts.appointments}`);
   if (opts.journal) parts.push(`Symptom journal:\n${opts.journal}`);
   if (opts.health) parts.push(`Health data from the phone (Apple Health or Health Connect):\n${opts.health}`);
   for (const a of opts.analyses) parts.push(`Earlier AI symptom analysis (${day(a.at)}):\n${a.report.slice(0, 3000)}`);

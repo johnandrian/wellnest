@@ -55,6 +55,7 @@ import type * as shop from "../shop.js";
 import type * as telegram from "../telegram.js";
 import type * as telehealth from "../telehealth.js";
 import type * as visit from "../visit.js";
+import type * as visits from "../visits.js";
 import type * as voice from "../voice.js";
 
 import type {
@@ -111,6 +112,7 @@ declare const fullApi: ApiFromModules<{
   telegram: typeof telegram;
   telehealth: typeof telehealth;
   visit: typeof visit;
+  visits: typeof visits;
   voice: typeof voice;
 }>;
 

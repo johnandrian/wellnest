@@ -100,6 +100,16 @@ const TEXT = {
     es: (name: string, days: number) => `💊 Te queda poco **${name}**: unos ${days} día${days === 1 ? "" : "s"}. Es hora de pedir más.`,
     el: (name: string, days: number) => `💊 Σου τελειώνει το **${name}**: περίπου ${days} ${days === 1 ? "μέρα" : "μέρες"} ακόμη. Ώρα για ανανέωση.`,
   },
+  visitReminderTitle: {
+    en: (title: string) => `Appointment soon: ${title}`,
+    es: (title: string) => `Cita pronto: ${title}`,
+    el: (title: string) => `Ραντεβού σύντομα: ${title}`,
+  },
+  visitReminderBody: {
+    en: (time: string, where: string) => `At ${time}${where ? ` · ${where}` : ""}. Your questions are in the Visits tab.`,
+    es: (time: string, where: string) => `A las ${time}${where ? ` · ${where}` : ""}. Tus preguntas están en la pestaña Citas.`,
+    el: (time: string, where: string) => `Στις ${time}${where ? ` · ${where}` : ""}. Οι ερωτήσεις σου είναι στην καρτέλα Ραντεβού.`,
+  },
   languageSet: {
     en: () => "Okay, I'll reply in English.",
     es: () => "De acuerdo, te responderé en español.",

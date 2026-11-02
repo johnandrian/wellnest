@@ -137,6 +137,7 @@ export const generate = internalAction({
       const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId: data.row.userId });
       const entries = await ctx.runQuery(internal.journal.since, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
       const daily = await ctx.runQuery(internal.journal.dailyFrom, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
+      const appointments: string = await ctx.runQuery(internal.visits.textFor, { userId: data.row.userId, from: now - data.row.days * DAY_MS, to: now + 60 * DAY_MS });
       const material = visitMaterial({
         reason: data.row.reason,
         days: data.row.days,
@@ -147,6 +148,7 @@ export const generate = internalAction({
         medications: medications || undefined,
         facts,
         journal: entries.length || daily.length ? journalText(entries, data.healthDays, daily) : undefined,
+        appointments: appointments || undefined,
       });
       const lang = langOf(await ctx.runQuery(internal.pipeline.getUser, { userId: data.row.userId }));
       const { content } = await complete({
