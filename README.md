@@ -5,6 +5,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
 ## Layout
 - `App.tsx`, `src/` — Expo app: sign-in, chat, settings (voice mode, "Text me on Telegram").
   - `health.ios.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health on iPhone (see below); `health.ts` is the web/Android stand-in.
+  - `VisitPanel.tsx` + `printable.ts` — the doctor-visit summary panel (clipboard button), with share / print-to-PDF.
   - `useVoice.ts` — voice mode: mic → Cartesia STT → send; replies → Cartesia TTS. `speaker.web.ts` / `speaker.ts` — streaming playback on web / iOS + Android (see Voice below).
 - `convex/` — backend.
   - `pipeline.ts` — shared pipeline: Jina embed → vector search memory → Cortex triage → Cortex core model + tools → reply.
@@ -14,6 +15,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `creao.ts` + `lib/creao.ts` — detailed symptom analysis by the CREAO agent (see below).
   - `shop.ts` + `lib/shopping/` — Health Supply Shopper: Amazon and Walmart links for OTC health supplies (see below).
   - `health.ts` + `lib/health.ts` — Apple Health daily summaries: sync API, `get_health_data` text, CREAO fields.
+  - `visit.ts` + `lib/visit.ts` — doctor-visit summaries (see below).
   - `lib/jev.ts` — routes each message: shopping, symptom analyzer, or regular.
 - `creao/` — the CREAO agent bundle: `SKILL.md` (its program), `config.yaml` (form fields, memory), `README.md`.
 
@@ -52,6 +54,12 @@ The iPhone app reads **daily summaries** from HealthKit and syncs them to `healt
 - **CREAO:** summaries go to a symptom analysis only if the user turns on "Include in symptom analyses". Then empty `biosensor_data`, `cycle_data` and `last_period_start` fields are filled from the last 14 days (vitals) and 90 days (cycle).
 - **Disconnect:** removes the link and deletes every synced day. Web and Android show the status and can disconnect, but can't connect (HealthKit exists only on iPhone).
 - **Building:** HealthKit doesn't work in Expo Go. Build a development client with EAS (`eas.json` is set up; needs an Apple Developer account): `npx eas-cli build --profile development --platform ios`, install it on the iPhone, then `npx expo start --dev-client`. The bundle id is `health.talktothebeak.wellnest` (`app.json`); change it if you prefer another.
+
+## Doctor-visit summary
+A one-page Markdown summary to bring to an appointment: reason, main concerns, a dated timeline, symptoms (onset, frequency, severity, triggers, what helps), medications, notable Apple Health trends, earlier CREAO analyses (labelled AI-generated) and questions to ask. The core model writes it in the patient's voice from **only** the material it's given: the chat for the chosen period (14, 30 or 90 days; store-link messages and anything hidden by Clear chat are left out), completed CREAO reports, Apple Health summaries if connected, and the user's medications.
+- **App:** the clipboard button opens the panel: optional reason, period, "Write my summary". The result can be shared (iOS/Android share sheet), printed or saved as PDF (web opens a print-ready page), copied, regenerated or deleted. Only the latest one is shown.
+- **Chat:** "prepare me for my doctor's appointment" makes the model call `prepare_visit_summary`. In the app a note says it's ready; on Telegram the summary itself is sent.
+- **Limits:** one at a time, 5 a day.
 
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):

@@ -25,6 +25,10 @@ import { Markdown } from "./Markdown";
 import { PulseRing, ThinkingDots } from "./Motion";
 import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
+import { VisitPanel } from "./VisitPanel";
+
+// The panels that open under the header.
+type Panel = "settings" | "visit";
 
 // One tap sends these from the empty chat, so first-time users (and judges) can try it right away.
 const STARTERS = [
@@ -52,7 +56,8 @@ export function Chat() {
   const send = useMutation(api.chat.send);
   const clearChat = useMutation(api.chat.clear);
   const [text, setText] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const toggle = (p: Panel) => setPanel((open) => (open === p ? null : p));
   const [notice, setNotice] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
@@ -109,16 +114,25 @@ export function Chat() {
           )}
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => setShowSettings((s) => !s)}
+            onPress={() => toggle("visit")}
             accessibilityRole="button"
-            accessibilityLabel={showSettings ? "Close settings" : "Settings"}
+            accessibilityLabel={panel === "visit" ? "Close visit summary" : "Visit summary"}
           >
-            <Ionicons name={showSettings ? "close" : "settings-outline"} size={22} color={colors.text} />
+            <Ionicons name={panel === "visit" ? "close" : "clipboard-outline"} size={21} color={colors.text} />
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+            onPress={() => toggle("settings")}
+            accessibilityRole="button"
+            accessibilityLabel={panel === "settings" ? "Close settings" : "Settings"}
+          >
+            <Ionicons name={panel === "settings" ? "close" : "settings-outline"} size={22} color={colors.text} />
           </Pressable>
         </View>
       </View>
 
-      {showSettings && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} />}
+      {panel === "visit" && <VisitPanel />}
+      {panel === "settings" && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} />}
 
       {messages === undefined ? (
         <ActivityIndicator style={{ flex: 1 }} />

@@ -33,9 +33,11 @@ import type * as lib_shopping_understanding from "../lib/shopping/understanding.
 import type * as lib_speech from "../lib/speech.js";
 import type * as lib_telegram from "../lib/telegram.js";
 import type * as lib_tools from "../lib/tools.js";
+import type * as lib_visit from "../lib/visit.js";
 import type * as pipeline from "../pipeline.js";
 import type * as shop from "../shop.js";
 import type * as telegram from "../telegram.js";
+import type * as visit from "../visit.js";
 import type * as voice from "../voice.js";
 
 import type {
@@ -70,9 +72,11 @@ declare const fullApi: ApiFromModules<{
   "lib/speech": typeof lib_speech;
   "lib/telegram": typeof lib_telegram;
   "lib/tools": typeof lib_tools;
+  "lib/visit": typeof lib_visit;
   pipeline: typeof pipeline;
   shop: typeof shop;
   telegram: typeof telegram;
+  visit: typeof visit;
   voice: typeof voice;
 }>;
 

@@ -73,6 +73,25 @@ export const healthDataTool: ToolDef = {
   },
 };
 
+// Handled in the pipeline: writes a doctor-visit summary in the background (convex/visit.ts).
+export const visitSummaryTool: ToolDef = {
+  type: "function",
+  function: {
+    name: "prepare_visit_summary",
+    description:
+      "Write a one-page summary for the user to bring to a doctor's appointment, from their recent chats, symptom " +
+      "analyses, medications and Apple Health data. Use when they ask to prepare for an appointment or want a summary " +
+      "for their doctor. It's ready in under a minute.",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: { type: "string", description: "What the visit is about, if the user said" },
+        days: { type: "integer", description: "How far back to cover: 14, 30 (default) or 90" },
+      },
+    },
+  },
+};
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

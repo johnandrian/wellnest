@@ -117,6 +117,18 @@ export default defineSchema({
     metrics: healthMetrics,
   }).index("by_user_and_date", ["userId", "date"]),
 
+  // Doctor-visit summaries (convex/visit.ts).
+  visitSummaries: defineTable({
+    userId: v.id("users"),
+    reason: v.optional(v.string()),
+    days: v.number(), // period covered, ending when it was made
+    status: v.union(v.literal("generating"), v.literal("ready"), v.literal("failed")),
+    text: v.optional(v.string()), // Markdown
+    error: v.optional(v.string()),
+    // Asked for in chat: where to announce it when it's done.
+    notify: v.optional(channel),
+  }).index("by_user", ["userId"]),
+
   // One-time codes for t.me/<bot>?start=<code> account linking.
   telegramLinks: defineTable({
     code: v.string(),

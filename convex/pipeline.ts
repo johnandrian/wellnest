@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, healthDataTool, runTool, saveLocationTool, toolDefs } from "./lib/tools";
+import { analyzeSymptomsTool, healthDataTool, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -128,6 +128,15 @@ export const respond = internalAction({
         typing,
         saveLocation: (location) =>
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
+        prepareVisit: (rawArgs) => {
+          const args = parseArgs(rawArgs);
+          return ctx.runMutation(internal.visit.request, {
+            userId,
+            channel: message.channel,
+            reason: typeof args.reason === "string" ? args.reason : undefined,
+            days: typeof args.days === "number" ? args.days : undefined,
+          });
+        },
         healthConnected: !!user?.health,
         healthInAnalysis: !!user?.health?.shareWithAnalysis,
         getHealthData: async (days) => healthReport(await healthDays(ctx, userId, days), dateDaysAgo(Date.now(), 0)),
@@ -196,6 +205,7 @@ async function runCore(opts: {
   location?: string;
   typing: () => void;
   saveLocation: (location: string) => Promise<null>;
+  prepareVisit: (rawArgs: string) => Promise<string>;
   healthConnected: boolean;
   healthInAnalysis: boolean;
   getHealthData: (days: number) => Promise<string>;
@@ -218,6 +228,7 @@ async function runCore(opts: {
   const tools = [
     ...toolDefs,
     saveLocationTool,
+    visitSummaryTool,
     ...(opts.healthConnected ? [healthDataTool] : []),
     ...(analysis === "run" ? [analyzeSymptomsTool] : []),
   ];
@@ -243,6 +254,8 @@ async function runCore(opts: {
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "prepare_visit_summary") {
+        result = await opts.prepareVisit(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "get_health_data") {
         result = !opts.healthConnected
           ? "Tool error: the user hasn't connected Apple Health."
@@ -263,13 +276,18 @@ async function runCore(opts: {
   return content?.trim() || "Sorry, I couldn't finish researching that.";
 }
 
-function healthDaysArg(rawArgs: string) {
+function parseArgs(rawArgs: string): Record<string, unknown> {
   try {
-    const days = Math.round(Number(JSON.parse(rawArgs || "{}").days ?? 14));
-    return Number.isFinite(days) ? Math.min(90, Math.max(1, days)) : 14;
+    const args = JSON.parse(rawArgs || "{}");
+    return args && typeof args === "object" ? args : {};
   } catch {
-    return 14;
+    return {};
   }
+}
+
+function healthDaysArg(rawArgs: string) {
+  const days = Math.round(Number(parseArgs(rawArgs).days ?? 14));
+  return Number.isFinite(days) ? Math.min(90, Math.max(1, days)) : 14;
 }
 
 async function runSaveLocation(rawArgs: string, save: (location: string) => Promise<null>) {
