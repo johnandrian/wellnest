@@ -108,6 +108,7 @@ describe("app chat", () => {
       voiceMode: true,
       language: "en",
       notifications: { reminders: true, appointments: true },
+      checkins: true,
       location: "",
       telegramLinked: false,
     });

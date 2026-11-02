@@ -3,4 +3,5 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 crons.daily("delete expired telegram link codes", { hourUTC: 9, minuteUTC: 0 }, internal.telegram.deleteExpiredLinks);
+crons.hourly("proactive check-ins", { minuteUTC: 5 }, internal.checkins.scan, {});
 export default crons;

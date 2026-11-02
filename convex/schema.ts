@@ -81,6 +81,8 @@ export default defineSchema({
     chatClearedAt: v.optional(v.number()),
     // Reply and voice language (convex/lib/language.ts); English when unset.
     language: v.optional(language),
+    // Proactive check-ins from Apple Health changes (convex/checkins.ts); on when unset.
+    checkins: v.optional(v.boolean()),
     // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
     notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),
     // Set while "Delete everything" runs (convex/me.ts).
@@ -111,7 +113,8 @@ export default defineSchema({
     urgent: v.optional(v.boolean()),
     // "links": the shopper's store links under a reply. "reminder": a medication reminder (convex/reminders.ts).
     // Both are shown but never read aloud in voice mode.
-    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"))),
+    // "checkin": a proactive question about a change in the user's health data (convex/checkins.ts).
+    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"))),
     // On a reminder: which dose, and the user's Taken / Skip.
     reminder: v.optional(
       v.object({
@@ -148,6 +151,13 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_token", ["token"]),
+
+  // Proactive check-ins sent, for the once-a-day and same-kind limits (convex/checkins.ts).
+  checkins: defineTable({
+    userId: v.id("users"),
+    kind: v.string(),
+    messageId: v.id("messages"),
+  }).index("by_user", ["userId"]),
 
   // Symptom journal (convex/journal.ts): one entry per symptom per local day.
   symptomEntries: defineTable({

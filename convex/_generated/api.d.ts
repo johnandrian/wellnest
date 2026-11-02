@@ -10,12 +10,14 @@
 
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
+import type * as checkins from "../checkins.js";
 import type * as creao from "../creao.js";
 import type * as crons from "../crons.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as journal from "../journal.js";
 import type * as lib_cartesia from "../lib/cartesia.js";
+import type * as lib_checkins from "../lib/checkins.js";
 import type * as lib_cortex from "../lib/cortex.js";
 import type * as lib_creao from "../lib/creao.js";
 import type * as lib_env from "../lib/env.js";
@@ -57,12 +59,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   chat: typeof chat;
+  checkins: typeof checkins;
   creao: typeof creao;
   crons: typeof crons;
   health: typeof health;
   http: typeof http;
   journal: typeof journal;
   "lib/cartesia": typeof lib_cartesia;
+  "lib/checkins": typeof lib_checkins;
   "lib/cortex": typeof lib_cortex;
   "lib/creao": typeof lib_creao;
   "lib/env": typeof lib_env;

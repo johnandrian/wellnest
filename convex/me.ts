@@ -214,7 +214,7 @@ const category = v.union(
 );
 
 const STEPS = {
-  chat: ["messages", "photoUploads", "creaoRuns"],
+  chat: ["messages", "photoUploads", "creaoRuns", "checkins"],
   health: ["healthDays"],
   reminders: ["medications", "doseLogs"],
   summaries: ["visitSummaries"],
@@ -281,6 +281,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       return rows.length;
     }
     case "pushTokens":
+    case "checkins":
     case "creaoRuns":
     case "doseLogs":
     case "visitSummaries":

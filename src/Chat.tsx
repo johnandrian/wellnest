@@ -241,7 +241,7 @@ export function Chat() {
                 styles.bubble,
                 item.role === "user" ? styles.userBubble : styles.botBubble,
                 item.urgent && styles.urgentBubble,
-                item.kind === "reminder" && styles.reminderBubble,
+                (item.kind === "reminder" || item.kind === "checkin") && styles.reminderBubble,
               ]}
             >
               {item.imageUrl && (
@@ -414,6 +414,7 @@ function Settings({
     location: string;
     language: string;
     notifications: { reminders: boolean; appointments: boolean };
+    checkins: boolean;
   };
   s: Strings;
   pushToken: { current: string | null };
@@ -425,6 +426,7 @@ function Settings({
   const setLanguage = useMutation(api.chat.setLanguage);
   const setPushPreference = useMutation(api.push.setPreference);
   const unregisterPush = useMutation(api.push.unregister);
+  const setCheckins = useMutation(api.checkins.setEnabled);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -493,6 +495,10 @@ function Settings({
       <Pressable style={styles.settingButton} onPress={onOpenAbout} accessibilityRole="button">
         <Text style={styles.settingButtonText}>What Wellnest knows about me</Text>
       </Pressable>
+      <View style={styles.settingRow}>
+        <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>
+        <Switch value={me.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
+      </View>
       {pushSupported &&
         (["reminders", "appointments"] as const).map((kind) => (
           <View key={kind} style={styles.settingRow}>
@@ -540,6 +546,7 @@ const styles = StyleSheet.create({
   settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 16, color: colors.text },
+  settingLabelWrap: { flex: 1, marginRight: 12 },
   locationInput: { flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
   langChips: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, marginLeft: 16 },
   langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },

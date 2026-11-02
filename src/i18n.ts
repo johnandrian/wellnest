@@ -52,6 +52,7 @@ const STRINGS = {
     journalRecent: "Recent entries",
     remove: "Remove",
     close: "Close",
+    dailyCheckins: "Check-ins when my health data changes",
   },
   es: {
     starters: [
@@ -101,6 +102,7 @@ const STRINGS = {
     journalRecent: "Registros recientes",
     remove: "Quitar",
     close: "Cerrar",
+    dailyCheckins: "Preguntarme cuando cambien mis datos de salud",
   },
   el: {
     starters: [
@@ -150,6 +152,7 @@ const STRINGS = {
     journalRecent: "Πρόσφατες καταγραφές",
     remove: "Αφαίρεση",
     close: "Κλείσιμο",
+    dailyCheckins: "Ερωτήσεις όταν αλλάζουν τα δεδομένα υγείας μου",
   },
 } satisfies Record<Lang, Record<string, string | string[]>>;
 
