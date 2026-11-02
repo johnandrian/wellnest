@@ -234,7 +234,7 @@ const STEPS = {
   journal: ["symptomEntries", "dailyLogs", "trackerEntries", "exerciseLogs", "exercises"],
 } as const;
 // Only "everything" also removes the account's devices and sign-in records.
-const ACCOUNT_STEPS = ["pushTokens", "auth"] as const;
+const ACCOUNT_STEPS = ["pushTokens", "shareLinks", "auth"] as const;
 type Step = (typeof STEPS)[keyof typeof STEPS][number] | (typeof ACCOUNT_STEPS)[number];
 
 export const deleteData = mutation({
@@ -316,6 +316,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       return rows.length;
     }
     case "pushTokens":
+    case "shareLinks":
     case "careTeam":
     case "medicationEvents":
     case "sideEffects":

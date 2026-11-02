@@ -4,6 +4,7 @@ import { httpAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { ttsStream } from "./voice";
+import { serve } from "./share";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
@@ -97,6 +98,9 @@ http.route({
 
 // Streamed MP3 of one of the caller's replies, for voice mode on iOS/Android (see voice.ts).
 http.route({ path: "/tts", method: "GET", handler: ttsStream });
+
+// Read-only share links for carers and doctors (see share.ts).
+http.route({ pathPrefix: "/share/", method: "GET", handler: serve });
 
 // The Expo web app (uploaded with `npm run deploy:web`). Registered last: exact routes above win over this catch-all.
 registerStaticRoutes(http, components.staticHosting);

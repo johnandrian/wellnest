@@ -69,7 +69,7 @@ export async function gather(ctx: QueryCtx, userId: Id<"users">, from: string, t
         )
       : [];
   return {
-    title: TITLES[langOf(user)],
+    title: TITLES[langOf(user)] as string,
     person: user?.name ?? user?.email ?? null,
     from,
     to,

@@ -55,6 +55,7 @@ import type * as pipeline from "../pipeline.js";
 import type * as push from "../push.js";
 import type * as reminders from "../reminders.js";
 import type * as reports from "../reports.js";
+import type * as share from "../share.js";
 import type * as shop from "../shop.js";
 import type * as telegram from "../telegram.js";
 import type * as telehealth from "../telehealth.js";
@@ -117,6 +118,7 @@ declare const fullApi: ApiFromModules<{
   push: typeof push;
   reminders: typeof reminders;
   reports: typeof reports;
+  share: typeof share;
   shop: typeof shop;
   telegram: typeof telegram;
   telehealth: typeof telehealth;

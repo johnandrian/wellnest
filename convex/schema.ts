@@ -8,6 +8,7 @@ import { entrySource } from "./lib/journal";
 import { slot, urgency as visitUrgency } from "./lib/telehealth";
 import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
 import { asthmaDetails, painDetails, seizureDetails, tracker } from "./lib/trackers";
+import { section } from "./lib/report";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -233,6 +234,21 @@ export default defineSchema({
     status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
     remindJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_user_and_start", ["userId", "startsAt"]),
+
+  // Read-only share links for carers and doctors (convex/share.ts).
+  shareLinks: defineTable({
+    userId: v.id("users"),
+    token: v.string(), // 24 random bytes, base64url
+    label: v.optional(v.string()), // who it's for
+    sections: v.array(section),
+    rangeDays: v.number(), // the page shows the last N days whenever it's opened
+    expiresAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    opens: v.number(),
+    lastOpenedAt: v.optional(v.number()),
+  })
+    .index("by_token", ["token"])
+    .index("by_user", ["userId"]),
 
   // Condition tracker entries: pain / CRPS, asthma, seizures (convex/trackers.ts). Several a day are fine.
   trackerEntries: defineTable({
