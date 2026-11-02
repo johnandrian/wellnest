@@ -9,6 +9,7 @@ import { colors } from "./theme";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
 import type { Strings } from "./i18n";
+import { ReportCard } from "./ReportCard";
 
 const PERIODS = [
   { days: 14, label: (s: Strings) => s.twoWeeks },
@@ -136,6 +137,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
         </View>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
+      <ReportCard s={s} />
     </ScrollView>
   );
 }
