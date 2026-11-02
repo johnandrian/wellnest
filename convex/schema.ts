@@ -7,6 +7,7 @@ import { language } from "./lib/language";
 import { entrySource } from "./lib/journal";
 import { slot, urgency as visitUrgency } from "./lib/telehealth";
 import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
+import { asthmaDetails, painDetails, seizureDetails, tracker } from "./lib/trackers";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -76,6 +77,8 @@ export default defineSchema({
     voiceMode: v.optional(v.boolean()), // legacy: the removed voice mode switch; the mic is always on now
     // Free text ("Berkeley, CA 94704") or "lat,lon" from a shared Telegram location.
     location: v.optional(v.string()),
+    // Asthma: the personal best peak flow (L/min) readings are compared with (convex/trackers.ts).
+    peakFlowBest: v.optional(v.number()),
     // Coordinates of `location`, geocoded once for finding care nearby (convex/care.ts).
     locationPoint: v.optional(v.object({ lat: v.number(), lon: v.number(), for: v.string() })),
     // Routing state (convex/pipeline.ts): an analysis offer waiting for a yes.
@@ -230,6 +233,19 @@ export default defineSchema({
     status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
     remindJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_user_and_start", ["userId", "startsAt"]),
+
+  // Condition tracker entries: pain / CRPS, asthma, seizures (convex/trackers.ts). Several a day are fine.
+  trackerEntries: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // YYYY-MM-DD in the user's time zone
+    at: v.number(),
+    tracker,
+    pain: v.optional(painDetails),
+    asthma: v.optional(asthmaDetails),
+    seizure: v.optional(seizureDetails),
+    note: v.optional(v.string()),
+    source: v.union(v.literal("manual"), v.literal("chat")),
+  }).index("by_user_and_date", ["userId", "date"]),
 
   // The daily check-in: mood, energy and sleep quality, 1-5 (convex/daily.ts).
   dailyLogs: defineTable({

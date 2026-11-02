@@ -6,6 +6,8 @@ import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx
 import { Doc, Id } from "./_generated/dataModel";
 import { clampSeverity, dailyPatterns, dailySeverity, dailySummary, DailyLog, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
 import { isDate } from "./lib/health";
+import { painAsEntries } from "./lib/trackers";
+import { trackersSince } from "./trackers";
 import { zoneOffsetMin } from "./lib/reminders";
 
 const MAX_ROWS = 1000;
@@ -114,7 +116,8 @@ export const view = query({
   handler: async (ctx, { since }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId || !isDate(since)) return null;
-    const entries = await entriesSince(ctx, userId, since);
+    const tracked = await trackersSince(ctx, userId, since);
+    const entries = [...(await entriesSince(ctx, userId, since)), ...painAsEntries(tracked)];
     const daily = await dailySince(ctx, userId, since);
     const health = (
       await ctx.db

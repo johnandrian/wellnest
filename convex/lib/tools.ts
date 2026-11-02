@@ -217,6 +217,51 @@ export const journalTools: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "log_condition_event",
+      description:
+        "Log a pain / CRPS episode, an asthma reading or attack, or a seizure in the user's condition trackers when they " +
+        "describe one. Fill in only what they said. Several entries a day are fine. Mention briefly that you logged it. " +
+        "For a seizure that's happening now or lasted over 5 minutes, tell them to call emergency services first.",
+      parameters: {
+        type: "object",
+        properties: {
+          tracker: { type: "string", enum: ["pain", "asthma", "seizure"] },
+          date: { type: "string", description: "YYYY-MM-DD if not today" },
+          note: { type: "string" },
+          severity: { type: "integer", description: "pain: 0-10" },
+          locations: {
+            type: "array",
+            items: { type: "string", enum: ["head", "neck", "shoulders", "chest", "upper_back", "lower_back", "abdomen", "hips", "left_arm", "right_arm", "left_hand", "right_hand", "left_leg", "right_leg", "left_foot", "right_foot", "whole_body"] },
+          },
+          types: { type: "array", items: { type: "string", enum: ["aching", "burning", "stabbing", "throbbing", "shooting", "tingling", "cramping", "pressure"] } },
+          duration_min: { type: "number", description: "pain: how long it lasted, minutes" },
+          flare: { type: "boolean" },
+          swelling: { type: "boolean" },
+          colour_change: { type: "boolean" },
+          temperature_change: { type: "boolean" },
+          touch_sensitive: { type: "boolean", description: "pain from light touch (allodynia)" },
+          triggers: { type: "string" },
+          helped: { type: "string", description: "pain: what helped" },
+          peak_flow: { type: "number", description: "asthma: L/min" },
+          reliever_puffs: { type: "number" },
+          preventer_taken: { type: "boolean" },
+          symptoms: { type: "array", items: { type: "string", enum: ["wheeze", "cough", "chest_tightness", "breathless"] } },
+          night: { type: "boolean", description: "asthma symptoms at night" },
+          attack: { type: "boolean", description: "an asthma attack" },
+          seizure_type: { type: "string", enum: ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] },
+          duration_seconds: { type: "number", description: "seizure length in seconds" },
+          aura: { type: "string", description: "seizure warning signs" },
+          rescue_med: { type: "boolean" },
+          recovery_min: { type: "number" },
+          witness: { type: "string", description: "what someone who saw it said" },
+        },
+        required: ["tracker"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_symptom_journal",
       description:
         "Read the user's symptom journal: per-symptom trends, patterns against their health data (sleep, steps, periods) " +

@@ -8,6 +8,7 @@ import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
+import { TrackersSection } from "./TrackersSection";
 
 const PERIODS = [14, 30, 90];
 
@@ -150,6 +151,8 @@ export function JournalPanel({ s }: { s: Strings }) {
           ))}
         </View>
       )}
+
+      <TrackersSection s={s} days={days} since={days[0]} />
 
       <Text style={styles.section}>{s.journalAdd}</Text>
       <TextInput style={styles.input} placeholder={s.journalSymptomPlaceholder} placeholderTextColor={colors.muted} value={symptom} onChangeText={setSymptom} maxLength={60} />

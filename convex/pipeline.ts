@@ -10,6 +10,7 @@ import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTo
 import { careForModel } from "./care";
 import { localToday } from "./journal";
 import { journalText } from "./lib/journal";
+import { painAsEntries, trackersText } from "./lib/trackers";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -185,6 +186,30 @@ export const respond = internalAction({
         },
         journal: async (name, rawArgs) => {
           const args = parseArgs(rawArgs);
+          if (name === "log_condition_event") {
+            const tracker = args.tracker === "pain" || args.tracker === "asthma" || args.tracker === "seizure" ? args.tracker : null;
+            if (!tracker) return Promise.resolve('Tool error: tracker must be "pain", "asthma" or "seizure".');
+            const a = args as Record<string, any>;
+            return ctx.runMutation(internal.trackers.fromChat, {
+              userId,
+              tracker,
+              date: typeof a.date === "string" ? a.date : undefined,
+              note: typeof a.note === "string" ? a.note : undefined,
+              pain: tracker === "pain" ? {
+                severity: a.severity, locations: a.locations, types: a.types, durationMin: a.duration_min, flare: a.flare,
+                swelling: a.swelling, colourChange: a.colour_change, temperatureChange: a.temperature_change,
+                touchSensitive: a.touch_sensitive, triggers: a.triggers, helped: a.helped,
+              } : undefined,
+              asthma: tracker === "asthma" ? {
+                peakFlow: a.peak_flow, reliever: a.reliever_puffs, preventer: a.preventer_taken, symptoms: a.symptoms,
+                night: a.night, attack: a.attack, triggers: a.triggers,
+              } : undefined,
+              seizure: tracker === "seizure" ? {
+                type: a.seizure_type, durationSec: a.duration_seconds, aura: a.aura, triggers: a.triggers,
+                rescueMed: a.rescue_med, recoveryMin: a.recovery_min, witness: a.witness,
+              } : undefined,
+            });
+          }
           if (name === "log_how_i_feel") {
             return ctx.runMutation(internal.daily.fromChat, {
               userId,
@@ -207,7 +232,10 @@ export const respond = internalAction({
           const since = dateDaysAgo(Date.now(), days - 1);
           const entries = await ctx.runQuery(internal.journal.since, { userId, since });
           const daily = await ctx.runQuery(internal.journal.dailyFrom, { userId, since });
-          return journalText(entries, await healthDays(ctx, userId, Math.min(days, 90)), daily);
+          const tracked = await ctx.runQuery(internal.trackers.since, { userId, since });
+          const text = journalText([...entries, ...painAsEntries(tracked.entries)], await healthDays(ctx, userId, Math.min(days, 90)), daily);
+          const conditions = trackersText(tracked.entries, tracked.peakFlowBest);
+          return conditions ? `${text}\n\nCondition trackers:\n${conditions}` : text;
         },
         fact: (name, rawArgs) => {
           const text = String(parseArgs(rawArgs).fact ?? "");
@@ -419,7 +447,7 @@ ${opts.medications}`);
         result = await opts.visit(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "find_care") {
         result = await opts.findCare(call.function.arguments);
-      } else if (["log_symptom", "get_symptom_journal", "log_how_i_feel"].includes(call.function.name)) {
+      } else if (["log_symptom", "get_symptom_journal", "log_how_i_feel", "log_condition_event"].includes(call.function.name)) {
         result = await opts.journal(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {
         result = await opts.fact(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
