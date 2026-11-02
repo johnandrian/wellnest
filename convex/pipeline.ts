@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, healthDataTool, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { analyzeSymptomsTool, factTools, healthDataTool, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -102,6 +102,7 @@ export const respond = internalAction({
       }
 
       const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId, now });
+      const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId });
 
       // 4. Triage: Jev's emergency answer from step 2.
       urgent = routed.urgent;
@@ -142,6 +143,13 @@ export const respond = internalAction({
         saveLocation: (location) =>
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
+        facts,
+        fact: (name, rawArgs) => {
+          const text = String(parseArgs(rawArgs).fact ?? "");
+          return name === "remember_fact"
+            ? ctx.runMutation(internal.me.rememberFromChat, { userId, text })
+            : ctx.runMutation(internal.me.forgetFromChat, { userId, text });
+        },
         reminder: (name, rawArgs) => {
           const args = parseArgs(rawArgs);
           const medName = typeof args.name === "string" ? args.name : "";
@@ -240,6 +248,8 @@ async function runCore(opts: {
   typing: () => void;
   saveLocation: (location: string) => Promise<null>;
   medications: string;
+  facts: string[];
+  fact: (name: string, rawArgs: string) => Promise<string>;
   reminder: (name: string, rawArgs: string) => Promise<string>;
   prepareVisit: (rawArgs: string) => Promise<string>;
   healthConnected: boolean;
@@ -250,6 +260,11 @@ async function runCore(opts: {
   const { message, memory, history, urgent, analysis, location } = opts;
   const system = [SYSTEM_PROMPT];
   if (location) system.push(`User's saved location: ${location}`);
+  system.push(
+    opts.facts.length
+      ? `Saved facts about the user (they can edit these; call forget_fact if one turns out wrong):\n${opts.facts.map((f) => `- ${f}`).join("\n")}`
+      : "No saved facts about the user yet. When they mention a lasting health fact (allergy, condition, regular medication), call remember_fact.",
+  );
   if (opts.medications) system.push(`Medication reminders the user has set up:
 ${opts.medications}`);
   if (memory.length) {
@@ -269,6 +284,7 @@ ${opts.medications}`);
     saveLocationTool,
     visitSummaryTool,
     ...reminderTools,
+    ...factTools,
     ...(opts.healthConnected ? [healthDataTool] : []),
     ...(analysis === "run" ? [analyzeSymptomsTool] : []),
   ];
@@ -299,6 +315,8 @@ ${opts.medications}`);
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {
+        result = await opts.fact(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "set_medication_reminder" || call.function.name === "cancel_medication_reminder") {
         result = await opts.reminder(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "prepare_visit_summary") {

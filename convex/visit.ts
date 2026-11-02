@@ -132,6 +132,7 @@ export const generate = internalAction({
     const today = dateDaysAgo(now, 0);
     try {
       const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId: data.row.userId, now });
+      const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId: data.row.userId });
       const material = visitMaterial({
         reason: data.row.reason,
         days: data.row.days,
@@ -140,6 +141,7 @@ export const generate = internalAction({
         analyses: data.analyses,
         health: data.healthDays.length ? healthReport(data.healthDays, today) : undefined,
         medications: medications || undefined,
+        facts,
       });
       const { content } = await complete({
         model: CORE_MODEL(),

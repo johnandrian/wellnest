@@ -85,7 +85,7 @@ export const me = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const user = await ctx.db.get(userId);
-    if (!user) return null;
+    if (!user || user.deleting) return null;
     return {
       email: user.email ?? null,
       voiceMode: user.voiceMode ?? true, // voice is on until the user turns it off

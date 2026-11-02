@@ -77,6 +77,10 @@ export default defineSchema({
     // "Clear chat": messages before this time are hidden and left out of the model's context and memory.
     // They aren't deleted, so the daily message limit still counts them.
     chatClearedAt: v.optional(v.number()),
+    // Reply and voice language (convex/lib/language.ts); English when unset.
+    language: v.optional(v.union(v.literal("en"), v.literal("es"), v.literal("el"))),
+    // Set while "Delete everything" runs (convex/me.ts).
+    deleting: v.optional(v.boolean()),
     // IANA zone from the app (e.g. "America/Los_Angeles"), for medication reminder times; the offset is a fallback.
     timeZone: v.optional(v.string()),
     utcOffsetMin: v.optional(v.number()),
@@ -153,14 +157,26 @@ export default defineSchema({
     medicationId: v.id("medications"),
     dueAt: v.number(),
     status: v.union(v.literal("taken"), v.literal("skipped")),
-  }).index("by_medication_and_due", ["medicationId", "dueAt"]),
+  })
+    .index("by_medication_and_due", ["medicationId", "dueAt"])
+    .index("by_user", ["userId"]),
 
   // Photos uploaded from the app: who uploaded each file, and the message that used it (convex/chat.ts).
   photoUploads: defineTable({
     userId: v.id("users"),
     storageId: v.id("_storage"),
     messageId: v.optional(v.id("messages")),
-  }).index("by_storage", ["storageId"]),
+  })
+    .index("by_storage", ["storageId"])
+    .index("by_user", ["userId"]),
+
+  // Facts the assistant keeps in mind on every turn (allergies, conditions...). Saved by the user or by the
+  // model's remember_fact tool; listed, editable and deletable on the "What Wellnest knows" page (convex/me.ts).
+  memoryFacts: defineTable({
+    userId: v.id("users"),
+    text: v.string(),
+    source: v.union(v.literal("user"), v.literal("assistant")),
+  }).index("by_user", ["userId"]),
 
   // Doctor-visit summaries (convex/visit.ts).
   visitSummaries: defineTable({

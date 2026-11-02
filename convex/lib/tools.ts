@@ -125,6 +125,33 @@ export const reminderTools: ToolDef[] = [
   },
 ];
 
+// Handled in the pipeline: saved facts the model sees on every turn (convex/me.ts).
+export const factTools: ToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "remember_fact",
+      description:
+        "Save a lasting fact about the user's health that will matter in future chats: allergies, chronic conditions, " +
+        "regular medications, pregnancy, age, surgeries. Not passing symptoms or moods. One short fact per call, in the " +
+        "third person (e.g. 'Allergic to penicillin (hives)'). The user can see and edit saved facts.",
+      parameters: { type: "object", properties: { fact: { type: "string" } }, required: ["fact"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "forget_fact",
+      description: "Delete a saved fact when the user says it's wrong or no longer true, or asks you to forget it.",
+      parameters: {
+        type: "object",
+        properties: { fact: { type: "string", description: "Key words of the saved fact, e.g. 'penicillin'" } },
+        required: ["fact"],
+      },
+    },
+  },
+];
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

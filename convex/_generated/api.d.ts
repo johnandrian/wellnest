@@ -35,6 +35,7 @@ import type * as lib_speech from "../lib/speech.js";
 import type * as lib_telegram from "../lib/telegram.js";
 import type * as lib_tools from "../lib/tools.js";
 import type * as lib_visit from "../lib/visit.js";
+import type * as me from "../me.js";
 import type * as pipeline from "../pipeline.js";
 import type * as reminders from "../reminders.js";
 import type * as shop from "../shop.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   "lib/telegram": typeof lib_telegram;
   "lib/tools": typeof lib_tools;
   "lib/visit": typeof lib_visit;
+  me: typeof me;
   pipeline: typeof pipeline;
   reminders: typeof reminders;
   shop: typeof shop;

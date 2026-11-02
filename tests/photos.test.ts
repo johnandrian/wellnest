@@ -17,7 +17,7 @@ afterEach(() => {
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
 
-const store = (t: ReturnType<typeof setup>, type = "image/png", bytes: Uint8Array = PNG) =>
+const store = (t: ReturnType<typeof setup>, type = "image/png", bytes: Uint8Array<ArrayBuffer> = PNG) =>
   t.run((ctx) => ctx.storage.store(new Blob([bytes], { type })));
 
 // The last user turn the core model got.

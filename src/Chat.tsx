@@ -27,11 +27,12 @@ import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { VisitPanel } from "./VisitPanel";
 import { RemindersPanel } from "./RemindersPanel";
+import { AboutPanel } from "./AboutPanel";
 import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
 
 // The panels that open under the header.
-type Panel = "settings" | "visit" | "reminders";
+type Panel = "settings" | "visit" | "reminders" | "about";
 
 // One tap sends these from the empty chat, so first-time users (and judges) can try it right away.
 const STARTERS = [
@@ -78,7 +79,8 @@ export function Chat() {
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [panel, setPanel] = useState<Panel | null>(null);
-  const toggle = (p: Panel) => setPanel((open) => (open === p ? null : p));
+  // "about" opens from Settings, so the settings button closes it too.
+  const toggle = (p: Panel) => setPanel((open) => (open === p || (p === "settings" && open === "about") ? null : p));
   const [notice, setNotice] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
@@ -192,16 +194,17 @@ export function Chat() {
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             onPress={() => toggle("settings")}
             accessibilityRole="button"
-            accessibilityLabel={panel === "settings" ? "Close settings" : "Settings"}
+            accessibilityLabel={panel === "settings" || panel === "about" ? "Close settings" : "Settings"}
           >
-            <Ionicons name={panel === "settings" ? "close" : "settings-outline"} size={22} color={colors.text} />
+            <Ionicons name={panel === "settings" || panel === "about" ? "close" : "settings-outline"} size={22} color={colors.text} />
           </Pressable>
         </View>
       </View>
 
       {panel === "visit" && <VisitPanel />}
       {panel === "reminders" && <RemindersPanel />}
-      {panel === "settings" && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} />}
+      {panel === "about" && <AboutPanel />}
+      {panel === "settings" && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} onOpenAbout={() => setPanel("about")} />}
 
       {messages === undefined ? (
         <ActivityIndicator style={{ flex: 1 }} />
@@ -404,10 +407,12 @@ function Settings({
   me,
   health,
   onVoiceModeOn,
+  onOpenAbout,
 }: {
   me: { email: string | null; voiceMode: boolean; telegramLinked: boolean; location: string };
   health: HealthSync;
   onVoiceModeOn: () => void;
+  onOpenAbout: () => void;
 }) {
   const setVoiceMode = useMutation(api.chat.setVoiceMode);
   const setLocation = useMutation(api.chat.setLocation);
@@ -459,6 +464,9 @@ function Settings({
       </Pressable>
       {error && <Text style={styles.error}>{error}</Text>}
       <HealthSettings health={health} />
+      <Pressable style={styles.settingButton} onPress={onOpenAbout} accessibilityRole="button">
+        <Text style={styles.settingButtonText}>What Wellnest knows about me</Text>
+      </Pressable>
       <Pressable onPress={() => void signOut()}>
         <Text style={styles.headerLink}>Sign out</Text>
       </Pressable>

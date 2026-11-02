@@ -8,6 +8,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `VisitPanel.tsx` + `printable.ts` — the doctor-visit summary panel (clipboard button), with share / print-to-PDF.
   - `RemindersPanel.tsx` — medication reminders (pill button); reminder messages in the chat get Taken / Skip buttons.
   - `photo.ts` — pick or take a photo, shrink it to 1600px, upload it to Convex file storage.
+  - `AboutPanel.tsx` — "What Wellnest knows about me" (Settings): saved facts, stored data, sharing, export, delete.
   - `useVoice.ts` — voice mode: mic → Cartesia STT → send; replies → Cartesia TTS. `speaker.web.ts` / `speaker.ts` — streaming playback on web / iOS + Android (see Voice below).
 - `convex/` — backend.
   - `pipeline.ts` — shared pipeline: Jina embed → vector search memory → Cortex triage → Cortex core model + tools → reply.
@@ -19,6 +20,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `health.ts` + `lib/health.ts` — Apple Health daily summaries: sync API, `get_health_data` text, CREAO fields.
   - `visit.ts` + `lib/visit.ts` — doctor-visit summaries (see below).
   - `reminders.ts` + `lib/reminders.ts` — medication reminders: schedules in the user's time zone, dose history (see below).
+  - `me.ts` — saved facts (`remember_fact` / `forget_fact`), the data overview, JSON export and deletion (see below).
   - `lib/jev.ts` — routes each message: shopping, symptom analyzer, or regular.
 - `creao/` — the CREAO agent bundle: `SKILL.md` (its program), `config.yaml` (form fields, memory), `README.md`.
 
@@ -77,6 +79,14 @@ Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a
 - **App:** the camera button picks from the library (web) or takes / picks a photo (iOS/Android). It's shrunk to at most 1600px, uploaded to Convex file storage with a one-time upload URL, claimed by the uploader (`chat.claimUpload`), then sent with the message; `send` only accepts the sender's own unused upload of an image under 8 MB. The chat shows the photo in the bubble.
 - **Telegram:** photos (the largest size up to 1600px) and images sent as files, with the caption as the question. They're stored the same way, so the app shows them too. Over 8 MB or over the daily limit is refused before downloading.
 - **Model:** the photo goes to Cortex as an image content part (a base64 data URL) with that turn only, using `CORTEX_VISION_MODEL` (default: the core model). The system prompt asks it to read labels exactly and say when text is unreadable, to describe skin/wound photos without diagnosing and list what would make them urgent, and never to identify people. Later turns see "[sent a photo]" in the history, not the image.
+
+## What Wellnest knows about me
+Settings → **What Wellnest knows about me** shows, in one place:
+- **Saved facts:** lasting health facts (allergies, conditions, regular medications...) that go into the system prompt on every turn and into visit summaries. The model saves them with `remember_fact` and removes them with `forget_fact` ("I'm not allergic to penicillin after all"); the user can add, edit and remove them. Up to 50, each labelled "saved by Wellnest" or "added by you".
+- **Profile and what's stored:** email, location, time zone, voice and Telegram status, and counts of messages (with the date of the first), photos, symptom analyses, Apple Health days, reminders and Taken / Skip answers, and visit summaries. Counts above 200 show as "200+".
+- **Who sees what:** which outside services get which data (Snowflake Cortex, Jina, Cartesia, Jev, CREAO, Telegram).
+- **Export:** everything as JSON (messages without embeddings; photos listed by storage id). Web downloads a file; iOS/Android open the share sheet.
+- **Delete:** per category (messages with their photos and analyses; Apple Health; reminders, with their scheduled jobs cancelled; visit summaries; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
 
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):

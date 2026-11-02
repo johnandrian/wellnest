@@ -50,11 +50,13 @@ export function visitMaterial(opts: {
   analyses: { at: number; report: string }[];
   health?: string;
   medications?: string;
+  facts?: string[];
 }): string {
   const parts = [
     `Today: ${opts.today}. Period covered: the last ${opts.days} days.`,
     `Reason for the visit: ${opts.reason?.trim() || "not given; infer it from the main concerns"}`,
   ];
+  if (opts.facts?.length) parts.push(`Facts the patient saved in Wellnest:\n${opts.facts.map((f) => `- ${f}`).join("\n")}`);
   if (opts.medications) parts.push(`Medications and reminders the patient set up in Wellnest:\n${opts.medications}`);
   if (opts.health) parts.push(`Apple Health:\n${opts.health}`);
   for (const a of opts.analyses) parts.push(`Earlier AI symptom analysis (${day(a.at)}):\n${a.report.slice(0, 3000)}`);
