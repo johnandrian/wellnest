@@ -1,34 +1,134 @@
-# Wellnest — AI health assistant (CalHacks2026)
+<p align="center">
+  <img src="assets/wellnest-logo.png" alt="Wellnest" width="220">
+</p>
 
-Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing or by voice. See `plan2.md`.
+<p align="center"><b>Your health, in your own words.</b><br>A voice-first AI health companion for the app (web, iPhone, Android) and Telegram.</p>
+
+## What it is
+Wellnest is a health companion you can talk to. Tell it how you feel, ask a question, or send a photo of a pill bottle, and it answers in plain language, remembers what matters, and keeps your health story organised so the next doctor's visit is easier. It is not a doctor: anything urgent gets a clear "get care now", the nearest ER and the emergency number.
+
+What it does:
+- **Talk or type**, in English, Spanish or Greek, in the app or on Telegram. Replies to spoken questions are spoken back.
+- **Remembers you:** past chats, saved facts like allergies, your medications and your appointments.
+- **Keeps a journal for you:** symptoms, a daily mood / energy / sleep check-in, pain and CRPS, asthma (peak flow, inhaler use) and seizure trackers, and your exercise routine, logged just by mentioning them in chat.
+- **Reads your wearables:** Apple Health on iPhone and Health Connect on Android (Samsung, Fitbit, Garmin, Oura, Flo...), with gentle check-ins when your numbers change.
+- **Medications:** reminders with Taken / Skip, doses by time of day, history, side effects, refill warnings and your eScript.
+- **Appointments and care team:** reminders, questions to ask, notes afterwards, one-tap calling.
+- **Gets you care:** doctor-ready visit summaries, PDF reports, read-only share links for carers and doctors, an emergency plan, the nearest urgent care / ER / pharmacy, and telehealth video visits booked only when you confirm.
+- **Yours to control:** see everything Wellnest knows, export it, or delete it.
+
+## Architecture
+The app (Expo / React Native for web, iOS and Android) and the Telegram bot talk to one [Convex](https://convex.dev) backend: database, server functions, scheduler, file storage and HTTP routes. AI and outside services are called from Convex actions, never from the app with secret keys.
+
+```mermaid
+flowchart LR
+  subgraph Phone["Your phone or browser"]
+    App["Wellnest app<br/>(Expo: web, iOS, Android)"]
+    HK["Apple Health /<br/>Health Connect"]
+  end
+  TG["Telegram bot"]
+  subgraph Convex["Convex backend"]
+    API["Queries and mutations<br/>(chat, journal, meds, visits...)"]
+    PIPE["Message pipeline<br/>(action)"]
+    SCHED["Scheduler and crons<br/>(reminders, check-ins, visits)"]
+    HTTP["HTTP routes<br/>/telegram /tts /share /creao"]
+    DB[("Database and<br/>file storage")]
+  end
+  subgraph Services["Outside services"]
+    CORTEX["Snowflake Cortex<br/>(AI model, vision)"]
+    JINA["Jina<br/>(memory, search)"]
+    CART["Cartesia<br/>(speech)"]
+    JEV["Jev<br/>(routing)"]
+    MAPS["OpenStreetMap<br/>(care nearby)"]
+    PUSH["Expo push"]
+    TELE["Telehealth provider"]
+    CREAO["CREAO analyzer"]
+  end
+  HK -- "daily summaries" --> App
+  App <--> API
+  App -- "voice tokens" --> CART
+  TG <--> HTTP
+  HTTP --> PIPE
+  API --> PIPE
+  PIPE --> CORTEX & JINA & JEV
+  PIPE --> MAPS & TELE & CREAO
+  API & PIPE & SCHED --- DB
+  SCHED --> PUSH
+  HTTP -- "read-only report" --> Carer["Carer or doctor<br/>(share link)"]
+```
+
+### How a message is answered
+
+```mermaid
+sequenceDiagram
+  participant U as You (app or Telegram)
+  participant C as Convex
+  participant J as Jev
+  participant M as Jina (memory)
+  participant AI as Cortex (AI model)
+  U->>C: message (text, voice transcript or photo)
+  C->>C: save it, check the daily limit, schedule the pipeline
+  C->>J: urgent? shopping? wants an analysis?
+  C->>M: embed and find related past messages
+  C->>AI: system prompt (facts, meds, appointments, language, emergency plan if urgent) + history + tools
+  loop up to 5 tool rounds
+    AI-->>C: tool call (log_symptom, add_appointment, find_care, get_health_data, ...)
+    C-->>AI: tool result
+  end
+  AI-->>C: reply
+  C-->>U: reply appears live (app), on Telegram, spoken if you asked by voice
+```
+
+### Data, grouped by feature
+
+```mermaid
+flowchart TB
+  users(("users"))
+  users --- chat["messages · photoUploads · memoryFacts"]
+  users --- health["healthDays · checkins"]
+  users --- journal["symptomEntries · dailyLogs · trackerEntries · exercises · exerciseLogs"]
+  users --- meds["medications · doseLogs · medicationEvents · sideEffects"]
+  users --- care["visits · careTeam · appointments (telehealth) · emergencyPlans"]
+  users --- out["visitSummaries · shareLinks · creaoRuns"]
+  users --- devices["pushTokens · authSessions"]
+```
+
+### Things that happen on a schedule
+
+```mermaid
+flowchart LR
+  R["Medication reminder due"] --> RM["chat message + push<br/>(Taken / Skip)"] --> RN["schedule next dose"]
+  H["Every hour"] --> CI["9 AM local: compare health data<br/>with your usual → maybe a check-in"]
+  V["2 h before an appointment"] --> VP["push reminder"]
+  T["15 min before a video visit"] --> TP["push with the join link"]
+  D["Delete my data"] --> DB["delete in batches of 200,<br/>rescheduling itself"]
+```
 
 ## Layout
-- `App.tsx`, `src/` — Expo app: sign-in, chat, settings (language, notifications, "Text me on Telegram").
-  - `health.ios.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health on iPhone (see below); `health.ts` is the web/Android stand-in.
-  - `VisitPanel.tsx` + `printable.ts` — the doctor-visit summary panel (clipboard button), with share / print-to-PDF.
-  - `RemindersPanel.tsx` — medication reminders (pill button); reminder messages in the chat get Taken / Skip buttons.
-  - `photo.ts` — pick or take a photo, shrink it to 1600px, upload it to Convex file storage.
-  - `AboutPanel.tsx` — "What Wellnest knows about me" (Settings): saved facts, stored data, sharing, export, delete.
-  - `i18n.ts` — the chat screen's words in English, Spanish and Greek.
-  - `useVoice.ts` — the mic: Cartesia STT → send; replies to spoken questions → Cartesia TTS. `speaker.web.ts` / `speaker.ts` — streaming playback on web / iOS + Android (see Voice below).
-- `convex/` — backend.
-  - `pipeline.ts` — shared pipeline: Jina embed → vector search memory → Cortex triage → Cortex core model + tools → reply.
-  - `chat.ts` — app API. `telegram.ts` + `http.ts` — Telegram webhook, account linking and voice notes.
-  - `voice.ts` — Cartesia tokens for the app, and `/tts` (a streamed MP3 of a reply, for iOS/Android).
-  - `lib/` — Cortex, Jina, Telegram, Cartesia (`cartesia.ts`) clients, `speech.ts` (Markdown → speakable text), and model tools (`web_search`, `read_page`, `bio_research`).
-  - `creao.ts` + `lib/creao.ts` — detailed symptom analysis by the CREAO agent (see below).
-  - `shop.ts` + `lib/shopping/` — Health Supply Shopper: Amazon and Walmart links for OTC health supplies (see below).
-  - `health.ts` + `lib/health.ts` — Apple Health daily summaries: sync API, `get_health_data` text, CREAO fields.
-  - `visit.ts` + `lib/visit.ts` — doctor-visit summaries (see below).
-  - `reminders.ts` + `lib/reminders.ts` — medication reminders: schedules in the user's time zone, dose history (see below).
-  - `me.ts` — saved facts (`remember_fact` / `forget_fact`), the data overview, JSON export and deletion (see below).
-  - `lib/language.ts` — reply/voice languages (English, Spanish, Greek) and the fixed messages in each.
-  - `lib/jev.ts` — routes each message: shopping, symptom analyzer, or regular.
-- `creao/` — the CREAO agent bundle: `SKILL.md` (its program), `config.yaml` (form fields, memory), `README.md`.
+- `App.tsx`, `src/` — the Expo app.
+  - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** button's tabs.
+  - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
+  - `MedicationsPanel.tsx` — medications and reminders; `ExercisePanel.tsx` — exercise routine.
+  - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
+  - `CarePanel.tsx`, `EmergencyCard.tsx`, `TelehealthCard.tsx` — care nearby, emergency plan, video visits.
+  - `health.ios.ts` / `health.android.ts` / `health.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health / Health Connect sync.
+  - `AboutPanel.tsx` — "What Wellnest knows about me". `push.ts` — notifications. `photo.ts` — photos. `i18n.ts` — English, Spanish, Greek.
+  - `useVoice.ts`, `speaker.web.ts` / `speaker.ts` — the mic and spoken replies (see Voice below).
+- `convex/` — the backend. `schema.ts` has every table.
+  - `pipeline.ts` — the message pipeline and the model's tools; `lib/tools.ts` — tool definitions.
+  - `chat.ts`, `telegram.ts`, `http.ts`, `voice.ts` — app API, Telegram, HTTP routes, voice.
+  - `journal.ts`, `daily.ts`, `trackers.ts`, `exercises.ts` (+ `lib/journal.ts`, `lib/trackers.ts`) — the journal and trackers.
+  - `reminders.ts`, `medications.ts` (+ `lib/reminders.ts`, `lib/meds.ts`) — medications.
+  - `visits.ts`, `telehealth.ts`, `care.ts`, `emergency.ts` — appointments, video visits, care nearby, emergency plans.
+  - `visit.ts`, `reports.ts`, `share.ts` (+ `lib/report.ts`) — visit summaries, PDF reports, share links.
+  - `health.ts`, `checkins.ts` — wearable data and check-ins. `push.ts` — notifications. `me.ts` — facts, export, deletion.
+  - `creao.ts`, `shop.ts`, `lib/` — CREAO analysis, the supply shopper, and clients for Cortex, Jina, Cartesia, Telegram, Jev, OpenStreetMap.
+- `tests/` — Vitest + convex-test; every outside API is faked.
+- `creao/` — the CREAO agent bundle.
 
 ## Live
-- **Web app:** https://merry-capybara-181.convex.site (Expo web build served by Convex static hosting, on the dev deployment). Redeploy with `npm run deploy:web`.
-- **Telegram:** [@calhacks2026_bot](https://t.me/calhacks2026_bot).
+- **Web app:** https://helpful-rat-671.convex.site (also https://talktothebeak.health). Expo web build served by Convex static hosting.
+- **Telegram:** [@calhacks2026_bot](https://t.me/calhacks2026_bot) (still pointed at the original hackathon deployment).
 
 ## Run
 ```bash
@@ -36,7 +136,13 @@ npm install
 npx convex dev          # backend (writes EXPO_PUBLIC_CONVEX_URL to .env.local)
 npx expo start --web    # or press i / a for iOS / Android
 ```
-Voice recording needs a development build on native (`npx expo run:ios`), not Expo Go.
+Voice recording, Apple Health / Health Connect, push and PDF sharing need a development build on native (`npx eas-cli build --profile development`), not Expo Go.
+
+```bash
+npx vitest run               # tests (outside APIs faked)
+npx tsc --noEmit -p .        # app typecheck
+npx tsc --noEmit -p convex   # backend typecheck
+```
 
 ## Convex env vars (`npx convex env set NAME value`)
 | Var | What |
@@ -54,6 +160,8 @@ Voice recording needs a development build on native (`npx expo run:ios`), not Ex
 | `CREAO_APP_ID` | optional, defaults to the Symptom & Biosensor Health Analyzer (`4a2f70bf-4da0-422d-a0e2-9c9bc003fd9c`) |
 | `JEV_API_KEY` | TypeSafe Jev key; routes each message (optional `JEV_MODEL`, default `jev-latest`) |
 | `CORTEX_SHOPPER_MODEL` | optional; the Snowflake model that reads shopping requests (default: the triage model) |
+| `TELEHEALTH_PROVIDER` | `test` (default: made-up times, nothing real booked) or `http` with `TELEHEALTH_API_URL`, `TELEHEALTH_API_KEY` and optional `TELEHEALTH_PROVIDER_NAME` |
+| `EXPO_ACCESS_TOKEN` | optional; only if Expo's enhanced push security is on |
 
 ## Apple Health
 The iPhone app reads **daily summaries** from HealthKit and syncs them to `healthDays` (one row per user per local day): steps, active energy, resting heart rate, HRV (SDNN), sleep (asleep time, overlapping watch/phone logs merged), breathing rate, SpO2, sleeping wrist temperature, weight, and menstrual flow. Raw samples never leave the phone. Cycle apps like Flo, Clue and the Health app itself write flow logs to Apple Health, so period data comes along without a Flo integration; Garmin, Oura and Whoop also copy much of their data there.
@@ -72,12 +180,21 @@ A one-page Markdown summary to bring to an appointment: reason, main concerns, a
 - **Chat:** "prepare me for my doctor's appointment" makes the model call `prepare_visit_summary`. In the app a note says it's ready; on Telegram the summary itself is sent.
 - **Limits:** one at a time, 5 a day.
 
-## Medication reminders
+## Medications and reminders
+The **Medications** tab lists every medication: active, paused and stopped (kept for the history). Tap one for its details:
+- **Details:** generic name, form (tablet, inhaler, patch...), prescriber, notes, and a **different dose at some times** (e.g. 300 mg in the morning, 600 mg at night); the reminder says the right dose.
+- **History:** started, paused, resumed, stopped, dose changes and refills, each dated (`medicationEvents`). Pausing cancels reminders; resuming brings them back.
+- **Side effects:** dated, with an optional 0-10 severity (`sideEffects`).
+- **Refills:** units on hand and per dose; each **Taken** counts one dose off, and when the supply will run out within the warning window (7 days by default) a chat note and a push say so, once until the next refill.
+- **eScript:** a photo of the QR code or prescription label, uploaded like a chat photo and kept with the medication.
+- **Chat:** "the new pills make me dizzy", "I stopped my ibuprofen", "my sertraline went up to 100 mg" → `update_medication`. The model sees each medication's details, adherence, dose changes and side effects.
+
+### Reminders
 Each due dose posts a reminder message in the app chat ("💊 Time for your **Ibuprofen** (400 mg). Due 8:00 PM.") with **Taken** / **Skip** buttons; answers go to `doseLogs` and can be changed. Reminders aren't embedded for memory and aren't read aloud. They're in-app only, not sent on Telegram.
 - **Schedules:** daily at set local times (up to 8), or every N hours (1-72) from the first dose; optionally for a course of N days (a dose due at the very end isn't sent). Up to 20 active reminders.
 - **Time zones:** the app reports the device's IANA zone (`chat.setTimeZone`) on start; daily times follow it across daylight saving. Until the app has been opened, times are UTC (the model says so). A fixed UTC offset is the fallback if the runtime can't resolve the zone.
 - **Scheduling:** one scheduled function per reminder (`fire`), which posts the message and schedules the next dose. Stopping cancels it; stale jobs are ignored.
-- **Chat:** "remind me to take ibuprofen 400 mg every 6 hours for 3 days" → `set_medication_reminder`; "stop my ibuprofen reminders" → `cancel_medication_reminder`. The model sees the user's current reminders, and visit summaries get them with the last 30 days of Taken / Skip.
+- **Chat:** "remind me to take ibuprofen 400 mg every 6 hours for 3 days" → `set_medication_reminder`; "stop my ibuprofen reminders" → `cancel_medication_reminder`. Visit summaries and reports get each medication with the last 30 days of Taken / Skip.
 
 ## Photos
 Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a wound.
@@ -91,13 +208,13 @@ Settings → **What Wellnest knows about me** shows, in one place:
 - **Profile and what's stored:** email, location, time zone, voice and Telegram status, and counts of messages (with the date of the first), photos, symptom analyses, Apple Health days, reminders and Taken / Skip answers, and visit summaries. Counts above 200 show as "200+".
 - **Who sees what:** which outside services get which data (Snowflake Cortex, Jina, Cartesia, Jev, CREAO, Telegram).
 - **Export:** everything as JSON (messages without embeddings; photos listed by storage id). Web downloads a file; iOS/Android open the share sheet.
-- **Delete:** per category (messages with their photos and analyses; Apple Health; reminders, with their scheduled jobs cancelled; visit summaries; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
+- **Delete:** per category (messages with their photos, analyses, check-ins and video visits; health data; medications with their history; the journal with check-ins, trackers and exercises; appointments, care team and emergency plan; visit summaries; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
 
 ## Languages
 Wellnest speaks **English, Spanish and Greek**. The user picks one in Settings, or on Telegram with `/language en|es|el`; a new Telegram user starts in their Telegram app's language if it's one of these.
 - **Replies:** the core model is told to answer in that language unless the user writes in another one, using everyday words plus the common name of medical terms.
 - **Voice:** Cartesia STT (ink-whisper) and Sonic TTS get the language: the app's token carries it (`voice.token`), and `/tts` and Telegram voice notes read it from the user. One Sonic voice speaks all three unless `CARTESIA_VOICE_ID_ES` / `_EL` is set. Cut-short speech ends with "the rest is in the text" in that language.
-- **Also translated:** medication reminder messages (local time format), visit summaries (written in that language), check-ins, telehealth messages and push notifications, the daily-limit and error replies, and the whole app: chat, Settings, Health tools tabs (journal, reminders, visit summary, care, video visits) and "What Wellnest knows about me" (`src/i18n.ts`; the typecheck fails if a language is missing a string). Still English: the sign-in screen (the language isn't known yet), microphone error messages, and error text that comes from the server.
+- **Also translated:** medication reminder messages (local time format), visit summaries (written in that language), check-ins, telehealth messages and push notifications, the daily-limit and error replies, and the whole app: chat, Settings, every Health tools tab and "What Wellnest knows about me" (`src/i18n.ts`; the typecheck fails if a language is missing a string). Still English: the sign-in screen (the language isn't known yet), microphone error messages, and error text that comes from the server.
 
 ## Push notifications
 iOS and Android get push notifications (Expo push) for **medication reminders** (with Taken / Skip buttons right on the notification) and **telehealth appointment updates**. Each kind can be turned off in Settings.
@@ -105,7 +222,7 @@ iOS and Android get push notifications (Expo push) for **medication reminders** 
 - **Devices:** each phone registers its token in `pushTokens` (up to 10 per user; a phone that signs in to another account moves to it). Signing out removes it; tokens Expo reports as `DeviceNotRegistered` are dropped.
 
 ## Symptom journal
-When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (pulse icon) opens tabs for the Journal, Reminders and the Visit summary.
+When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (pulse icon) opens tabs for the Journal, Medications, Exercise, Visits, Reports and Care; the tab bar scrolls sideways on phones.
 - **Journal tab:** a severity bar chart per symptom for 14, 30 or 90 days, with Apple Health sleep (dark when under 6 h) and period days underneath; per-symptom summaries (days logged, average, latest, getting better or worse); and patterns such as "Headache averaged 7/10 on days with under 6 h of sleep vs 3/10 otherwise", shown only with at least 3 days on each side and a 1.5-point gap, and labelled as associations, not causes. Entries can be added or removed by hand.
 - **Model and summaries:** `get_symptom_journal` gives the model the same summaries, patterns and entries; visit summaries include them. The journal can be deleted from "What Wellnest knows about me".
 
@@ -122,6 +239,31 @@ When something needs a clinician but isn't an emergency (likely needs a prescrip
 The **Care** tab (Health tools) lists the nearest urgent care, ERs, pharmacies or doctors with distance, address, hours (open 24/7 called out), a **Call** button and **Directions** (opens Google Maps or the phone's maps app), above a big "Call 911" button (112 in Greek). It searches around the phone's current location when "Use my current location" is ticked (expo-location, asked only then), otherwise around the saved location, which is geocoded once and kept on the user (`users.locationPoint`) until it changes.
 - **Data:** OpenStreetMap, free and keyless: Nominatim for geocoding, Overpass for places (`convex/lib/places.ts`), with a descriptive User-Agent. Coverage and hours vary by area, so the app says to call first.
 - **Model:** `find_care` gives the same list as Markdown with `tel:` call links and directions links. Urgent messages are told to call it (ER for anything life-threatening, otherwise urgent care) instead of searching the web. The app's Markdown opens `tel:` links; Telegram shows the number as text.
+
+## Daily check-in
+"How's today?": mood, energy and sleep quality, 1-5, one tap each (`dailyLogs`). The card sits above the chat until it's answered or "Not today", and stays in the Journal tab to change answers. Saying "I'm wiped out" or "slept great" in chat fills it in too (`log_how_i_feel`). The Journal tab charts the three over 14, 30 or 90 days, and patterns compare mood and energy with sleep, activity and period days (at least 3 days each side, a 1-point gap).
+
+## Condition trackers
+Pain / CRPS, asthma and seizures, each with its own fields, in the Journal tab (`trackerEntries`; several entries a day are fine):
+- **Pain / CRPS:** 0-10 score, body areas, what it feels like (burning, stabbing...), how long, flare, swelling, colour or temperature change, pain on light touch, triggers and what helped. Pain scores also feed the journal's charts and patterns.
+- **Asthma:** peak flow against your personal best (the chart colours 80%+, 50-80% and under 50%), reliever puffs, preventer taken, symptoms (wheeze, cough, tight chest, short of breath), night symptoms, attacks and triggers.
+- **Seizures:** type, length, warning signs, triggers, rescue medication, recovery time and what a witness saw, with a reminder to call emergency services first when it's over 5 minutes.
+- **Chat:** "had a seizure, about 2 minutes, took my rescue med" or "back pain's a 7, burning down my left leg" → `log_condition_event`. The journal read, visit summaries and reports include the trackers.
+
+## Exercise and physio
+A routine of exercises (sets × reps or minutes, on chosen weekdays) to tick off each day, with a 14-day strip per exercise (green done, amber missed). "Did my stretches" in chat ticks them off (`log_exercise_done`; `add_exercise` adds one). Adherence ("done 9 of 12 scheduled days") goes to the model, visit summaries and reports, and the journal compares symptoms on done vs missed days.
+
+## Appointments and care team
+The **Visits** tab holds every appointment (in person, video or phone) with **questions to ask** before and **notes** after, a push reminder 2 hours before, and "Make a visit summary" for it. Booked telehealth visits show in the same list. The **care team** keeps your doctors, nurses and therapists with one-tap call and email. "I've got the rheumatologist Thursday at 2 with Dr. Lee" → `add_appointment` (local time; the clinician is added to the care team). The model sees upcoming appointments and the care team, and visit summaries include the questions and notes.
+
+## PDF reports
+The **Reports** tab makes a report for any date range (last 30 / 90 days, last year, or custom dates up to a year) with the sections you tick: key facts, medications (with adherence, changes and side effects), symptoms and daily check-ins, condition trackers, exercise, health data, appointments and care team, and the emergency plan. It's one self-contained HTML page with inline SVG charts and no scripts (`convex/lib/report.ts`), in your language. On iOS/Android it becomes a PDF (`expo-print`) and opens the share sheet; on web it opens the print dialog to save as PDF.
+
+## Share links for carers and doctors
+A **share link** is a private, read-only web page of the sections you pick (`/share/<token>`, `convex/share.ts`). It shows the last 30, 90 or 365 days whenever it's opened, so it's always current. Links last 1, 7 or 30 days or until you turn them off; the Reports tab shows each link's opens and when it was last opened, and turns links off. Tokens are 24 random bytes; the page is served with `no-store`, `noindex`, no referrer and a strict Content-Security-Policy (no scripts, no outside loads, no framing). Deleting your account removes your links. Up to 20 active links.
+
+## Emergency plan
+In the **Care** tab: write what the people around you should do (sections of numbered steps, with editable templates for seizures, asthma attacks and pain flares), your emergency contacts, and the asthma action plan your doctor gave you (preventer, reliever, and the well / worse / emergency zones). **Show full screen** gives big text, a call-emergency-services button and tap-to-call contacts; **Share with carers** makes a share link to just the plan that stays on until you turn it off. On urgent messages the model is given your plan so it can point you to your own steps. Wellnest stores the plan; the templates are general first aid to start from, to check with your doctor.
 
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):
