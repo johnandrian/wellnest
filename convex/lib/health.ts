@@ -10,6 +10,10 @@ export const menstrualFlow = v.union(
   v.literal("heavy"),
 );
 
+// Where the phone read it: Apple Health (iPhone) or Health Connect (Android).
+export const healthSource = v.union(v.literal("apple_health"), v.literal("health_connect"));
+export const SOURCE_NAMES = { apple_health: "Apple Health", health_connect: "Health Connect" } as const;
+
 export const healthMetrics = v.object({
   steps: v.optional(v.number()),
   activeEnergyKcal: v.optional(v.number()),
@@ -155,8 +159,8 @@ export function cycleSummary(days: HealthDay[], today: string): { text: string; 
 
 // Everything the model gets from get_health_data.
 export function healthReport(days: HealthDay[], today: string): string {
-  if (!days.length) return "No Apple Health data for that period yet. The phone app syncs when Wellnest is opened.";
-  const out = [`Apple Health, ${days[0].date} to ${days[days.length - 1].date}:`];
+  if (!days.length) return "No health data for that period yet. The phone app syncs when Wellnest is opened.";
+  const out = [`Health data, ${days[0].date} to ${days[days.length - 1].date}:`];
   const summary = summarize(days);
   if (summary) out.push(summary);
   const cycle = cycleSummary(days, today);
@@ -169,7 +173,7 @@ export function healthReport(days: HealthDay[], today: string): string {
 export function biosensorText(days: HealthDay[]): string | undefined {
   const withVitals = days.filter((d) => Object.keys(d.metrics).some((k) => k !== "menstrualFlow"));
   if (!withVitals.length) return undefined;
-  return [`From Apple Health (${withVitals.length} days).`, summarize(withVitals), formatDays(withVitals.slice(-7))]
+  return [`From the phone's health data (${withVitals.length} days).`, summarize(withVitals), formatDays(withVitals.slice(-7))]
     .filter(Boolean)
     .join("\n")
     .slice(0, 2000);

@@ -41,9 +41,9 @@ const PHOTO_PROMPT = `The user attached a photo. Look at it carefully and say br
 - Skin, rashes, wounds, eyes, swelling: describe what's visible, but you can't diagnose from a photo. Say what would make it urgent (spreading redness, fever, severe pain, trouble breathing...) and when to see a clinician.
 - Never try to identify people in photos.`;
 
-const HEALTH_PROMPT = `The user connected Apple Health. When their metrics could help (tiredness, sleep, possible illness, heart rate, their cycle), call get_health_data and mention the specific numbers that matter. Don't recite numbers that aren't relevant, and don't diagnose from them.`;
+const HEALTH_PROMPT = `The user connected their phone's health data (Apple Health or Health Connect). When their metrics could help (tiredness, sleep, possible illness, heart rate, their cycle), call get_health_data and mention the specific numbers that matter. Don't recite numbers that aren't relevant, and don't diagnose from them.`;
 
-const HEALTH_IN_ANALYSIS_PROMPT = `The user has agreed to include their Apple Health summaries in symptom analyses; they're added to it automatically.`;
+const HEALTH_IN_ANALYSIS_PROMPT = `The user has agreed to include their health data summaries in symptom analyses; they're added to it automatically.`;
 
 const RUN_ANALYSIS_PROMPT = `The user agreed to a detailed symptom analysis. Call analyze_symptoms now with every symptom detail they've given in this conversation (plus any health-app data or cycle info), then tell them the report will arrive in a few minutes.`;
 
@@ -349,7 +349,7 @@ ${opts.medications}`);
         result = await opts.prepareVisit(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "get_health_data") {
         result = !opts.healthConnected
-          ? "Tool error: the user hasn't connected Apple Health."
+          ? "Tool error: the user hasn't connected their health data."
           : await opts.getHealthData(healthDaysArg(call.function.arguments)).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "analyze_symptoms") {
         result =

@@ -8,6 +8,8 @@ import {
 } from "@kingstinct/react-native-healthkit";
 import type { HealthDay, HealthMetrics } from "../convex/lib/health";
 
+export const healthSource = "apple_health" as const;
+export const healthName = "Apple Health";
 export const healthSupported = isHealthDataAvailable();
 
 const QUANTITIES = [
@@ -30,7 +32,7 @@ const ASLEEP = new Set([1, 3, 4, 5]);
 const FLOWS = { 5: "none", 1: "unspecified", 2: "light", 3: "medium", 4: "heavy" } as const;
 const FLOW_RANK = ["none", "unspecified", "light", "medium", "heavy"];
 
-export async function connectAppleHealth(): Promise<void> {
+export async function connectHealth(): Promise<void> {
   if (!healthSupported) throw new Error("Health data isn't available on this device.");
   // iOS shows its own sheet once; it never says which types were allowed (reads of denied types just come back empty).
   await requestAuthorization({ toRead: [...QUANTITIES.map((q) => q.id), SLEEP, FLOW] });

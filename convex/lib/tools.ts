@@ -63,7 +63,7 @@ export const healthDataTool: ToolDef = {
   function: {
     name: "get_health_data",
     description:
-      "Read the user's Apple Health daily summaries (steps, resting heart rate, HRV, sleep, breathing rate, SpO2, wrist " +
+      "Read the user's daily health summaries from Apple Health or Health Connect (steps, resting heart rate, HRV, sleep, breathing rate, SpO2, wrist " +
       "temperature, weight, logged periods) with averages and recent changes. Use when their metrics could help answer, " +
       "e.g. tiredness, sleep, possible illness, heart rate, cycle questions.",
     parameters: {
@@ -80,7 +80,7 @@ export const visitSummaryTool: ToolDef = {
     name: "prepare_visit_summary",
     description:
       "Write a one-page summary for the user to bring to a doctor's appointment, from their recent chats, symptom " +
-      "analyses, medications and Apple Health data. Use when they ask to prepare for an appointment or want a summary " +
+      "analyses, medications and phone health data. Use when they ask to prepare for an appointment or want a summary " +
       "for their doctor. It's ready in under a minute.",
     parameters: {
       type: "object",
@@ -179,7 +179,7 @@ export const journalTools: ToolDef[] = [
     function: {
       name: "get_symptom_journal",
       description:
-        "Read the user's symptom journal: per-symptom trends, patterns against Apple Health (sleep, steps, periods) " +
+        "Read the user's symptom journal: per-symptom trends, patterns against their health data (sleep, steps, periods) " +
         "and the entries. Use when they ask how a symptom has been, what triggers it, or whether it's improving.",
       parameters: { type: "object", properties: { days: { type: "integer", description: "1-180, default 30" } } },
     },

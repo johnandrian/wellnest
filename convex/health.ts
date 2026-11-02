@@ -1,17 +1,18 @@
-// Apple Health: the iOS app reads daily summaries from HealthKit (src/health.ios.ts) and syncs them here.
+// Phone health data: the app reads daily summaries from Apple Health (src/health.ios.ts) or Health Connect
+// (src/health.android.ts) and syncs them here.
 // The model reads them with get_health_data (convex/pipeline.ts); CREAO gets them only with the user's OK.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { cleanMetrics, healthMetrics, isDate, MAX_SYNC_DAYS } from "./lib/health";
+import { cleanMetrics, healthMetrics, healthSource, isDate, MAX_SYNC_DAYS } from "./lib/health";
 
 const DELETE_BATCH = 200;
 
 // Upserts up to 90 days of summaries. Days the phone sends with nothing usable are left as they are.
 export const sync = mutation({
-  args: { days: v.array(v.object({ date: v.string(), metrics: healthMetrics })) },
-  handler: async (ctx, { days }) => {
+  args: { days: v.array(v.object({ date: v.string(), metrics: healthMetrics })), source: v.optional(healthSource) },
+  handler: async (ctx, { days, source = "apple_health" }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     if (days.length > MAX_SYNC_DAYS) throw new Error(`At most ${MAX_SYNC_DAYS} days per sync`);
@@ -25,14 +26,19 @@ export const sync = mutation({
         .query("healthDays")
         .withIndex("by_user_and_date", (q) => q.eq("userId", userId).eq("date", day.date))
         .unique();
-      if (existing) await ctx.db.patch(existing._id, { metrics });
-      else await ctx.db.insert("healthDays", { userId, date: day.date, source: "apple_health", metrics });
+      if (existing) await ctx.db.patch(existing._id, { metrics, source });
+      else await ctx.db.insert("healthDays", { userId, date: day.date, source, metrics });
       saved++;
     }
     const user = await ctx.db.get(userId);
     const now = Date.now();
     await ctx.db.patch(userId, {
-      health: { connectedAt: user?.health?.connectedAt ?? now, syncedAt: now, shareWithAnalysis: user?.health?.shareWithAnalysis ?? false },
+      health: {
+        connectedAt: user?.health?.connectedAt ?? now,
+        syncedAt: now,
+        shareWithAnalysis: user?.health?.shareWithAnalysis ?? false,
+        source,
+      },
     });
     return { saved };
   },
@@ -54,6 +60,7 @@ export const status = query({
       connected: true as const,
       syncedAt: user.health.syncedAt,
       shareWithAnalysis: user.health.shareWithAnalysis,
+      source: user.health.source ?? ("apple_health" as const),
       latestDate: latest?.date ?? null,
     };
   },
@@ -65,7 +72,7 @@ export const setShareWithAnalysis = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const user = await ctx.db.get(userId);
-    if (!user?.health) throw new Error("Apple Health isn't connected");
+    if (!user?.health) throw new Error("Health data isn't connected");
     await ctx.db.patch(userId, { health: { ...user.health, shareWithAnalysis: enabled } });
   },
 });

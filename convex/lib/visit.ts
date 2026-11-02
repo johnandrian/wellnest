@@ -17,7 +17,7 @@ Sections, in this order:
 ## Timeline (dated bullets, oldest first)
 ## Symptoms (for each: onset, how often, severity, triggers, what helps or doesn't)
 ## Medications and supplements (what, dose, how often, since when, as mentioned)
-## Health data (only notable trends from the Apple Health numbers, with the numbers)
+## Health data (only notable trends from the phone's health numbers, with the numbers)
 ## Earlier AI analyses (one or two lines each; label them as AI-generated, not a diagnosis)
 ## Questions to ask (3-6 short questions)
 End with this line in italics: Prepared by Wellnest (AI) from my own notes and chats. Not a medical record.`;
@@ -60,7 +60,7 @@ export function visitMaterial(opts: {
   if (opts.facts?.length) parts.push(`Facts the patient saved in Wellnest:\n${opts.facts.map((f) => `- ${f}`).join("\n")}`);
   if (opts.medications) parts.push(`Medications and reminders the patient set up in Wellnest:\n${opts.medications}`);
   if (opts.journal) parts.push(`Symptom journal:\n${opts.journal}`);
-  if (opts.health) parts.push(`Apple Health:\n${opts.health}`);
+  if (opts.health) parts.push(`Health data from the phone (Apple Health or Health Connect):\n${opts.health}`);
   for (const a of opts.analyses) parts.push(`Earlier AI symptom analysis (${day(a.at)}):\n${a.report.slice(0, 3000)}`);
   parts.push(opts.messages.length ? `Chat:\n${transcript(opts.messages)}` : "Chat: (no messages in this period)");
   return parts.join("\n\n");

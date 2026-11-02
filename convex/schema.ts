@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { healthMetrics } from "./lib/health";
+import { healthMetrics, healthSource } from "./lib/health";
 import { schedule } from "./lib/reminders";
 import { language } from "./lib/language";
 import { entrySource } from "./lib/journal";
@@ -95,6 +95,7 @@ export default defineSchema({
       v.object({
         connectedAt: v.number(),
         syncedAt: v.number(),
+        source: v.optional(healthSource), // missing on links made before Android support: Apple Health
         // The user's OK to include their Apple Health summaries in CREAO symptom analyses.
         shareWithAnalysis: v.boolean(),
       }),
@@ -140,7 +141,7 @@ export default defineSchema({
   healthDays: defineTable({
     userId: v.id("users"),
     date: v.string(), // YYYY-MM-DD, the phone's local date
-    source: v.literal("apple_health"),
+    source: healthSource,
     metrics: healthMetrics,
   }).index("by_user_and_date", ["userId", "date"]),
 

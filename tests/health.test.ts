@@ -76,10 +76,19 @@ describe("health sync", () => {
       connected: true,
       syncedAt: expect.any(Number),
       shareWithAnalysis: false,
+      source: "apple_health",
       latestDate: "2026-11-01",
     });
     const user = await t.run((ctx) => ctx.db.get(userId));
     expect(user?.health?.connectedAt).toBeLessThan(NOW + 60_000); // kept from the first sync
+  });
+
+  test("Android phones sync from Health Connect; the source is kept", async () => {
+    const t = setup();
+    const { userId, as } = await createAppUser(t);
+    await as.mutation(api.health.sync, { days: [{ date: "2026-11-01", metrics: { steps: 4000 } }], source: "health_connect" });
+    expect((await as.query(api.health.status))!).toMatchObject({ connected: true, source: "health_connect" });
+    expect((await daysOf(t, userId))[0].source).toBe("health_connect");
   });
 
   test("refuses more than 90 days at once", async () => {
@@ -142,9 +151,9 @@ describe("get_health_data tool", () => {
     await drain(t);
 
     expect(coreTools(calls)).toContain("get_health_data");
-    expect(cortexCalls(calls)[0].body.messages[0].content).toContain("The user connected Apple Health");
+    expect(cortexCalls(calls)[0].body.messages[0].content).toContain("The user connected their phone's health data");
     const result = toolResult(calls)!;
-    expect(result).toContain("Apple Health, 2026-10-27 to 2026-11-02");
+    expect(result).toContain("Health data, 2026-10-27 to 2026-11-02");
     expect(result).toContain("Resting heart rate: average 60 bpm; last 3 days 66 vs 56 before");
     expect(result).toContain("2026-11-02: steps 9,000 · resting HR 66 bpm · sleep 5.2 h");
     expect(result).not.toContain("2026-10-26"); // outside the 7 days asked for
@@ -157,7 +166,7 @@ describe("get_health_data tool", () => {
     await as.mutation(api.health.sync, { days: [{ date: "2026-09-01", metrics: { steps: 100 } }] });
     await as.mutation(api.chat.send, { text: "how did I sleep" });
     await drain(t);
-    expect(toolResult(calls)).toMatch(/No Apple Health data for that period/);
+    expect(toolResult(calls)).toMatch(/No health data for that period/);
   });
 });
 
@@ -190,10 +199,10 @@ describe("Apple Health in CREAO analyses", () => {
   test("adds biosensor and cycle data when the user agreed to share", async () => {
     const { calls, inputs } = await analyze(true);
     expect(inputs.symptoms).toBe("Tired for two weeks");
-    expect(inputs.biosensor_data).toContain("From Apple Health (14 days)");
+    expect(inputs.biosensor_data).toContain("From the phone's health data (14 days)");
     expect(inputs.cycle_data).toContain("Period starts logged: 2026-09-29, 2026-10-27.");
     expect(inputs.last_period_start).toBe("2026-10-27");
-    expect(cortexCalls(calls)[0].body.messages[0].content).toContain("agreed to include their Apple Health summaries");
+    expect(cortexCalls(calls)[0].body.messages[0].content).toContain("agreed to include their health data summaries");
   });
 
   test("sends nothing from Apple Health without that OK", async () => {

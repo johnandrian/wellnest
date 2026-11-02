@@ -99,7 +99,7 @@ export function journalText(entries: Entry[], health: HealthDay[]): string {
   const found = patterns(entries, health);
   return [
     "Summary:\n" + summaries(entries).join("\n"),
-    found.length ? "Patterns with Apple Health (associations, not causes):\n" + found.join("\n") : "",
+    found.length ? "Patterns with health data (associations, not causes):\n" + found.join("\n") : "",
     "Entries:\n" + lines.join("\n"),
   ]
     .filter(Boolean)

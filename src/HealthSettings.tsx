@@ -1,4 +1,5 @@
-// The Apple Health part of Settings: connect (iPhone only), sync status, sharing with analyses, disconnect.
+// The phone health data part of Settings (Apple Health on iPhone, Health Connect on Android): connect, sync status,
+// sharing with analyses, disconnect. The web app shows the status and can disconnect.
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,8 +33,8 @@ export function HealthSettings({ health }: { health: HealthSync }) {
 
   const onDisconnect = async () => {
     const ok = await confirm(
-      "Disconnect Apple Health?",
-      "Wellnest will stop syncing and delete the Apple Health summaries it has. Your data in the Health app isn't touched.",
+      `Disconnect ${health.name}?`,
+      `Wellnest will stop syncing and delete the health summaries it has. Your data in ${health.name} isn't touched.`,
       "Disconnect",
     );
     if (ok) await disconnect();
@@ -43,7 +44,7 @@ export function HealthSettings({ health }: { health: HealthSync }) {
     <View style={styles.box}>
       <View style={styles.titleRow}>
         <Ionicons name="heart" size={18} color="#E5484D" />
-        <Text style={styles.title}>Apple Health</Text>
+        <Text style={styles.title}>{health.name}</Text>
         {health.syncing && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
 
@@ -55,11 +56,13 @@ export function HealthSettings({ health }: { health: HealthSync }) {
               logged by apps like Flo) so Wellnest can use them in answers. Only daily totals are sent, never raw readings.
             </Text>
             <Pressable style={styles.button} onPress={() => void health.connect()} accessibilityRole="button">
-              <Text style={styles.buttonText}>Connect Apple Health</Text>
+              <Text style={styles.buttonText}>Connect {health.name}</Text>
             </Pressable>
           </>
         ) : (
-          <Text style={styles.note}>Connect Apple Health from the Wellnest iPhone app. Once synced, it's used here too.</Text>
+          <Text style={styles.note}>
+            Connect Apple Health (iPhone) or Health Connect (Android) from the Wellnest phone app. Once synced, it's used here too.
+          </Text>
         )
       ) : (
         <>

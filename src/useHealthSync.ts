@@ -1,10 +1,11 @@
-// Keeps Apple Health in sync on the iPhone: when the app opens or comes back to the foreground (at most every
-// 30 minutes), it re-reads the days since the last sync plus a couple before, since late watch data fills them in.
+// Keeps phone health data (Apple Health on iPhone, Health Connect on Android) in sync: when the app opens or comes
+// back to the foreground (at most every 30 minutes), it re-reads the days since the last sync plus a couple before,
+// since late watch data fills them in.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { connectAppleHealth, healthSupported, readDays } from "./health";
+import { connectHealth, healthName, healthSource, healthSupported, readDays } from "./health";
 
 const MIN_INTERVAL_MS = 30 * 60 * 1000;
 const FIRST_SYNC_DAYS = 90;
@@ -23,7 +24,7 @@ export function useHealthSync() {
       setSyncing(true);
       setError(null);
       try {
-        await sync({ days: await readDays(days) });
+        await sync({ days: await readDays(days), source: healthSource });
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -52,7 +53,7 @@ export function useHealthSync() {
 
   const connect = useCallback(async () => {
     try {
-      await connectAppleHealth();
+      await connectHealth();
     } catch (e) {
       setError((e as Error).message);
       return;
@@ -60,7 +61,7 @@ export function useHealthSync() {
     await run(FIRST_SYNC_DAYS);
   }, [run]);
 
-  return { status, supported: healthSupported, syncing, error, connect, syncNow: () => run(14) };
+  return { status, supported: healthSupported, name: healthName, syncing, error, connect, syncNow: () => run(14) };
 }
 
 export type HealthSync = ReturnType<typeof useHealthSync>;
