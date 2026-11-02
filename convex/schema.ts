@@ -74,6 +74,8 @@ export default defineSchema({
     voiceMode: v.optional(v.boolean()), // legacy: the removed voice mode switch; the mic is always on now
     // Free text ("Berkeley, CA 94704") or "lat,lon" from a shared Telegram location.
     location: v.optional(v.string()),
+    // Coordinates of `location`, geocoded once for finding care nearby (convex/care.ts).
+    locationPoint: v.optional(v.object({ lat: v.number(), lon: v.number(), for: v.string() })),
     // Routing state (convex/pipeline.ts): an analysis offer waiting for a yes.
     analysisOfferedAt: v.optional(v.number()),
     // "Clear chat": messages before this time are hidden and left out of the model's context and memory.

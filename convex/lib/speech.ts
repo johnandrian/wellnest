@@ -22,7 +22,7 @@ export function toSpeech(markdown: string, max = MAX_SPEECH_CHARS, lang = "en"):
     .map((line) =>
       line
         .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // images
-        .replace(/\[([^\]]+)\]\((?:https?:\/\/|mailto:)[^)]*\)/g, "$1") // links keep their label
+        .replace(/\[([^\]]+)\]\((?:https?:\/\/|mailto:|tel:)[^)]*\)/g, "$1") // links keep their label
         .replace(/<?https?:\/\/[^\s>)]+>?/g, "") // bare URLs
         .replace(/`([^`]*)`/g, "$1")
         .replace(/^\s{0,3}#{1,6}\s+/, "") // headings

@@ -25,7 +25,7 @@ export function Markdown({ text, style }: { text: string; style: TextStyle }) {
   );
 }
 
-const TOKEN = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|(?<![\w*])\*(?!\s)[^*]+?(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_]+?(?<!\s)_(?![\w_]))/g;
+const TOKEN = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\[[^\]]+\]\((?:https?:\/\/|tel:)[^\s)]+\)|(?<![\w*])\*(?!\s)[^*]+?(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_]+?(?<!\s)_(?![\w_]))/g;
 
 function inline(text: string, style: TextStyle) {
   return text.split(TOKEN).map((part, i) => {

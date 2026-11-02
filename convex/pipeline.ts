@@ -6,7 +6,8 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, factTools, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { careForModel } from "./care";
 import { journalText } from "./lib/journal";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
@@ -32,7 +33,7 @@ const SYSTEM_PROMPT = `You are a careful, friendly AI health assistant.
 
 const URGENT_PROMPT = `TRIAGE FLAGGED THIS AS URGENT.
 Start your reply with a clear warning: tell the user to seek care now and to call 911 (or local emergency number) if it could be life-threatening.
-Then help them find nearby urgent care or an ER: if you know their location, use web_search to list a few nearby options; if not, ask for their city/zip (and save it with save_location).`;
+Then help them find nearby urgent care or an ER: if you know their location, call find_care (kind "er" for anything life-threatening, otherwise "urgent_care") and list the closest few with their call and directions links; if not, ask for their city/zip (and save it with save_location).`;
 
 const OFFER_ANALYSIS_PROMPT = `Answer briefly, then offer a detailed symptom analysis by the CREAO symptom analyzer: it ranks the most likely conditions with reasoning and care guidance, takes a few minutes, and sends what the user has told you to that service. Ask them to reply yes if they want it. Don't run it yourself.`;
 
@@ -147,6 +148,12 @@ export const respond = internalAction({
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
         facts,
+        findCare: (rawArgs) => {
+          const kind = String(parseArgs(rawArgs).kind ?? "");
+          return kind === "er" || kind === "urgent_care" || kind === "pharmacy" || kind === "doctor"
+            ? careForModel(ctx, userId, kind)
+            : Promise.resolve('Tool error: kind must be "er", "urgent_care", "pharmacy" or "doctor".');
+        },
         journal: async (name, rawArgs) => {
           const args = parseArgs(rawArgs);
           if (name === "log_symptom") {
@@ -269,6 +276,7 @@ async function runCore(opts: {
   saveLocation: (location: string) => Promise<null>;
   medications: string;
   facts: string[];
+  findCare: (rawArgs: string) => Promise<string>;
   fact: (name: string, rawArgs: string) => Promise<string>;
   journal: (name: string, rawArgs: string) => Promise<string>;
   reminder: (name: string, rawArgs: string) => Promise<string>;
@@ -305,6 +313,7 @@ ${opts.medications}`);
   const tools = [
     ...toolDefs,
     saveLocationTool,
+    findCareTool,
     visitSummaryTool,
     ...reminderTools,
     ...factTools,
@@ -339,6 +348,8 @@ ${opts.medications}`);
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "find_care") {
+        result = await opts.findCare(call.function.arguments);
       } else if (call.function.name === "log_symptom" || call.function.name === "get_symptom_journal") {
         result = await opts.journal(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {

@@ -112,6 +112,11 @@ When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps
 ## Proactive check-ins
 An hourly cron (`checkins.scan`) looks at each Apple Health user whose local time is 9 AM and compares their last few days with their own previous two weeks. If something changed, Wellnest posts one gentle question in the chat, never a diagnosis, for example: resting heart rate and wrist temperature up together ("your body may be fighting something off"), a temperature or breathing-rate jump, lower blood oxygen (flagged urgent), a heart rate rise, three short nights, an HRV drop, or much less activity. At most one check-in a day, the same kind at most every 3 days, only with at least 5 days of history and data from yesterday or today. Replies go through the normal chat, so symptoms get logged in the journal. Settings has a switch to turn check-ins off; they don't send push notifications.
 
+## Find care nearby
+The **Care** tab (Health tools) lists the nearest urgent care, ERs, pharmacies or doctors with distance, address, hours (open 24/7 called out), a **Call** button and **Directions** (opens Google Maps or the phone's maps app), above a big "Call 911" button (112 in Greek). It searches around the phone's current location when "Use my current location" is ticked (expo-location, asked only then), otherwise around the saved location, which is geocoded once and kept on the user (`users.locationPoint`) until it changes.
+- **Data:** OpenStreetMap, free and keyless: Nominatim for geocoding, Overpass for places (`convex/lib/places.ts`), with a descriptive User-Agent. Coverage and hours vary by area, so the app says to call first.
+- **Model:** `find_care` gives the same list as Markdown with `tel:` call links and directions links. Urgent messages are told to call it (ER for anything life-threatening, otherwise urgent care) instead of searching the web. The app's Markdown opens `tel:` links; Telegram shows the number as text.
+
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):
 - **Shopping (proactive):** a period, headache, allergies, low diabetes supplies, post-surgery... The shopper picks the approved items and its store links are shown under the reply. Nothing is bought: the user checks out themselves. Skipped for emergencies.

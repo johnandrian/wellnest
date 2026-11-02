@@ -186,6 +186,23 @@ export const journalTools: ToolDef[] = [
   },
 ];
 
+// Handled in the pipeline: nearby care from OpenStreetMap (convex/care.ts).
+export const findCareTool: ToolDef = {
+  type: "function",
+  function: {
+    name: "find_care",
+    description:
+      "Find the nearest emergency rooms, urgent care, pharmacies or doctors to the user's saved location, with distance, " +
+      "hours, a call link and a directions link. Use for anything urgent, and whenever the user asks where to go. Pass the " +
+      "links on as they are.",
+    parameters: {
+      type: "object",
+      properties: { kind: { type: "string", enum: ["er", "urgent_care", "pharmacy", "doctor"] } },
+      required: ["kind"],
+    },
+  },
+};
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

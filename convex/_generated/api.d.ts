@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as care from "../care.js";
 import type * as chat from "../chat.js";
 import type * as checkins from "../checkins.js";
 import type * as creao from "../creao.js";
@@ -26,6 +27,7 @@ import type * as lib_jev from "../lib/jev.js";
 import type * as lib_jina from "../lib/jina.js";
 import type * as lib_journal from "../lib/journal.js";
 import type * as lib_language from "../lib/language.js";
+import type * as lib_places from "../lib/places.js";
 import type * as lib_push from "../lib/push.js";
 import type * as lib_reminders from "../lib/reminders.js";
 import type * as lib_shopping_airquality from "../lib/shopping/airquality.js";
@@ -58,6 +60,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  care: typeof care;
   chat: typeof chat;
   checkins: typeof checkins;
   creao: typeof creao;
@@ -75,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   "lib/jina": typeof lib_jina;
   "lib/journal": typeof lib_journal;
   "lib/language": typeof lib_language;
+  "lib/places": typeof lib_places;
   "lib/push": typeof lib_push;
   "lib/reminders": typeof lib_reminders;
   "lib/shopping/airquality": typeof lib_shopping_airquality;

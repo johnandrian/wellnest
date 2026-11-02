@@ -69,6 +69,12 @@
             "minSdkVersion": 26
           }
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Wellnest uses your location only when you ask it to find care nearby."
+        }
       ]
     ]
   }

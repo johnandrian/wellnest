@@ -119,6 +119,7 @@ function inline(text: string): string {
   const hold = (html: string) => `\u0000${slots.push(html) - 1}\u0000`;
   let s = text
     .replace(/`([^`]+)`/g, (_, code) => hold(`<code>${escapeHtml(code)}</code>`))
+    .replace(/\[([^\]]+)\]\(tel:[^\s)]+\)/g, "$1")
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) =>
       hold(`<a href="${escapeHtml(url).replace(/"/g, "&quot;")}">${escapeHtml(label)}</a>`),
     );

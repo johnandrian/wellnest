@@ -6,13 +6,15 @@ import type { Strings } from "./i18n";
 import { JournalPanel } from "./JournalPanel";
 import { RemindersPanel } from "./RemindersPanel";
 import { VisitPanel } from "./VisitPanel";
+import { CarePanel } from "./CarePanel";
 
-export type HubTab = "journal" | "reminders" | "visit";
+export type HubTab = "journal" | "reminders" | "visit" | "care";
 
 const TABS: { tab: HubTab; icon: keyof typeof Ionicons.glyphMap; label: (s: Strings) => string }[] = [
   { tab: "journal", icon: "pulse", label: (s) => s.tabJournal },
   { tab: "reminders", icon: "medkit-outline", label: (s) => s.tabReminders },
   { tab: "visit", icon: "clipboard-outline", label: (s) => s.tabVisit },
+  { tab: "care", icon: "location-outline", label: (s) => s.tabCare },
 ];
 
 export function HubPanel({ tab, onTab, s }: { tab: HubTab; onTab: (t: HubTab) => void; s: Strings }) {
@@ -37,6 +39,7 @@ export function HubPanel({ tab, onTab, s }: { tab: HubTab; onTab: (t: HubTab) =>
       {tab === "journal" && <JournalPanel s={s} />}
       {tab === "reminders" && <RemindersPanel />}
       {tab === "visit" && <VisitPanel />}
+      {tab === "care" && <CarePanel s={s} />}
     </View>
   );
 }

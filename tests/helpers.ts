@@ -71,6 +71,8 @@ export function mockApis(opts: {
   cartesiaStt?: string | Error; // what Cartesia STT hears (default "I have a headache")
   telegramFileGone?: boolean; // getFile fails (e.g. a file over 20 MB)
   pushDead?: string[]; // Expo push tokens that come back DeviceNotRegistered
+  geocode?: { lat: string; lon: string; display_name: string }[]; // Nominatim results (default: one in Berkeley)
+  overpass?: any[] | Error; // OpenStreetMap elements Overpass returns
 } = {}) {
   const calls: Call[] = [];
   const core = [...(opts.core ?? [{ content: "Rest and drink water." }])];
@@ -149,6 +151,13 @@ export function mockApis(opts: {
       );
       return Response.json({ model: "jev-1.14.0", answers });
     }
+    if (url.startsWith("https://nominatim.openstreetmap.org/search")) {
+      return Response.json(opts.geocode ?? [{ lat: "37.8716", lon: "-122.2727", display_name: "Berkeley, CA 94704" }]);
+    }
+    if (url === "https://overpass-api.de/api/interpreter") {
+      if (opts.overpass instanceof Error) return new Response(opts.overpass.message, { status: 504 });
+      return Response.json({ elements: opts.overpass ?? [] });
+    }
     if (url === "https://exp.host/--/api/v2/push/send") {
       return Response.json({
         data: body.map((m: any) =>
@@ -213,3 +222,5 @@ export function messagesOf(t: ReturnType<typeof setup>, userId: Id<"users">) {
   );
 }
 export const pushSends = (calls: Call[]) => calls.filter((c) => c.url === "https://exp.host/--/api/v2/push/send").flatMap((c) => c.body);
+export const overpassCalls = (calls: Call[]) => calls.filter((c) => c.url === "https://overpass-api.de/api/interpreter");
+export const geocodeCalls = (calls: Call[]) => calls.filter((c) => c.url.startsWith("https://nominatim.openstreetmap.org/"));
