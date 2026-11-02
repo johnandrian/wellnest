@@ -8,31 +8,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { colors } from "./theme";
+import type { Strings } from "./i18n";
 
 type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "everything";
 
-function confirm(title: string, message: string, action: string): Promise<boolean> {
+function confirm(title: string, message: string, action: string, cancel: string): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
   return new Promise((resolve) =>
     Alert.alert(title, message, [
-      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: cancel, style: "cancel", onPress: () => resolve(false) },
       { text: action, style: "destructive", onPress: () => resolve(true) },
     ]),
   );
 }
 
-const SHARING: [string, string][] = [
-  ["Snowflake Cortex", "the AI model: reads your messages, photos, saved facts, reminders and (when it asks) Apple Health summaries to answer."],
-  ["Jina AI", "turns messages into search vectors for memory, and runs web and PubMed searches."],
-  ["Cartesia", "voice: your recordings are transcribed and replies are spoken."],
-  ["TypeSafe Jev", "reads each message to route it (urgent, shopping, analysis)."],
-  ["CREAO", "only when you OK a detailed symptom analysis: the symptoms, plus Apple Health if you turned that on."],
-  ["Telegram", "only if you linked it: messages you send or get there."],
-];
+const SHARING = ["shareCortex", "shareJina", "shareCartesia", "shareJev", "shareCreao", "shareTelehealth", "shareMaps", "shareTelegram"] as const;
 
 const count = (c: { n: number; more: boolean }) => `${c.n.toLocaleString()}${c.more ? "+" : ""}`;
 
-export function AboutPanel() {
+export function AboutPanel({ s }: { s: Strings }) {
   const data = useQuery(api.me.overview);
   const addFact = useMutation(api.me.addFact);
   const updateFact = useMutation(api.me.updateFact);
@@ -84,8 +78,8 @@ export function AboutPanel() {
   const remove = async (category: Category, what: string) => {
     if (category === "everything") {
       const ok =
-        (await confirm("Delete your account?", "This deletes everything Wellnest has about you and signs you out. It can't be undone.", "Continue")) &&
-        (await confirm("Are you sure?", "Your chats, photos, facts, reminders, summaries, analyses and Apple Health data will all be deleted.", "Delete everything"));
+        (await confirm(s.deleteAccountTitle, s.deleteAccountBody, s.continue, s.cancel)) &&
+        (await confirm(s.areYouSure, s.deleteAllBody, s.deleteEverything, s.cancel));
       if (!ok) return;
       await run(category, async () => {
         await deleteData({ category });
@@ -93,47 +87,46 @@ export function AboutPanel() {
       });
       return;
     }
-    if (await confirm(`Delete ${what}?`, "This can't be undone.", "Delete")) await run(category, () => deleteData({ category }));
+    if (await confirm(s.deleteWhatTitle.replace("{what}", what), s.cantUndo, s.delete, s.cancel)) await run(category, () => deleteData({ category }));
   };
 
   const rows: { label: string; value: string; category?: Category; what?: string }[] = [
     {
-      label: "Messages",
-      value: `${count(counts.messages)}${data.since ? ` since ${new Date(data.since).toLocaleDateString()}` : ""}${data.chatClearedAt ? " (some hidden by Clear chat, still stored)" : ""}`,
+      label: s.rowMessages,
+      value:
+        (data.since ? s.messagesValue.replace("{n}", count(counts.messages)).replace("{date}", new Date(data.since).toLocaleDateString()) : count(counts.messages)) +
+        (data.chatClearedAt ? s.clearedNote : ""),
       category: "chat",
-      what: "all messages, photos and symptom analyses",
+      what: s.whatChat,
     },
-    { label: "Photos", value: count(counts.photos) },
-    { label: "Symptom journal", value: count(counts.journal), category: counts.journal.n ? "journal" : undefined, what: "your symptom journal" },
-    { label: "Symptom analyses", value: count(counts.analyses) },
+    { label: s.rowPhotos, value: count(counts.photos) },
+    { label: s.rowJournal, value: count(counts.journal), category: counts.journal.n ? "journal" : undefined, what: s.whatJournal },
+    { label: s.rowAnalyses, value: count(counts.analyses) },
     {
-      label: "Apple Health",
-      value: profile.healthConnected ? `${count(counts.healthDays)} days${profile.healthInAnalyses ? " · shared with analyses" : ""}` : "not connected",
+      label: s.rowHealth,
+      value: profile.healthConnected ? s.healthDays.replace("{n}", count(counts.healthDays)) + (profile.healthInAnalyses ? s.sharedWithAnalyses : "") : s.notConnected,
       category: counts.healthDays.n ? "health" : undefined,
-      what: "your Apple Health summaries (and disconnect)",
+      what: s.whatHealth,
     },
     {
-      label: "Reminders",
-      value: `${count(counts.reminders)} (${count(counts.doses)} Taken / Skip answers)`,
+      label: s.rowReminders,
+      value: s.remindersValue.replace("{n}", count(counts.reminders)).replace("{d}", count(counts.doses)),
       category: counts.reminders.n ? "reminders" : undefined,
-      what: "all reminders and their history",
+      what: s.whatReminders,
     },
-    { label: "Visit summaries", value: count(counts.summaries), category: counts.summaries.n ? "summaries" : undefined, what: "all visit summaries" },
+    { label: s.rowSummaries, value: count(counts.summaries), category: counts.summaries.n ? "summaries" : undefined, what: s.whatSummaries },
   ];
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <View style={styles.titleRow}>
         <Ionicons name="finger-print-outline" size={20} color={colors.primary} />
-        <Text style={styles.title}>What Wellnest knows about me</Text>
+        <Text style={styles.title}>{s.aboutTitle}</Text>
       </View>
 
-      <Text style={styles.section}>Saved facts</Text>
-      <Text style={styles.note}>
-        Wellnest keeps these in mind in every chat and visit summary. It saves lasting things you mention (like allergies);
-        you can add, fix or remove them. Saying "forget that" in chat works too.
-      </Text>
-      {facts.length === 0 && <Text style={styles.empty}>Nothing saved yet.</Text>}
+      <Text style={styles.section}>{s.savedFacts}</Text>
+      <Text style={styles.note}>{s.factsIntro}</Text>
+      {facts.length === 0 && <Text style={styles.empty}>{s.nothingSaved}</Text>}
       {facts.map((f) =>
         editing?.id === f._id ? (
           <View key={f._id} style={styles.factRow}>
@@ -144,7 +137,7 @@ export function AboutPanel() {
               autoFocus
               onSubmitEditing={() => void run("fact", async () => (await updateFact({ id: f._id, text: editing.text }), setEditing(null)))}
             />
-            <Pressable onPress={() => void run("fact", async () => (await updateFact({ id: f._id, text: editing.text }), setEditing(null)))} accessibilityRole="button" accessibilityLabel="Save">
+            <Pressable onPress={() => void run("fact", async () => (await updateFact({ id: f._id, text: editing.text }), setEditing(null)))} accessibilityRole="button" accessibilityLabel={s.save}>
               <Ionicons name="checkmark" size={22} color={colors.primary} />
             </Pressable>
           </View>
@@ -152,12 +145,12 @@ export function AboutPanel() {
           <View key={f._id} style={styles.factRow}>
             <Text style={[styles.fact, styles.flex]}>
               {f.text}
-              <Text style={styles.small}>  {f.source === "assistant" ? "saved by Wellnest" : "added by you"}</Text>
+              <Text style={styles.small}>  {f.source === "assistant" ? s.savedByWellnest : s.addedByYou}</Text>
             </Text>
-            <Pressable onPress={() => setEditing({ id: f._id, text: f.text })} accessibilityRole="button" accessibilityLabel={`Edit ${f.text}`}>
+            <Pressable onPress={() => setEditing({ id: f._id, text: f.text })} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${f.text}`}>
               <Ionicons name="create-outline" size={19} color={colors.muted} />
             </Pressable>
-            <Pressable onPress={() => void run("fact", () => deleteFact({ id: f._id }))} accessibilityRole="button" accessibilityLabel={`Remove ${f.text}`}>
+            <Pressable onPress={() => void run("fact", () => deleteFact({ id: f._id }))} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${f.text}`}>
               <Ionicons name="close" size={20} color={colors.danger} />
             </Pressable>
           </View>
@@ -166,58 +159,59 @@ export function AboutPanel() {
       <View style={styles.factRow}>
         <TextInput
           style={[styles.input, styles.flex]}
-          placeholder="Add a fact, e.g. Allergic to penicillin"
+          placeholder={s.factPlaceholder}
           placeholderTextColor={colors.muted}
           value={newFact}
           onChangeText={setNewFact}
           onSubmitEditing={() => void save()}
           maxLength={300}
         />
-        <Pressable onPress={() => void save()} accessibilityRole="button" accessibilityLabel="Add fact">
+        <Pressable onPress={() => void save()} accessibilityRole="button" accessibilityLabel={s.addFact}>
           <Ionicons name="add-circle" size={26} color={colors.primary} />
         </Pressable>
       </View>
 
-      <Text style={styles.section}>Your profile</Text>
-      <Text style={styles.line}>Email: {profile.email ?? "none"}</Text>
-      <Text style={styles.line}>Location: {profile.location ?? "not set"}</Text>
-      <Text style={styles.line}>Time zone: {profile.timeZone ?? "not known yet"}</Text>
-      <Text style={styles.line}>
-        Telegram: {profile.telegramLinked ? "linked" : "not linked"}
-      </Text>
+      <Text style={styles.section}>{s.yourProfile}</Text>
+      <Text style={styles.line}>{s.emailLine.replace("{v}", profile.email ?? s.none)}</Text>
+      <Text style={styles.line}>{s.locationLine.replace("{v}", profile.location ?? s.notSet)}</Text>
+      <Text style={styles.line}>{s.timeZoneLine.replace("{v}", profile.timeZone ?? s.notKnownYet)}</Text>
+      <Text style={styles.line}>{s.telegramLine.replace("{v}", profile.telegramLinked ? s.linked : s.notLinked)}</Text>
 
-      <Text style={styles.section}>What's stored</Text>
+      <Text style={styles.section}>{s.whatsStored}</Text>
       {rows.map((r) => (
         <View key={r.label} style={styles.dataRow}>
           <Text style={styles.dataLabel}>{r.label}</Text>
           <Text style={[styles.small, styles.flex]}>{r.value}</Text>
           {r.category && (
-            <Pressable onPress={() => void remove(r.category!, r.what!)} disabled={!!busy} accessibilityRole="button" accessibilityLabel={`Delete ${r.what}`}>
+            <Pressable onPress={() => void remove(r.category!, r.what!)} disabled={!!busy} accessibilityRole="button" accessibilityLabel={s.deleteWhatTitle.replace("{what}", r.what!)}>
               {busy === r.category ? <ActivityIndicator size="small" /> : <Ionicons name="trash-outline" size={18} color={colors.danger} />}
             </Pressable>
           )}
         </View>
       ))}
       {facts.length > 0 && (
-        <Pressable onPress={() => void remove("facts", "all saved facts")} accessibilityRole="button">
-          <Text style={[styles.link, styles.danger]}>Delete all saved facts</Text>
+        <Pressable onPress={() => void remove("facts", s.whatFacts)} accessibilityRole="button">
+          <Text style={[styles.link, styles.danger]}>{s.deleteAllFacts}</Text>
         </Pressable>
       )}
 
-      <Text style={styles.section}>Who sees what</Text>
-      {SHARING.map(([who, what]) => (
-        <Text key={who} style={styles.line}>
-          <Text style={styles.bold}>{who}</Text>: {what}
-        </Text>
-      ))}
-      <Text style={styles.small}>Everything is stored in Wellnest's Convex database. Wellnest isn't a doctor and this isn't a medical record.</Text>
+      <Text style={styles.section}>{s.whoSees}</Text>
+      {SHARING.map((key) => {
+        const [who, ...rest] = s[key].split(": ");
+        return (
+          <Text key={key} style={styles.line}>
+            <Text style={styles.bold}>{who}</Text>: {rest.join(": ")}
+          </Text>
+        );
+      })}
+      <Text style={styles.small}>{s.storedNote}</Text>
 
       <View style={styles.actions}>
         <Pressable style={styles.button} onPress={() => void download()} disabled={!!busy} accessibilityRole="button">
-          {busy === "export" ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Export my data</Text>}
+          {busy === "export" ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{s.exportData}</Text>}
         </Pressable>
         <Pressable style={[styles.button, styles.dangerButton]} onPress={() => void remove("everything", "")} disabled={!!busy} accessibilityRole="button">
-          <Text style={[styles.buttonText, styles.danger]}>Delete everything</Text>
+          <Text style={[styles.buttonText, styles.danger]}>{s.deleteEverything}</Text>
         </Pressable>
       </View>
       {error && <Text style={styles.error}>{error}</Text>}

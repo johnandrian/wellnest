@@ -6,26 +6,27 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import type { HealthSync } from "./useHealthSync";
+import type { Strings } from "./i18n";
 
-function confirm(title: string, message: string, action: string): Promise<boolean> {
+function confirm(title: string, message: string, action: string, cancel: string): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(message));
   return new Promise((resolve) =>
     Alert.alert(title, message, [
-      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: cancel, style: "cancel", onPress: () => resolve(false) },
       { text: action, style: "destructive", onPress: () => resolve(true) },
     ]),
   );
 }
 
-export function ago(ms: number, now = Date.now()) {
+export function ago(ms: number, s: Strings, now = Date.now()) {
   const min = Math.round((now - ms) / 60_000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
+  if (min < 1) return s.justNow;
+  if (min < 60) return s.minAgo.replace("{n}", String(min));
   const h = Math.round(min / 60);
-  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
+  return h < 24 ? s.hAgo.replace("{n}", String(h)) : s.dAgo.replace("{n}", String(Math.round(h / 24)));
 }
 
-export function HealthSettings({ health }: { health: HealthSync }) {
+export function HealthSettings({ health, s }: { health: HealthSync; s: Strings }) {
   const setShare = useMutation(api.health.setShareWithAnalysis);
   const disconnect = useMutation(api.health.disconnect);
   const { status } = health;
@@ -33,9 +34,10 @@ export function HealthSettings({ health }: { health: HealthSync }) {
 
   const onDisconnect = async () => {
     const ok = await confirm(
-      `Disconnect ${health.name}?`,
-      `Wellnest will stop syncing and delete the health summaries it has. Your data in ${health.name} isn't touched.`,
-      "Disconnect",
+      s.healthDisconnectTitle.replace("{name}", health.name),
+      s.healthDisconnectBody.replace("{name}", health.name),
+      s.disconnect,
+      s.cancel,
     );
     if (ok) await disconnect();
   };
@@ -51,38 +53,33 @@ export function HealthSettings({ health }: { health: HealthSync }) {
       {!status.connected ? (
         health.supported ? (
           <>
-            <Text style={styles.note}>
-              Share daily summaries (sleep, steps, heart rate, HRV, breathing, SpO2, wrist temperature, weight and periods
-              logged by apps like Flo) so Wellnest can use them in answers. Only daily totals are sent, never raw readings.
-            </Text>
+            <Text style={styles.note}>{s.healthIntro}</Text>
             <Pressable style={styles.button} onPress={() => void health.connect()} accessibilityRole="button">
-              <Text style={styles.buttonText}>Connect {health.name}</Text>
+              <Text style={styles.buttonText}>{s.healthConnect.replace("{name}", health.name)}</Text>
             </Pressable>
           </>
         ) : (
-          <Text style={styles.note}>
-            Connect Apple Health (iPhone) or Health Connect (Android) from the Wellnest phone app. Once synced, it's used here too.
-          </Text>
+          <Text style={styles.note}>{s.healthWebNote}</Text>
         )
       ) : (
         <>
           <Text style={styles.note}>
-            Connected · synced {ago(status.syncedAt)}
-            {status.latestDate ? ` · latest day ${status.latestDate}` : ""}
+            {s.healthStatus.replace("{ago}", ago(status.syncedAt, s))}
+            {status.latestDate ? s.healthLatest.replace("{date}", status.latestDate) : ""}
           </Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Include in symptom analyses</Text>
+            <Text style={styles.label}>{s.healthShare}</Text>
             <Switch value={status.shareWithAnalysis} onValueChange={(enabled) => void setShare({ enabled })} />
           </View>
-          <Text style={styles.small}>Detailed analyses run on CREAO; with this on, your summaries are sent along.</Text>
+          <Text style={styles.small}>{s.healthShareNote}</Text>
           <View style={styles.actions}>
             {health.supported && (
               <Pressable onPress={() => void health.syncNow()} disabled={health.syncing} accessibilityRole="button">
-                <Text style={styles.link}>Sync now</Text>
+                <Text style={styles.link}>{s.syncNow}</Text>
               </Pressable>
             )}
             <Pressable onPress={() => void onDisconnect()} accessibilityRole="button">
-              <Text style={[styles.link, styles.danger]}>Disconnect and delete</Text>
+              <Text style={[styles.link, styles.danger]}>{s.disconnectDelete}</Text>
             </Pressable>
           </View>
         </>

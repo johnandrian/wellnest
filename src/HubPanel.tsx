@@ -37,8 +37,8 @@ export function HubPanel({ tab, onTab, s }: { tab: HubTab; onTab: (t: HubTab) =>
         ))}
       </View>
       {tab === "journal" && <JournalPanel s={s} />}
-      {tab === "reminders" && <RemindersPanel />}
-      {tab === "visit" && <VisitPanel />}
+      {tab === "reminders" && <RemindersPanel s={s} />}
+      {tab === "visit" && <VisitPanel s={s} />}
       {tab === "care" && <CarePanel s={s} />}
     </View>
   );

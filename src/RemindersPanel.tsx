@@ -5,17 +5,22 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
+import type { Strings } from "./i18n";
 
 type Mode = "daily" | "interval";
 
-function when(at: number) {
+function when(at: number, s: Strings) {
   const d = new Date(at);
   const today = new Date();
   const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return d.toDateString() === today.toDateString() ? `today ${time}` : `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
+  return d.toDateString() === today.toDateString() ? `${s.today} ${time}` : `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
 }
 
-export function RemindersPanel() {
+type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
+const describe = (r: Rule, s: Strings) =>
+  r.kind === "daily" ? s.dailyAt.replace("{times}", r.times.join(", ")) : s.everyNHours.replace("{n}", String(r.everyHours));
+
+export function RemindersPanel({ s }: { s: Strings }) {
   const meds = useQuery(api.reminders.list);
   const add = useMutation(api.reminders.add);
   const remove = useMutation(api.reminders.remove);
@@ -54,14 +59,11 @@ export function RemindersPanel() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <View style={styles.titleRow}>
         <Ionicons name="medkit-outline" size={20} color={colors.primary} />
-        <Text style={styles.title}>Medication reminders</Text>
+        <Text style={styles.title}>{s.remindersTitle}</Text>
       </View>
-      <Text style={styles.note}>
-        Reminders appear in this chat with Taken / Skip, and your history goes into visit summaries. You can also ask:
-        "remind me to take ibuprofen every 6 hours for 3 days".
-      </Text>
+      <Text style={styles.note}>{s.remindersIntro}</Text>
 
-      {meds?.length === 0 && !adding && <Text style={styles.empty}>No reminders yet.</Text>}
+      {meds?.length === 0 && !adding && <Text style={styles.empty}>{s.remindersEmpty}</Text>}
       {meds?.map((m) => (
         <View key={m._id} style={styles.med}>
           <View style={styles.medText}>
@@ -70,12 +72,12 @@ export function RemindersPanel() {
               {m.dose ? <Text style={styles.dose}> · {m.dose}</Text> : null}
             </Text>
             <Text style={styles.small}>
-              {m.schedule}
-              {m.nextAt ? ` · next ${when(m.nextAt)}` : ""}
-              {m.endsAt ? ` · until ${new Date(m.endsAt).toLocaleDateString()}` : ""}
+              {describe(m.rule, s)}
+              {m.nextAt ? ` · ${s.nextAt.replace("{when}", when(m.nextAt, s))}` : ""}
+              {m.endsAt ? ` · ${s.until.replace("{date}", new Date(m.endsAt).toLocaleDateString())}` : ""}
             </Text>
           </View>
-          <Pressable onPress={() => void remove({ id: m._id })} accessibilityRole="button" accessibilityLabel={`Stop ${m.name} reminders`}>
+          <Pressable onPress={() => void remove({ id: m._id })} accessibilityRole="button" accessibilityLabel={s.stopReminders.replace("{name}", m.name)}>
             <Ionicons name="trash-outline" size={20} color={colors.danger} />
           </Pressable>
         </View>
@@ -83,8 +85,8 @@ export function RemindersPanel() {
 
       {adding ? (
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder="Medication (e.g. Ibuprofen)" placeholderTextColor={colors.muted} value={name} onChangeText={setName} />
-          <TextInput style={styles.input} placeholder="Dose (optional, e.g. 400 mg)" placeholderTextColor={colors.muted} value={dose} onChangeText={setDose} />
+          <TextInput style={styles.input} placeholder={s.medPlaceholder} placeholderTextColor={colors.muted} value={name} onChangeText={setName} />
+          <TextInput style={styles.input} placeholder={s.dosePlaceholder} placeholderTextColor={colors.muted} value={dose} onChangeText={setDose} />
           <View style={styles.chips}>
             {(["daily", "interval"] as const).map((m) => (
               <Pressable
@@ -94,14 +96,14 @@ export function RemindersPanel() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: mode === m }}
               >
-                <Text style={[styles.chipText, mode === m && styles.chipTextOn]}>{m === "daily" ? "At set times" : "Every few hours"}</Text>
+                <Text style={[styles.chipText, mode === m && styles.chipTextOn]}>{m === "daily" ? s.atSetTimes : s.everyFewHours}</Text>
               </Pressable>
             ))}
           </View>
           {mode === "daily" ? (
             <TextInput
               style={styles.input}
-              placeholder="Times, e.g. 08:00, 20:00"
+              placeholder={s.timesPlaceholder}
               placeholderTextColor={colors.muted}
               value={times}
               onChangeText={setTimes}
@@ -109,29 +111,29 @@ export function RemindersPanel() {
             />
           ) : (
             <View style={styles.inline}>
-              <Text style={styles.label}>Every</Text>
+              <Text style={styles.label}>{s.every}</Text>
               <TextInput style={[styles.input, styles.short]} value={hours} onChangeText={setHours} keyboardType="numeric" />
-              <Text style={styles.label}>hours, starting from now</Text>
+              <Text style={styles.label}>{s.hoursFromNow}</Text>
             </View>
           )}
           <View style={styles.inline}>
-            <Text style={styles.label}>For</Text>
+            <Text style={styles.label}>{s.forLabel}</Text>
             <TextInput style={[styles.input, styles.short]} value={days} onChangeText={setDays} keyboardType="numeric" placeholder="∞" placeholderTextColor={colors.muted} />
-            <Text style={styles.label}>days (leave empty to keep going)</Text>
+            <Text style={styles.label}>{s.daysKeepGoing}</Text>
           </View>
           <View style={styles.inline}>
             <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
-              <Text style={styles.buttonText}>Save reminder</Text>
+              <Text style={styles.buttonText}>{s.saveReminder}</Text>
             </Pressable>
             <Pressable onPress={() => setAdding(false)} accessibilityRole="button">
-              <Text style={styles.link}>Cancel</Text>
+              <Text style={styles.link}>{s.cancel}</Text>
             </Pressable>
           </View>
         </View>
       ) : (
         <Pressable style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
           <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.link}>Add a reminder</Text>
+          <Text style={styles.link}>{s.addReminder}</Text>
         </Pressable>
       )}
       {error && <Text style={styles.error}>{error}</Text>}

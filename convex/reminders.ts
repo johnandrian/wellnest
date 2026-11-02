@@ -84,6 +84,8 @@ export const list = query({
       name: m.name,
       dose: m.dose ?? null,
       schedule: describeSchedule(m.schedule),
+      // The app words it in the user's language.
+      rule: m.schedule.kind === "daily" ? m.schedule : { kind: "interval" as const, everyHours: m.schedule.everyHours },
       nextAt: m.nextAt ?? null,
       endsAt: m.endsAt ?? null,
     }));

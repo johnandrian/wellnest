@@ -38,25 +38,24 @@ type Panel = "settings" | "hub" | "about";
 
 
 // Camera or library: native asks which; web (and desktop browsers) only have the library.
-function chooseSource(): Promise<"library" | "camera" | null> {
+function chooseSource(s: Strings): Promise<"library" | "camera" | null> {
   if (Platform.OS === "web") return Promise.resolve("library");
   return new Promise((resolve) =>
-    Alert.alert("Add a photo", "A pill bottle, a label, lab results, a rash...", [
-      { text: "Take photo", onPress: () => resolve("camera") },
-      { text: "Choose from library", onPress: () => resolve("library") },
-      { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
+    Alert.alert(s.photoSourceTitle, s.photoSourceBody, [
+      { text: s.takePhoto, onPress: () => resolve("camera") },
+      { text: s.chooseLibrary, onPress: () => resolve("library") },
+      { text: s.cancel, style: "cancel", onPress: () => resolve(null) },
     ]),
   );
 }
 
 // Yes/no before clearing: a browser dialog on web, a native alert on iOS/Android.
-function confirmClear(): Promise<boolean> {
-  const message = "Clear this chat and start fresh? Wellnest won't use these messages in new answers.";
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(message));
+function confirmClear(s: Strings): Promise<boolean> {
+  if (Platform.OS === "web") return Promise.resolve(window.confirm(s.clearBody));
   return new Promise((resolve) =>
-    Alert.alert("Clear chat?", message, [
-      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-      { text: "Clear", style: "destructive", onPress: () => resolve(true) },
+    Alert.alert(s.clearTitle, s.clearBody, [
+      { text: s.cancel, style: "cancel", onPress: () => resolve(false) },
+      { text: s.clear, style: "destructive", onPress: () => resolve(true) },
     ]),
   );
 }
@@ -112,7 +111,7 @@ export function Chat() {
       const res = await send({ text: value, imageId, ...(spoken && { voice: true }) });
       if (res.limited) {
         setText(value);
-        setNotice(`You've reached today's limit of ${res.limit} messages. Please try again tomorrow. In an emergency, call 911.`);
+        setNotice(s.limitNotice.replace("{n}", String(res.limit)));
       }
     } catch (e) {
       setText(value);
@@ -123,7 +122,7 @@ export function Chat() {
   const addPhoto = async () => {
     setNotice(null);
     try {
-      const source = await chooseSource();
+      const source = await chooseSource(s);
       if (!source) return;
       const picked = await pickPhoto(source);
       if (picked) setPhoto(picked);
@@ -149,7 +148,7 @@ export function Chat() {
   }, [setTimeZone]);
 
   const clear = async () => {
-    if (!(await confirmClear())) return;
+    if (!(await confirmClear(s))) return;
     voice.stopSpeaking();
     setNotice(null);
     await clearChat();
@@ -176,7 +175,7 @@ export function Chat() {
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
               onPress={() => void clear()}
               accessibilityRole="button"
-              accessibilityLabel="Clear chat"
+              accessibilityLabel={s.clearChat}
             >
               <Ionicons name="trash-outline" size={21} color={colors.text} />
             </Pressable>
@@ -193,7 +192,7 @@ export function Chat() {
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             onPress={() => toggle("settings")}
             accessibilityRole="button"
-            accessibilityLabel={panel === "settings" || panel === "about" ? "Close settings" : "Settings"}
+            accessibilityLabel={panel === "settings" || panel === "about" ? s.closeSettings : s.settings}
           >
             <Ionicons name={panel === "settings" || panel === "about" ? "close" : "settings-outline"} size={22} color={colors.text} />
           </Pressable>
@@ -201,7 +200,7 @@ export function Chat() {
       </View>
 
       {panel === "hub" && <HubPanel tab={hubTab} onTab={setHubTab} s={s} />}
-      {panel === "about" && <AboutPanel />}
+      {panel === "about" && <AboutPanel s={s} />}
       {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} />}
 
       {messages === undefined ? (
@@ -250,7 +249,7 @@ export function Chat() {
                   source={{ uri: item.imageUrl }}
                   style={styles.photo}
                   resizeMode="cover"
-                  accessibilityLabel="Photo you sent"
+                  accessibilityLabel={s.photoYouSent}
                 />
               )}
               {item.role === "user" ? (
@@ -283,14 +282,14 @@ export function Chat() {
                 </View>
               )}
               {item.channel === "telegram" && (
-                <Text style={styles.channel}>{item.voice ? "Voice note via Telegram" : "via Telegram"}</Text>
+                <Text style={styles.channel}>{item.voice ? s.voiceViaTelegram : s.viaTelegram}</Text>
               )}
               {item._id === voice.speakingId && (
                 <Pressable
                   style={styles.speaking}
                   onPress={voice.stopSpeaking}
                   accessibilityRole="button"
-                  accessibilityLabel="Speaking. Tap to stop."
+                  accessibilityLabel={s.speaking}
                 >
                   <Ionicons name="volume-high" size={14} color={colors.primary} />
                   <Text style={styles.speakingText}>{s.speaking}</Text>
@@ -311,9 +310,9 @@ export function Chat() {
       {photo && (
         <View style={styles.attachment}>
           <Image source={{ uri: photo.uri }} style={styles.attachmentThumb} />
-          <Text style={styles.attachmentText}>{sending ? "Uploading photo…" : "Photo attached"}</Text>
+          <Text style={styles.attachmentText}>{sending ? s.uploadingPhoto : s.photoAttached}</Text>
           {!sending && (
-            <Pressable onPress={() => setPhoto(null)} accessibilityRole="button" accessibilityLabel="Remove photo">
+            <Pressable onPress={() => setPhoto(null)} accessibilityRole="button" accessibilityLabel={s.removePhoto}>
               <Ionicons name="close-circle" size={22} color={colors.muted} />
             </Pressable>
           )}
@@ -325,7 +324,7 @@ export function Chat() {
           onPress={() => void addPhoto()}
           disabled={sending}
           accessibilityRole="button"
-          accessibilityLabel="Add a photo"
+          accessibilityLabel={s.addPhoto}
         >
           <Ionicons name="camera-outline" size={22} color={colors.primary} />
         </Pressable>
@@ -341,7 +340,7 @@ export function Chat() {
             onPress={voice.mic === "recording" ? voice.stop : voice.start}
             disabled={voice.mic === "asking" || voice.mic === "transcribing"}
             accessibilityRole="button"
-            accessibilityLabel={voice.mic === "recording" ? "Stop recording and send" : "Record a voice message"}
+            accessibilityLabel={voice.mic === "recording" ? s.stopAndSend : s.recordVoice}
             accessibilityState={{ busy: voice.mic === "asking" || voice.mic === "transcribing" }}
           >
             {voice.mic === "asking" || voice.mic === "transcribing" ? (
@@ -367,7 +366,7 @@ export function Chat() {
           onPress={() => submit()}
           disabled={(!text.trim() && !photo) || sending}
           accessibilityRole="button"
-          accessibilityLabel="Send message"
+          accessibilityLabel={s.sendMessage}
         >
           <Ionicons name="arrow-up" size={22} color="#fff" />
         </Pressable>
@@ -387,10 +386,10 @@ export function Chat() {
           </Text>
           {voice.error.openSettings && (
             <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="link">
-              <Text style={styles.errorAction}>Open Settings</Text>
+              <Text style={styles.errorAction}>{s.openSettings}</Text>
             </Pressable>
           )}
-          <Pressable onPress={voice.dismissError} accessibilityRole="button" accessibilityLabel="Dismiss">
+          <Pressable onPress={voice.dismissError} accessibilityRole="button" accessibilityLabel={s.dismiss}>
             <Text style={styles.errorAction}>✕</Text>
           </Pressable>
         </View>
@@ -444,7 +443,7 @@ function Settings({
     <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settings}>
       <Text style={styles.muted}>{me.email}</Text>
       <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Language</Text>
+        <Text style={styles.settingLabel}>{s.languageLabel}</Text>
         <View style={styles.langChips}>
           {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
             <Pressable
@@ -460,10 +459,10 @@ function Settings({
         </View>
       </View>
       <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Location</Text>
+        <Text style={styles.settingLabel}>{s.locationLabel}</Text>
         <TextInput
           style={styles.locationInput}
-          placeholder="City or zip (for nearby care)"
+          placeholder={s.locationPlaceholder}
           value={location}
           onChangeText={setLocationText}
           onBlur={saveLocation}
@@ -473,13 +472,13 @@ function Settings({
       </View>
       <Pressable style={styles.settingButton} onPress={openTelegram}>
         <Text style={styles.settingButtonText}>
-          {me.telegramLinked ? "Telegram linked ✓ (open bot)" : "Text me on Telegram"}
+          {me.telegramLinked ? s.telegramLinked : s.telegramLink}
         </Text>
       </Pressable>
       {error && <Text style={styles.error}>{error}</Text>}
-      <HealthSettings health={health} />
+      <HealthSettings health={health} s={s} />
       <Pressable style={styles.settingButton} onPress={onOpenAbout} accessibilityRole="button">
-        <Text style={styles.settingButtonText}>What Wellnest knows about me</Text>
+        <Text style={styles.settingButtonText}>{s.aboutMe}</Text>
       </Pressable>
       <View style={styles.settingRow}>
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>
@@ -499,7 +498,7 @@ function Settings({
           await signOut();
         }}
       >
-        <Text style={styles.headerLink}>Sign out</Text>
+        <Text style={styles.headerLink}>{s.signOut}</Text>
       </Pressable>
     </ScrollView>
   );

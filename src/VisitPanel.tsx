@@ -1,4 +1,4 @@
-// "Prepare for a visit": writes a one-page summary of recent chats, analyses, medications and Apple Health data
+// "Prepare for a visit": writes a one-page summary of recent chats, the journal, analyses, medications and health data
 // (convex/visit.ts), then lets the user read, share, copy or print it.
 import { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
@@ -8,14 +8,15 @@ import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
+import type { Strings } from "./i18n";
 
 const PERIODS = [
-  { days: 14, label: "2 weeks" },
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
+  { days: 14, label: (s: Strings) => s.twoWeeks },
+  { days: 30, label: (s: Strings) => s.lastNDays.replace("{n}", "30") },
+  { days: 90, label: (s: Strings) => s.lastNDays.replace("{n}", "90") },
 ];
 
-export function VisitPanel() {
+export function VisitPanel({ s }: { s: Strings }) {
   const latest = useQuery(api.visit.latest);
   const create = useMutation(api.visit.create);
   const remove = useMutation(api.visit.remove);
@@ -40,12 +41,12 @@ export function VisitPanel() {
 
   const share = async (text: string) => {
     if (Platform.OS !== "web") {
-      await Share.share({ message: text, title: "Visit summary" });
+      await Share.share({ message: text, title: s.visitSummaryTitle });
       return;
     }
     const win = window.open("", "_blank");
-    if (!win) return setError("Allow pop-ups to print the summary.");
-    win.document.write(printablePage("Visit summary", text));
+    if (!win) return setError(s.allowPopups);
+    win.document.write(printablePage(s.visitSummaryTitle, text));
     win.document.close();
     win.focus();
     win.print();
@@ -61,18 +62,15 @@ export function VisitPanel() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <View style={styles.titleRow}>
         <Ionicons name="clipboard-outline" size={20} color={colors.primary} />
-        <Text style={styles.title}>Visit summary</Text>
+        <Text style={styles.title}>{s.visitSummaryTitle}</Text>
       </View>
-      <Text style={styles.note}>
-        A one-page summary of what you've told Wellnest, your symptom analyses and Apple Health trends, to bring to your
-        appointment. You can also just ask in chat: "prepare me for my doctor's appointment".
-      </Text>
+      <Text style={styles.note}>{s.visitSummaryIntro}</Text>
 
       {showForm && !generating && (
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="What's the visit about? (optional)"
+            placeholder={s.visitReasonOptional}
             placeholderTextColor={colors.muted}
             value={reason}
             onChangeText={setReason}
@@ -87,15 +85,15 @@ export function VisitPanel() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: days === p.days }}
               >
-                <Text style={[styles.chipText, days === p.days && styles.chipTextOn]}>{p.label}</Text>
+                <Text style={[styles.chipText, days === p.days && styles.chipTextOn]}>{p.label(s)}</Text>
               </Pressable>
             ))}
           </View>
           <Pressable style={styles.button} onPress={() => void generate()} accessibilityRole="button">
-            <Text style={styles.buttonText}>Write my summary</Text>
+            <Text style={styles.buttonText}>{s.writeSummary}</Text>
           </Pressable>
           {latest?.status === "failed" && !composing && (
-            <Text style={styles.error}>The last summary couldn't be written. Try again.</Text>
+            <Text style={styles.error}>{s.summaryFailed}</Text>
           )}
         </View>
       )}
@@ -103,14 +101,14 @@ export function VisitPanel() {
       {generating && (
         <View style={styles.generating}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.note}>Writing your summary… this takes under a minute.</Text>
+          <Text style={styles.note}>{s.writingSummary}</Text>
         </View>
       )}
 
       {latest?.status === "ready" && latest.text && !composing && (
         <View style={styles.result}>
           <Text style={styles.small}>
-            Made {new Date(latest._creationTime).toLocaleString()} · last {latest.days} days
+            {s.madeAt.replace("{when}", new Date(latest._creationTime).toLocaleString()).replace("{n}", String(latest.days))}
           </Text>
           <View style={styles.doc}>
             <Markdown text={latest.text} style={styles.docText} />
@@ -118,21 +116,21 @@ export function VisitPanel() {
           <View style={styles.actions}>
             <Pressable style={styles.action} onPress={() => void share(latest.text!)} accessibilityRole="button">
               <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color={colors.primary} />
-              <Text style={styles.link}>{Platform.OS === "web" ? "Print / save PDF" : "Share"}</Text>
+              <Text style={styles.link}>{Platform.OS === "web" ? s.printPdf : s.share}</Text>
             </Pressable>
             {Platform.OS === "web" && (
               <Pressable style={styles.action} onPress={() => void copy(latest.text!)} accessibilityRole="button">
                 <Ionicons name="copy-outline" size={18} color={colors.primary} />
-                <Text style={styles.link}>{copied ? "Copied" : "Copy"}</Text>
+                <Text style={styles.link}>{copied ? s.copied : s.copy}</Text>
               </Pressable>
             )}
             <Pressable style={styles.action} onPress={() => setComposing(true)} accessibilityRole="button">
               <Ionicons name="refresh" size={18} color={colors.primary} />
-              <Text style={styles.link}>New</Text>
+              <Text style={styles.link}>{s.newSummary}</Text>
             </Pressable>
             <Pressable style={styles.action} onPress={() => void remove({ id: latest._id })} accessibilityRole="button">
               <Ionicons name="trash-outline" size={18} color={colors.danger} />
-              <Text style={[styles.link, { color: colors.danger }]}>Delete</Text>
+              <Text style={[styles.link, { color: colors.danger }]}>{s.delete}</Text>
             </Pressable>
           </View>
         </View>
