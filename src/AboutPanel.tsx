@@ -183,7 +183,7 @@ export function AboutPanel() {
       <Text style={styles.line}>Location: {profile.location ?? "not set"}</Text>
       <Text style={styles.line}>Time zone: {profile.timeZone ?? "not known yet"}</Text>
       <Text style={styles.line}>
-        Voice: {profile.voiceMode ? "on" : "off"} · Telegram: {profile.telegramLinked ? "linked" : "not linked"}
+        Telegram: {profile.telegramLinked ? "linked" : "not linked"}
       </Text>
 
       <Text style={styles.section}>What's stored</Text>

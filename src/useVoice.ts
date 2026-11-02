@@ -27,7 +27,7 @@ const MIC_STATUS: Record<MicState, string | null> = {
 
 export type VoiceError = { text: string; openSettings?: boolean };
 
-type ChatMessage = { _id: string; role: string; text: string; channel: string; kind?: string };
+type ChatMessage = { _id: string; role: string; text: string; channel: string; kind?: string; voice?: boolean };
 
 // Turn recorder and permission failures into something the user can act on.
 function micError(e: unknown): VoiceError {
@@ -44,8 +44,9 @@ function micBlocked(): VoiceError {
     : { text: "Microphone access is off for Wellnest.", openSettings: true };
 }
 
+// The mic is always there. A reply is read aloud when the question it answers was asked with the mic; typed
+// questions get text only.
 export function useVoice(
-  enabled: boolean,
   messages: ChatMessage[] | undefined,
   submit: (text: string) => Promise<void>,
   language = "en",
@@ -107,22 +108,22 @@ export function useVoice(
       spoken.current = new Set(messages.map((m) => m._id));
       return;
     }
+    let askedByVoice = false; // the latest question in the app was spoken
     for (const m of messages) {
+      if (m.role === "user" && m.channel === "app") askedByVoice = !!m.voice;
       if (spoken.current.has(m._id)) continue;
       spoken.current.add(m._id);
-      // Only replies to what was asked here (not Telegram), never the shopper's list of store links, and not
-      // while the mic is open (a late reply, like a CREAO report, would end up in the recording).
+      // Only replies to a spoken question asked here (not Telegram), never the shopper's list of store links, and
+      // not while the mic is open (a late reply, like a CREAO report, would end up in the recording).
       const micOpen = micRef.current === "asking" || micRef.current === "recording";
-      if (enabled && m.role === "assistant" && m.channel === "app" && !m.kind && !micOpen) {
+      if (askedByVoice && m.role === "assistant" && m.channel === "app" && !m.kind && !micOpen) {
         speaker.speak({ id: m._id, text: m.text });
       }
     }
-  }, [messages, enabled]);
+  }, [messages]);
 
-  // Call from a tap: unlocks audio on web and opens the TTS connection before the reply arrives.
-  // `force` is for the tap that turns voice mode on, before the setting has saved.
-  const prepare = (force = false) => {
-    if (!enabled && !force) return;
+  // Call from the mic tap: unlocks audio on web and opens the TTS connection before the reply arrives.
+  const prepare = () => {
     speaker.prime();
     speaker.warm();
   };
@@ -166,7 +167,7 @@ export function useVoice(
         );
         return;
       }
-      // Voice mode may have been switched off while the prompt was open.
+      // The screen may have closed while the prompt was open.
       if ((micRef.current as MicState) !== "asking") return;
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
@@ -200,15 +201,7 @@ export function useVoice(
     }
   };
 
-  // Switching voice mode off (or leaving the screen) stops speech and discards a recording in progress.
-  useEffect(() => {
-    if (enabled) return;
-    speaker.stop();
-    if (micRef.current === "recording" || micRef.current === "asking") {
-      setMic("idle");
-      void release();
-    }
-  }, [enabled]);
+  // Leaving the screen discards a recording in progress.
   useEffect(() => () => void release(), []);
 
   return {
@@ -217,7 +210,6 @@ export function useVoice(
     speakingId,
     status: (mic !== "idle" && statusText[mic]) || MIC_STATUS[mic],
     error,
-    prepare,
     start: () => void start(),
     stop: () => void stop(),
     stopSpeaking: () => speaker.stop(),

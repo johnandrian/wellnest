@@ -8,8 +8,9 @@ import { language } from "./lib/language";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export const send = mutation({
-  args: { text: v.string(), imageId: v.optional(v.id("_storage")) },
-  handler: async (ctx, { text, imageId }) => {
+  // `voice`: asked with the mic (the app reads the reply aloud).
+  args: { text: v.string(), imageId: v.optional(v.id("_storage")), voice: v.optional(v.boolean()) },
+  handler: async (ctx, { text, imageId, voice }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const trimmed = text.trim();
@@ -27,7 +28,7 @@ export const send = mutation({
         throw new Error("Please send a JPEG or PNG photo under 8 MB.");
       }
     }
-    const messageId = await enqueueUserMessage(ctx, userId, trimmed.slice(0, 4000), "app", false, imageId);
+    const messageId = await enqueueUserMessage(ctx, userId, trimmed.slice(0, 4000), "app", !!voice, imageId);
     if (upload && messageId) await ctx.db.patch(upload._id, { messageId });
     return { limited: messageId === null, limit: DAILY_LIMIT };
   },
@@ -89,7 +90,6 @@ export const me = query({
     if (!user || user.deleting) return null;
     return {
       email: user.email ?? null,
-      voiceMode: user.voiceMode ?? true, // voice is on until the user turns it off
       language: user.language ?? "en",
       notifications: { reminders: user.notifications?.reminders ?? true, appointments: user.notifications?.appointments ?? true },
       checkins: user.checkins ?? true,
@@ -106,15 +106,6 @@ export const clear = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     await ctx.db.patch(userId, { chatClearedAt: Date.now(), analysisOfferedAt: undefined });
-  },
-});
-
-export const setVoiceMode = mutation({
-  args: { enabled: v.boolean() },
-  handler: async (ctx, { enabled }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    await ctx.db.patch(userId, { voiceMode: enabled });
   },
 });
 

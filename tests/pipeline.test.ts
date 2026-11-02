@@ -100,22 +100,32 @@ describe("app chat", () => {
     expect(await a.as.query(api.chat.list)).toHaveLength(2);
   });
 
-  test("settings: voice mode is on by default and toggles", async () => {
+  test("settings defaults", async () => {
     const t = setup();
     const { as } = await createAppUser(t);
     expect(await as.query(api.chat.me)).toEqual({
       email: "a@example.com",
-      voiceMode: true,
       language: "en",
       notifications: { reminders: true, appointments: true },
       checkins: true,
       location: "",
       telegramLinked: false,
     });
-    await as.mutation(api.chat.setVoiceMode, { enabled: false });
-    expect((await as.query(api.chat.me))!.voiceMode).toBe(false);
-    await as.mutation(api.chat.setVoiceMode, { enabled: true });
-    expect((await as.query(api.chat.me))!.voiceMode).toBe(true);
+  });
+
+  test("a question asked with the app's mic is marked spoken; the reply goes in the app only", async () => {
+    const t = setup();
+    const { calls } = mockApis();
+    const { userId, as } = await createAppUser(t);
+    await as.mutation(api.chat.send, { text: "I have a headache", voice: true });
+    await as.mutation(api.chat.send, { text: "typed question" });
+    await drain(t);
+    const msgs = await messagesOf(t, userId);
+    expect(msgs.filter((m) => m.role === "user").map((m) => [m.text, m.voice])).toEqual([
+      ["I have a headache", true],
+      ["typed question", undefined],
+    ]);
+    expect(calls.some((c) => c.url.includes("api.telegram.org"))).toBe(false);
   });
 });
 

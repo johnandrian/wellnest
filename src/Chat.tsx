@@ -86,9 +86,9 @@ export function Chat() {
   const last = messages?.[messages.length - 1];
   const waiting = last?.role === "user";
 
-  const submit = async (value = text, attached: Picked | null = photo) => {
+  // `spoken`: it came from the mic, so the reply is read aloud.
+  const submit = async (value = text, attached: Picked | null = photo, spoken = false) => {
     if (!value.trim() && !attached) return;
-    voice.prepare();
     setText("");
     setNotice(null);
     let imageId: Id<"_storage"> | undefined;
@@ -108,7 +108,7 @@ export function Chat() {
       setPhoto(null);
     }
     try {
-      const res = await send({ text: value, imageId });
+      const res = await send({ text: value, imageId, ...(spoken && { voice: true }) });
       if (res.limited) {
         setText(value);
         setNotice(`You've reached today's limit of ${res.limit} messages. Please try again tomorrow. In an emergency, call 911.`);
@@ -132,7 +132,7 @@ export function Chat() {
   };
 
   const s = strings(me?.language);
-  const voice = useVoice(!!me?.voiceMode, messages, submit, me?.language, {
+  const voice = useVoice(messages, (spokenText) => submit(spokenText, photo, true), me?.language, {
     recording: s.listening,
     transcribing: s.transcribing,
   });
@@ -165,7 +165,7 @@ export function Chat() {
           <View style={styles.brandText}>
             <Text style={styles.headerTitle}>Wellnest</Text>
             <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {me?.voiceMode ? s.subtitleVoice : s.subtitleText} · {s.notDoctor}
+              {s.subtitleVoice} · {s.notDoctor}
             </Text>
           </View>
         </View>
@@ -201,7 +201,7 @@ export function Chat() {
 
       {panel === "hub" && <HubPanel tab={hubTab} onTab={setHubTab} s={s} />}
       {panel === "about" && <AboutPanel />}
-      {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onVoiceModeOn={() => voice.prepare(true)} onOpenAbout={() => setPanel("about")} />}
+      {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} />}
 
       {messages === undefined ? (
         <ActivityIndicator style={{ flex: 1 }} />
@@ -215,11 +215,11 @@ export function Chat() {
           ListEmptyComponent={
             <View style={styles.welcome}>
               <View style={styles.welcomeIcon}>
-                <Ionicons name={me?.voiceMode ? "mic" : "chatbubble-ellipses"} size={30} color={colors.primary} />
+                <Ionicons name="mic" size={30} color={colors.primary} />
               </View>
               <Text style={styles.welcomeTitle}>{s.welcome}</Text>
               <Text style={styles.empty}>
-                {me?.voiceMode ? s.introVoice : s.introText} {s.disclaimer}
+                {s.introVoice} {s.disclaimer}
               </Text>
               <View style={styles.chips}>
                 {s.starters.map((q) => (
@@ -327,35 +327,33 @@ export function Chat() {
         >
           <Ionicons name="camera-outline" size={22} color={colors.primary} />
         </Pressable>
-        {me?.voiceMode && (
-          <View>
-            {voice.mic === "recording" && <PulseRing color={colors.danger} style={styles.ring} />}
-            <Pressable
-              style={({ pressed }) => [
-                styles.iconButton,
-                styles.mic,
-                voice.mic === "recording" && styles.micActive,
-                pressed && styles.pressed,
-              ]}
-              onPress={voice.mic === "recording" ? voice.stop : voice.start}
-              disabled={voice.mic === "asking" || voice.mic === "transcribing"}
-              accessibilityRole="button"
-              accessibilityLabel={voice.mic === "recording" ? "Stop recording and send" : "Record a voice message"}
-              accessibilityState={{ busy: voice.mic === "asking" || voice.mic === "transcribing" }}
-            >
-              {voice.mic === "asking" || voice.mic === "transcribing" ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : voice.mic === "recording" ? (
-                <Ionicons name="stop" size={20} color="#fff" />
-              ) : (
-                <Ionicons name="mic" size={22} color={colors.primary} />
-              )}
-            </Pressable>
-          </View>
-        )}
+        <View>
+          {voice.mic === "recording" && <PulseRing color={colors.danger} style={styles.ring} />}
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconButton,
+              styles.mic,
+              voice.mic === "recording" && styles.micActive,
+              pressed && styles.pressed,
+            ]}
+            onPress={voice.mic === "recording" ? voice.stop : voice.start}
+            disabled={voice.mic === "asking" || voice.mic === "transcribing"}
+            accessibilityRole="button"
+            accessibilityLabel={voice.mic === "recording" ? "Stop recording and send" : "Record a voice message"}
+            accessibilityState={{ busy: voice.mic === "asking" || voice.mic === "transcribing" }}
+          >
+            {voice.mic === "asking" || voice.mic === "transcribing" ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : voice.mic === "recording" ? (
+              <Ionicons name="stop" size={20} color="#fff" />
+            ) : (
+              <Ionicons name="mic" size={22} color={colors.primary} />
+            )}
+          </Pressable>
+        </View>
         <TextInput
           style={styles.input}
-          placeholder={photo ? s.placeholderPhoto : me?.voiceMode ? s.placeholderVoice : s.placeholderText}
+          placeholder={photo ? s.placeholderPhoto : s.placeholderVoice}
           placeholderTextColor={colors.muted}
           value={text}
           onChangeText={setText}
@@ -404,12 +402,10 @@ function Settings({
   s,
   pushToken,
   health,
-  onVoiceModeOn,
   onOpenAbout,
 }: {
   me: {
     email: string | null;
-    voiceMode: boolean;
     telegramLinked: boolean;
     location: string;
     language: string;
@@ -419,10 +415,8 @@ function Settings({
   s: Strings;
   pushToken: { current: string | null };
   health: HealthSync;
-  onVoiceModeOn: () => void;
   onOpenAbout: () => void;
 }) {
-  const setVoiceMode = useMutation(api.chat.setVoiceMode);
   const setLanguage = useMutation(api.chat.setLanguage);
   const setPushPreference = useMutation(api.push.setPreference);
   const unregisterPush = useMutation(api.push.unregister);
@@ -447,16 +441,6 @@ function Settings({
   return (
     <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settings}>
       <Text style={styles.muted}>{me.email}</Text>
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>Voice mode</Text>
-        <Switch
-          value={me.voiceMode}
-          onValueChange={(enabled) => {
-            void setVoiceMode({ enabled });
-            if (enabled) onVoiceModeOn();
-          }}
-        />
-      </View>
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>Language</Text>
         <View style={styles.langChips}>

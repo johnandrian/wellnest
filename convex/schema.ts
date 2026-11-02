@@ -71,7 +71,7 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     telegramChatId: v.optional(v.string()),
-    voiceMode: v.optional(v.boolean()),
+    voiceMode: v.optional(v.boolean()), // legacy: the removed voice mode switch; the mic is always on now
     // Free text ("Berkeley, CA 94704") or "lat,lon" from a shared Telegram location.
     location: v.optional(v.string()),
     // Routing state (convex/pipeline.ts): an analysis offer waiting for a yes.
@@ -123,7 +123,8 @@ export default defineSchema({
         status: v.optional(v.union(v.literal("taken"), v.literal("skipped"))),
       }),
     ),
-    // A user message that came in as a Telegram voice note (text is the transcript); the reply is also spoken.
+    // A user message that was spoken: a Telegram voice note or the app's mic (text is the transcript). The reply
+    // is spoken too.
     voice: v.optional(v.boolean()),
     // A photo the user sent with the message (app upload or Telegram), in file storage.
     image: v.optional(v.id("_storage")),

@@ -228,7 +228,7 @@ export const respond = internalAction({
       extra: links,
       channel: message.channel,
       urgent,
-      heard: message.voice ? message.text : undefined,
+      heard: message.voice && message.channel === "telegram" ? message.text : undefined,
     });
   },
 });
