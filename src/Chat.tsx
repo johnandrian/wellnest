@@ -154,9 +154,9 @@ export function Chat() {
       <View style={styles.header}>
         <View style={styles.brand}>
           <Image source={require("../assets/wellnest-mark.png")} style={styles.logo} accessibilityIgnoresInvertColors />
-          <View>
+          <View style={styles.brandText}>
             <Text style={styles.headerTitle}>Wellnest</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
               {me?.voiceMode ? s.subtitleVoice : s.subtitleText} · {s.notDoctor}
             </Text>
           </View>
@@ -504,10 +504,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
   headerSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
-  brand: { flexDirection: "row", alignItems: "center", gap: 10 },
+  // The title side shrinks (subtitle truncates) so the four header buttons always fit on a phone.
+  brand: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 1, minWidth: 0 },
+  brandText: { flexShrink: 1, minWidth: 0 },
   logo: { width: 38, height: 38, borderRadius: 10 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 2 },
-  headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },
+  headerButton: { width: 38, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerLink: { color: colors.primary, fontSize: 16 },
   settingsScroll: { maxHeight: "70%", flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
   settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },
@@ -563,6 +565,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   input: {
+    minWidth: 0, // web inputs otherwise keep their default width and push the send button off small screens
     flex: 1,
     minHeight: 44,
     borderWidth: 1,
