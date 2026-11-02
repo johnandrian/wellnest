@@ -187,6 +187,21 @@ export const respond = internalAction({
         reminder: (name, rawArgs) => {
           const args = parseArgs(rawArgs);
           const medName = typeof args.name === "string" ? args.name : "";
+          if (name === "update_medication") {
+            const action = String(args.action ?? "");
+            if (!["pause", "resume", "stop", "change_dose", "side_effect", "refilled"].includes(action)) {
+              return Promise.resolve("Tool error: unknown action.");
+            }
+            return ctx.runMutation(internal.medications.updateFromChat, {
+              userId,
+              name: medName,
+              action: action as "pause",
+              dose: typeof args.dose === "string" ? args.dose : undefined,
+              sideEffect: typeof args.side_effect === "string" ? args.side_effect : undefined,
+              severity: typeof args.severity === "number" ? args.severity : undefined,
+              amount: typeof args.amount === "number" ? args.amount : undefined,
+            });
+          }
           if (name === "cancel_medication_reminder") {
             return ctx.runMutation(internal.reminders.cancelFromChat, { userId, name: medName });
           }
@@ -368,7 +383,7 @@ ${opts.medications}`);
         result = await opts.journal(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {
         result = await opts.fact(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
-      } else if (call.function.name === "set_medication_reminder" || call.function.name === "cancel_medication_reminder") {
+      } else if (["set_medication_reminder", "cancel_medication_reminder", "update_medication"].includes(call.function.name)) {
         result = await opts.reminder(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "prepare_visit_summary") {
         result = await opts.prepareVisit(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);

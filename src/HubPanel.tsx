@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme";
 import type { Strings } from "./i18n";
 import { JournalPanel } from "./JournalPanel";
-import { RemindersPanel } from "./RemindersPanel";
+import { MedicationsPanel } from "./MedicationsPanel";
 import { VisitPanel } from "./VisitPanel";
 import { CarePanel } from "./CarePanel";
 
@@ -12,7 +12,7 @@ export type HubTab = "journal" | "reminders" | "visit" | "care";
 
 const TABS: { tab: HubTab; icon: keyof typeof Ionicons.glyphMap; label: (s: Strings) => string }[] = [
   { tab: "journal", icon: "pulse", label: (s) => s.tabJournal },
-  { tab: "reminders", icon: "medkit-outline", label: (s) => s.tabReminders },
+  { tab: "reminders", icon: "medkit-outline", label: (s) => s.tabMeds },
   { tab: "visit", icon: "clipboard-outline", label: (s) => s.tabVisit },
   { tab: "care", icon: "location-outline", label: (s) => s.tabCare },
 ];
@@ -37,7 +37,7 @@ export function HubPanel({ tab, onTab, s }: { tab: HubTab; onTab: (t: HubTab) =>
         ))}
       </View>
       {tab === "journal" && <JournalPanel s={s} />}
-      {tab === "reminders" && <RemindersPanel s={s} />}
+      {tab === "reminders" && <MedicationsPanel s={s} />}
       {tab === "visit" && <VisitPanel s={s} />}
       {tab === "care" && <CarePanel s={s} />}
     </View>

@@ -165,7 +165,7 @@ describe("reminders in chat", () => {
     await as.mutation(api.chat.send, { text: "what am I taking?" });
     await settle(t);
     expect(cortexCalls(calls).at(-1)!.body.messages[0].content).toContain(
-      "Medication reminders the user has set up:\n- Ibuprofen 400 mg, daily at 08:00, 20:00, reminders since 2026-11-02",
+      "Medication reminders the user has set up:\n- Ibuprofen 400 mg, daily at 08:00, 20:00, since 2026-11-02",
     );
   });
 
@@ -200,6 +200,6 @@ describe("reminders in chat", () => {
     await as.mutation(api.visit.create, {});
     await settle(t);
     const material = cortexCalls(calls).at(-1)!.body.messages[1].content;
-    expect(material).toContain("- Sumatriptan 50 mg, every 24 hours, reminders since 2026-11-02; last 30 days: 1 taken, 0 skipped");
+    expect(material).toContain("- Sumatriptan 50 mg, every 24 hours, since 2026-11-02; last 30 days: 1 taken, 0 skipped");
   });
 });

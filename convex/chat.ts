@@ -21,7 +21,7 @@ export const send = mutation({
       : null;
     if (imageId) {
       const file = await ctx.db.system.get("_storage", imageId);
-      if (!file || !upload || upload.userId !== userId || upload.messageId) {
+      if (!file || !upload || upload.userId !== userId || upload.messageId || upload.usedFor) {
         throw new Error("That photo didn't upload. Please try again.");
       }
       if (!file.contentType?.startsWith("image/") || file.size > MAX_IMAGE_BYTES) {

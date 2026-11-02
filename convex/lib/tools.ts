@@ -118,6 +118,27 @@ export const reminderTools: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "update_medication",
+      description:
+        "Record a change to one of the user's medications when they tell you about it: pausing, resuming or stopping it, " +
+        "a new dose, a side effect they're having, or a refill. Each change is dated in the medication's history.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          action: { type: "string", enum: ["pause", "resume", "stop", "change_dose", "side_effect", "refilled"] },
+          dose: { type: "string", description: "For change_dose: the new dose, e.g. '200 mg'" },
+          side_effect: { type: "string", description: "For side_effect: what they noticed, e.g. 'nausea after the morning dose'" },
+          severity: { type: "integer", description: "For side_effect: 0-10 if given" },
+          amount: { type: "number", description: "For refilled: how many units they got, if said" },
+        },
+        required: ["name", "action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "cancel_medication_reminder",
       description: "Stop the reminders for a medication the user names.",
       parameters: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },

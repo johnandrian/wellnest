@@ -72,6 +72,7 @@ describe("app chat", () => {
       "suggest_telehealth",
       "prepare_visit_summary",
       "set_medication_reminder",
+      "update_medication",
       "cancel_medication_reminder",
       "remember_fact",
       "forget_fact",

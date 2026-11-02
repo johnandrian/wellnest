@@ -6,6 +6,7 @@ import { schedule } from "./lib/reminders";
 import { language } from "./lib/language";
 import { entrySource } from "./lib/journal";
 import { slot, urgency as visitUrgency } from "./lib/telehealth";
+import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -217,7 +218,36 @@ export default defineSchema({
     jobId: v.optional(v.id("_scheduled_functions")),
     endsAt: v.optional(v.number()), // a course of N days
     stoppedAt: v.optional(v.number()),
+    pausedAt: v.optional(v.number()), // reminders off for now; resume brings them back (convex/medications.ts)
+    genericName: v.optional(v.string()),
+    form: v.optional(medForm),
+    prescriber: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    timeDoses: v.optional(v.array(timeDose)), // a different dose at some daily times
+    supply: v.optional(supply), // refill tracking
+    scriptImage: v.optional(v.id("_storage")), // eScript QR code or prescription label
   }).index("by_user_and_active", ["userId", "active"]),
+
+  // A medication's dated history: started, paused, resumed, stopped, dose changes, refills.
+  medicationEvents: defineTable({
+    userId: v.id("users"),
+    medicationId: v.id("medications"),
+    kind: medEventKind,
+    at: v.number(),
+    note: v.optional(v.string()),
+  })
+    .index("by_medication", ["medicationId"])
+    .index("by_user", ["userId"]),
+
+  sideEffects: defineTable({
+    userId: v.id("users"),
+    medicationId: v.id("medications"),
+    date: v.string(), // YYYY-MM-DD
+    effect: v.string(),
+    severity: v.optional(v.number()), // 0-10
+  })
+    .index("by_medication", ["medicationId"])
+    .index("by_user", ["userId"]),
 
   // Taken / Skip answers to reminders.
   doseLogs: defineTable({
@@ -234,6 +264,7 @@ export default defineSchema({
     userId: v.id("users"),
     storageId: v.id("_storage"),
     messageId: v.optional(v.id("messages")),
+    usedFor: v.optional(v.literal("script")), // attached to a medication instead of a message
   })
     .index("by_storage", ["storageId"])
     .index("by_user", ["userId"]),

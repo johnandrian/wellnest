@@ -95,6 +95,11 @@ const TEXT = {
     es: () => "La consulta sigue reservada. Inténtalo de nuevo o contacta al proveedor.",
     el: () => "Η επίσκεψη είναι ακόμη κλεισμένη. Δοκίμασε ξανά ή επικοινώνησε με τον πάροχο.",
   },
+  lowSupply: {
+    en: (name: string, days: number) => `💊 You're running low on **${name}**: about ${days} day${days === 1 ? "" : "s"} left. Time to order a refill.`,
+    es: (name: string, days: number) => `💊 Te queda poco **${name}**: unos ${days} día${days === 1 ? "" : "s"}. Es hora de pedir más.`,
+    el: (name: string, days: number) => `💊 Σου τελειώνει το **${name}**: περίπου ${days} ${days === 1 ? "μέρα" : "μέρες"} ακόμη. Ώρα για ανανέωση.`,
+  },
   languageSet: {
     en: () => "Okay, I'll reply in English.",
     es: () => "De acuerdo, te responderé en español.",

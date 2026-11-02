@@ -170,9 +170,11 @@ export const exportRest = internalQuery({
       facts: await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS),
       healthDays: await ctx.db.query("healthDays").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       medications: (await ctx.db.query("medications").withIndex("by_user_and_active", (q) => q.eq("userId", userId)).take(take)).map(
-        ({ jobId, ...m }) => m,
+        ({ jobId, scriptImage, ...m }) => ({ ...m, hasScriptPhoto: !!scriptImage }),
       ),
       doseLogs: await ctx.db.query("doseLogs").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
+      medicationHistory: await ctx.db.query("medicationEvents").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
+      sideEffects: await ctx.db.query("sideEffects").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       visitSummaries: await ctx.db.query("visitSummaries").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomAnalyses: await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomJournal: await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
@@ -214,7 +216,7 @@ const category = v.union(
 const STEPS = {
   chat: ["messages", "photoUploads", "creaoRuns", "checkins", "appointments"],
   health: ["healthDays"],
-  reminders: ["medications", "doseLogs"],
+  reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
   facts: ["memoryFacts"],
   journal: ["symptomEntries"],
@@ -265,7 +267,8 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       const rows = await ctx.db.query("photoUploads").withIndex("by_user", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) {
         // Uploads that never made it into a message still have their file.
-        if (!r.messageId) await ctx.storage.delete(r.storageId).catch(() => {});
+        // (An eScript photo is deleted with its medication.)
+        if (!r.messageId && !r.usedFor) await ctx.storage.delete(r.storageId).catch(() => {});
         await ctx.db.delete(r._id);
       }
       return rows.length;
@@ -282,11 +285,14 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       const rows = await ctx.db.query("medications").withIndex("by_user_and_active", (q) => q.eq("userId", userId)).take(BATCH);
       for (const m of rows) {
         if (m.jobId) await ctx.scheduler.cancel(m.jobId).catch(() => {});
+        if (m.scriptImage) await ctx.storage.delete(m.scriptImage).catch(() => {});
         await ctx.db.delete(m._id);
       }
       return rows.length;
     }
     case "pushTokens":
+    case "medicationEvents":
+    case "sideEffects":
     case "checkins":
     case "creaoRuns":
     case "doseLogs":
