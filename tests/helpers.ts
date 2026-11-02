@@ -70,6 +70,7 @@ export function mockApis(opts: {
   cartesiaTtsFail?: boolean; // /tts/bytes answers 500
   cartesiaStt?: string | Error; // what Cartesia STT hears (default "I have a headache")
   telegramFileGone?: boolean; // getFile fails (e.g. a file over 20 MB)
+  pushDead?: string[]; // Expo push tokens that come back DeviceNotRegistered
 } = {}) {
   const calls: Call[] = [];
   const core = [...(opts.core ?? [{ content: "Rest and drink water." }])];
@@ -148,6 +149,15 @@ export function mockApis(opts: {
       );
       return Response.json({ model: "jev-1.14.0", answers });
     }
+    if (url === "https://exp.host/--/api/v2/push/send") {
+      return Response.json({
+        data: body.map((m: any) =>
+          opts.pushDead?.includes(m.to)
+            ? { status: "error", message: "not registered", details: { error: "DeviceNotRegistered" } }
+            : { status: "ok", id: `ticket-${m.to}` },
+        ),
+      });
+    }
     if (url.startsWith("https://geocoding-api.open-meteo.com/")) {
       if (opts.aqi === null) return Response.json({});
       return Response.json({ results: [{ name: "San Francisco", admin1: "California", latitude: 37.77, longitude: -122.42 }] });
@@ -202,3 +212,4 @@ export function messagesOf(t: ReturnType<typeof setup>, userId: Id<"users">) {
     ctx.db.query("messages").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
   );
 }
+export const pushSends = (calls: Call[]) => calls.filter((c) => c.url === "https://exp.host/--/api/v2/push/send").flatMap((c) => c.body);

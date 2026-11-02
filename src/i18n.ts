@@ -26,6 +26,10 @@ const STRINGS = {
     skip: "Skip",
     listening: "Listening… tap the red button when you're done.",
     transcribing: "Transcribing…",
+    channelReminders: "Medication reminders",
+    channelAppointments: "Appointments",
+    notifyReminders: "Reminder notifications",
+    notifyAppointments: "Appointment notifications",
   },
   es: {
     starters: [
@@ -49,6 +53,10 @@ const STRINGS = {
     skip: "Omitir",
     listening: "Escuchando… toca el botón rojo cuando termines.",
     transcribing: "Transcribiendo…",
+    channelReminders: "Recordatorios de medicamentos",
+    channelAppointments: "Citas",
+    notifyReminders: "Avisos de recordatorios",
+    notifyAppointments: "Avisos de citas",
   },
   el: {
     starters: [
@@ -72,6 +80,10 @@ const STRINGS = {
     skip: "Παράλειψη",
     listening: "Ακούω… πάτα το κόκκινο κουμπί όταν τελειώσεις.",
     transcribing: "Μεταγραφή…",
+    channelReminders: "Υπενθυμίσεις φαρμάκων",
+    channelAppointments: "Ραντεβού",
+    notifyReminders: "Ειδοποιήσεις υπενθυμίσεων",
+    notifyAppointments: "Ειδοποιήσεις ραντεβού",
   },
 } satisfies Record<Lang, Record<string, string | string[]>>;
 

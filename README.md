@@ -96,6 +96,11 @@ Wellnest speaks **English, Spanish and Greek**. The user picks one in Settings, 
 - **Voice:** Cartesia STT (ink-whisper) and Sonic TTS get the language: the app's token carries it (`voice.token`), and `/tts` and Telegram voice notes read it from the user. One Sonic voice speaks all three unless `CARTESIA_VOICE_ID_ES` / `_EL` is set. Cut-short speech ends with "the rest is in the text" in that language.
 - **Also translated:** medication reminder messages (local time format), visit summaries (written in that language), the daily-limit and error replies, and the chat screen itself (welcome, starter questions, placeholders, Taken / Skip). The panels and Settings are still English.
 
+## Push notifications
+iOS and Android get push notifications (Expo push) for **medication reminders** (with Taken / Skip buttons right on the notification) and **telehealth appointment updates**. Each kind can be turned off in Settings.
+- **Setup:** push needs a development or store build with an EAS project id (`npx eas-cli init` writes it to `app.json`). Optional `EXPO_ACCESS_TOKEN` on the Convex deployment if you turn on Expo's enhanced push security. Web has no push; reminders still show in the chat.
+- **Devices:** each phone registers its token in `pushTokens` (up to 10 per user; a phone that signs in to another account moves to it). Signing out removes it; tokens Expo reports as `DeviceNotRegistered` are dropped.
+
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):
 - **Shopping (proactive):** a period, headache, allergies, low diabetes supplies, post-surgery... The shopper picks the approved items and its store links are shown under the reply. Nothing is bought: the user checks out themselves. Skipped for emergencies.

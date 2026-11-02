@@ -216,14 +216,16 @@ const STEPS = {
   summaries: ["visitSummaries"],
   facts: ["memoryFacts"],
 } as const;
-type Step = (typeof STEPS)[keyof typeof STEPS][number] | "auth";
+// Only "everything" also removes the account's devices and sign-in records.
+const ACCOUNT_STEPS = ["pushTokens", "auth"] as const;
+type Step = (typeof STEPS)[keyof typeof STEPS][number] | (typeof ACCOUNT_STEPS)[number];
 
 export const deleteData = mutation({
   args: { category },
   handler: async (ctx, { category }) => {
     const userId = await requireUser(ctx);
     const steps: Step[] =
-      category === "everything" ? [...Object.values(STEPS).flat(), "auth"] : [...STEPS[category]];
+      category === "everything" ? [...Object.values(STEPS).flat(), ...ACCOUNT_STEPS] : [...STEPS[category]];
     // Fields on the user record go right away; rows are deleted in batches in the background.
     if (category === "chat" || category === "everything") await ctx.db.patch(userId, { chatClearedAt: undefined, analysisOfferedAt: undefined });
     if (category === "health" || category === "everything") await ctx.db.patch(userId, { health: undefined });
@@ -273,6 +275,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       }
       return rows.length;
     }
+    case "pushTokens":
     case "creaoRuns":
     case "doseLogs":
     case "visitSummaries":

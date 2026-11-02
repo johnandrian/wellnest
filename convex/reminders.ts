@@ -7,6 +7,7 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { checkSchedule, describeSchedule, localTimeText, MAX_ACTIVE, nextDue, schedule, Schedule } from "./lib/reminders";
 import { langOf, t, timeText } from "./lib/language";
+import { notify } from "./push";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A dose due within a minute of a course's end counts as past it ("every 12 hours for 1 day" is 2 reminders).
@@ -127,14 +128,22 @@ export const fire = internalMutation({
     if (!med?.active || med.nextAt !== dueAt) return;
     const user = await ctx.db.get(med.userId);
     if (user) {
-      await ctx.db.insert("messages", {
+      const text = t(langOf(user), "reminder", med.name, med.dose ?? "", timeText(dueAt, med.timeZone, langOf(user)));
+      const messageId = await ctx.db.insert("messages", {
         userId: med.userId,
         role: "assistant",
         channel: "app",
         kind: "reminder",
-        text: t(langOf(user), "reminder", med.name, med.dose ?? "", timeText(dueAt, med.timeZone, langOf(user))),
+        text,
         urgent: false,
         reminder: { medicationId: id, dueAt },
+      });
+      // The phone shows Taken / Skip buttons on it (the "reminder" category, src/push.ts).
+      await notify(ctx, med.userId, "reminders", {
+        title: `💊 ${med.name}`,
+        body: text.replace(/^💊\s*/, ""),
+        data: { messageId },
+        categoryId: "reminder",
       });
     }
     const next = nextDue(med.schedule, Math.max(dueAt, Date.now()), med.timeZone, med.utcOffsetMin);

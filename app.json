@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "health.talktothebeak.wellnest"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -41,6 +42,12 @@
           "photosPermission": "Wellnest uses your photos when you choose one to ask about, like a pill bottle, a label or lab results.",
           "cameraPermission": "Wellnest uses the camera when you take a photo to ask about, like a pill bottle or a rash.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0B5D57"
         }
       ]
     ]

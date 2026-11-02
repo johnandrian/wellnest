@@ -105,6 +105,7 @@ describe("app chat", () => {
       email: "a@example.com",
       voiceMode: true,
       language: "en",
+      notifications: { reminders: true, appointments: true },
       location: "",
       telegramLinked: false,
     });

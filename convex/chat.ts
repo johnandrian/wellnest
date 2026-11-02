@@ -91,6 +91,7 @@ export const me = query({
       email: user.email ?? null,
       voiceMode: user.voiceMode ?? true, // voice is on until the user turns it off
       language: user.language ?? "en",
+      notifications: { reminders: user.notifications?.reminders ?? true, appointments: user.notifications?.appointments ?? true },
       location: user.location ?? "",
       telegramLinked: !!user.telegramChatId,
     };

@@ -80,6 +80,8 @@ export default defineSchema({
     chatClearedAt: v.optional(v.number()),
     // Reply and voice language (convex/lib/language.ts); English when unset.
     language: v.optional(language),
+    // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
+    notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),
     // Set while "Delete everything" runs (convex/me.ts).
     deleting: v.optional(v.boolean()),
     // IANA zone from the app (e.g. "America/Los_Angeles"), for medication reminder times; the offset is a fallback.
@@ -136,6 +138,15 @@ export default defineSchema({
     source: v.literal("apple_health"),
     metrics: healthMetrics,
   }).index("by_user_and_date", ["userId", "date"]),
+
+  // Expo push tokens, one per phone the user is signed in on (convex/push.ts).
+  pushTokens: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    platform: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_token", ["token"]),
 
   // Medication reminders (convex/reminders.ts). Stopped ones are kept (active false) for the dose history.
   medications: defineTable({

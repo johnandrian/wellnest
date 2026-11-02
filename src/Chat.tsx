@@ -30,7 +30,8 @@ import { RemindersPanel } from "./RemindersPanel";
 import { AboutPanel } from "./AboutPanel";
 import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
-import { Lang, LANGUAGE_NAMES, strings } from "./i18n";
+import { Lang, LANGUAGE_NAMES, Strings, strings } from "./i18n";
+import { pushSupported, usePush } from "./push";
 
 // The panels that open under the header.
 type Panel = "settings" | "visit" | "reminders" | "about";
@@ -133,6 +134,9 @@ export function Chat() {
   });
   const health = useHealthSync();
 
+  // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
+  const pushToken = usePush(s, (kind) => setPanel(kind === "reminders" ? "reminders" : null));
+
   // Medication reminders fire at local times, so the backend needs this device's time zone.
   useEffect(() => {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -202,7 +206,7 @@ export function Chat() {
       {panel === "visit" && <VisitPanel />}
       {panel === "reminders" && <RemindersPanel />}
       {panel === "about" && <AboutPanel />}
-      {panel === "settings" && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} onOpenAbout={() => setPanel("about")} />}
+      {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onVoiceModeOn={() => voice.prepare(true)} onOpenAbout={() => setPanel("about")} />}
 
       {messages === undefined ? (
         <ActivityIndicator style={{ flex: 1 }} />
@@ -402,17 +406,30 @@ export function Chat() {
 
 function Settings({
   me,
+  s,
+  pushToken,
   health,
   onVoiceModeOn,
   onOpenAbout,
 }: {
-  me: { email: string | null; voiceMode: boolean; telegramLinked: boolean; location: string; language: string };
+  me: {
+    email: string | null;
+    voiceMode: boolean;
+    telegramLinked: boolean;
+    location: string;
+    language: string;
+    notifications: { reminders: boolean; appointments: boolean };
+  };
+  s: Strings;
+  pushToken: { current: string | null };
   health: HealthSync;
   onVoiceModeOn: () => void;
   onOpenAbout: () => void;
 }) {
   const setVoiceMode = useMutation(api.chat.setVoiceMode);
   const setLanguage = useMutation(api.chat.setLanguage);
+  const setPushPreference = useMutation(api.push.setPreference);
+  const unregisterPush = useMutation(api.push.unregister);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -481,7 +498,20 @@ function Settings({
       <Pressable style={styles.settingButton} onPress={onOpenAbout} accessibilityRole="button">
         <Text style={styles.settingButtonText}>What Wellnest knows about me</Text>
       </Pressable>
-      <Pressable onPress={() => void signOut()}>
+      {pushSupported &&
+        (["reminders", "appointments"] as const).map((kind) => (
+          <View key={kind} style={styles.settingRow}>
+            <Text style={styles.settingLabel}>{kind === "reminders" ? s.notifyReminders : s.notifyAppointments}</Text>
+            <Switch value={me.notifications[kind]} onValueChange={(enabled) => void setPushPreference({ kind, enabled })} />
+          </View>
+        ))}
+      <Pressable
+        onPress={async () => {
+          // This phone stops getting the account's notifications.
+          if (pushToken.current) await unregisterPush({ token: pushToken.current }).catch(() => {});
+          await signOut();
+        }}
+      >
         <Text style={styles.headerLink}>Sign out</Text>
       </Pressable>
     </ScrollView>
