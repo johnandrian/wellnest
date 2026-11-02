@@ -9,6 +9,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `RemindersPanel.tsx` — medication reminders (pill button); reminder messages in the chat get Taken / Skip buttons.
   - `photo.ts` — pick or take a photo, shrink it to 1600px, upload it to Convex file storage.
   - `AboutPanel.tsx` — "What Wellnest knows about me" (Settings): saved facts, stored data, sharing, export, delete.
+  - `i18n.ts` — the chat screen's words in English, Spanish and Greek.
   - `useVoice.ts` — voice mode: mic → Cartesia STT → send; replies → Cartesia TTS. `speaker.web.ts` / `speaker.ts` — streaming playback on web / iOS + Android (see Voice below).
 - `convex/` — backend.
   - `pipeline.ts` — shared pipeline: Jina embed → vector search memory → Cortex triage → Cortex core model + tools → reply.
@@ -21,6 +22,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `visit.ts` + `lib/visit.ts` — doctor-visit summaries (see below).
   - `reminders.ts` + `lib/reminders.ts` — medication reminders: schedules in the user's time zone, dose history (see below).
   - `me.ts` — saved facts (`remember_fact` / `forget_fact`), the data overview, JSON export and deletion (see below).
+  - `lib/language.ts` — reply/voice languages (English, Spanish, Greek) and the fixed messages in each.
   - `lib/jev.ts` — routes each message: shopping, symptom analyzer, or regular.
 - `creao/` — the CREAO agent bundle: `SKILL.md` (its program), `config.yaml` (form fields, memory), `README.md`.
 
@@ -44,7 +46,7 @@ Voice recording needs a development build on native (`npx expo run:ios`), not Ex
 | `CORTEX_SHOPPER_MODEL` / `CORTEX_CORE_MODEL` | optional, default `claude-haiku-4-5` / `openai-gpt-5.4` (core must be a Claude/OpenAI model for tools) |
 | `CORTEX_VISION_MODEL` | optional; the model for turns with a photo (must accept images; default: the core model) |
 | `JINA_API_KEY` | embeddings, search, reader |
-| `CARTESIA_API_KEY` | voice (app voice mode and Telegram voice notes); optional `CARTESIA_VOICE_ID` (default: the Sonic voice `db6b0ed5-…`) |
+| `CARTESIA_API_KEY` | voice (app voice mode and Telegram voice notes); optional `CARTESIA_VOICE_ID` (default: the Sonic voice `db6b0ed5-…`), and `CARTESIA_VOICE_ID_ES` / `CARTESIA_VOICE_ID_EL` for a different voice in Spanish / Greek |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | bot |
 | `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL` | Convex Auth (`npx @convex-dev/auth` sets these) |
 | `CREAO_API_KEY` | `capi_...` key from the CREAO agent's page on agent.creao.ai |
@@ -87,6 +89,12 @@ Settings → **What Wellnest knows about me** shows, in one place:
 - **Who sees what:** which outside services get which data (Snowflake Cortex, Jina, Cartesia, Jev, CREAO, Telegram).
 - **Export:** everything as JSON (messages without embeddings; photos listed by storage id). Web downloads a file; iOS/Android open the share sheet.
 - **Delete:** per category (messages with their photos and analyses; Apple Health; reminders, with their scheduled jobs cancelled; visit summaries; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
+
+## Languages
+Wellnest speaks **English, Spanish and Greek**. The user picks one in Settings, or on Telegram with `/language en|es|el`; a new Telegram user starts in their Telegram app's language if it's one of these.
+- **Replies:** the core model is told to answer in that language unless the user writes in another one, using everyday words plus the common name of medical terms.
+- **Voice:** Cartesia STT (ink-whisper) and Sonic TTS get the language: the app's token carries it (`voice.token`), and `/tts` and Telegram voice notes read it from the user. One Sonic voice speaks all three unless `CARTESIA_VOICE_ID_ES` / `_EL` is set. Cut-short speech ends with "the rest is in the text" in that language.
+- **Also translated:** medication reminder messages (local time format), visit summaries (written in that language), the daily-limit and error replies, and the chat screen itself (welcome, starter questions, placeholders, Taken / Skip). The panels and Settings are still English.
 
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):

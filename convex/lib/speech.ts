@@ -8,7 +8,14 @@ export const DEFAULT_VOICE_ID = "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4";
 // About three minutes of speech. Longer replies stop at a sentence break and point to the text.
 export const MAX_SPEECH_CHARS = 2500;
 
-export function toSpeech(markdown: string, max = MAX_SPEECH_CHARS): string {
+// Said after a reply that was cut short, in the reply's language.
+const REST_IN_TEXT: Record<string, string> = {
+  en: "The rest is in the text.",
+  es: "El resto está en el texto.",
+  el: "Τα υπόλοιπα είναι στο κείμενο.",
+};
+
+export function toSpeech(markdown: string, max = MAX_SPEECH_CHARS, lang = "en"): string {
   const lines = markdown
     .replace(/```[\s\S]*?```/g, " ") // code blocks don't read well
     .split("\n")
@@ -31,15 +38,19 @@ export function toSpeech(markdown: string, max = MAX_SPEECH_CHARS): string {
         .trim(),
     )
     // Drop lines that are only punctuation, and "Sources:" labels whose links were removed.
-    .filter((line) => /[^\s!-\/:-@[-`{-~]/.test(line) && !/^(sources?|references?|links?|read more)\s*:?$/i.test(line));
+    .filter(
+      (line) =>
+        /[^\s!-\/:-@[-`{-~]/.test(line) &&
+        !/^(sources?|references?|links?|read more|fuentes?|referencias?|enlaces?|πηγές|πηγή|σύνδεσμοι)\s*:?$/i.test(line),
+    );
   // Each line becomes a sentence so list items and headings get a pause instead of running together.
   const text = lines.map((line) => (/[.!?:;,]$/.test(line) ? line : `${line}.`)).join(" ");
-  return truncate(text, max);
+  return truncate(text, max, REST_IN_TEXT[lang] ?? REST_IN_TEXT.en);
 }
 
-function truncate(text: string, max: number) {
+function truncate(text: string, max: number, rest: string) {
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
   const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
-  return `${end > max / 2 ? cut.slice(0, end + 1) : `${cut.slice(0, cut.lastIndexOf(" "))}…`} The rest is in the text.`;
+  return `${end > max / 2 ? cut.slice(0, end + 1) : `${cut.slice(0, cut.lastIndexOf(" "))}…`} ${rest}`;
 }

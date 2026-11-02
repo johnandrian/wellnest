@@ -15,6 +15,7 @@ import { sendChatAction, sendTelegram, sendTyping, sendVoice } from "./lib/teleg
 import { synthesizeMp3 } from "./lib/cartesia";
 import { toSpeech } from "./lib/speech";
 import { channel } from "./schema";
+import { Lang, langOf, languagePrompt, t } from "./lib/language";
 
 const MAX_TOOL_ROUNDS = 5;
 const HISTORY_LIMIT = 12;
@@ -139,6 +140,7 @@ export const respond = internalAction({
         analysis,
         linksShown: !!links,
         location: user?.location,
+        language: langOf(user),
         typing,
         saveLocation: (location) =>
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
@@ -200,7 +202,7 @@ export const respond = internalAction({
       });
     } catch (e) {
       console.error("pipeline failed", e);
-      reply = "Sorry, something went wrong on my end. Please try again in a moment.";
+      reply = t(langOf(user), "failed");
     }
 
     await ctx.runMutation(internal.pipeline.saveReply, {
@@ -245,6 +247,7 @@ async function runCore(opts: {
   analysis: Analysis;
   linksShown: boolean;
   location?: string;
+  language: Lang;
   typing: () => void;
   saveLocation: (location: string) => Promise<null>;
   medications: string;
@@ -259,6 +262,8 @@ async function runCore(opts: {
 }): Promise<string> {
   const { message, memory, history, urgent, analysis, location } = opts;
   const system = [SYSTEM_PROMPT];
+  const langLine = languagePrompt(opts.language);
+  if (langLine) system.push(langLine);
   if (location) system.push(`User's saved location: ${location}`);
   system.push(
     opts.facts.length
@@ -474,7 +479,7 @@ export const deliverTelegram = internalAction({
     }
     // Quote what we heard, so a mistranscription is easy to spot, then follow the text with a voice note.
     await sendTelegram(chatId, `${heardLine(voice.heard)}\n\n${text}`);
-    await sendSpokenReply(chatId, voice.speak);
+    await sendSpokenReply(chatId, voice.speak, langOf(user));
   },
 });
 
@@ -485,12 +490,12 @@ function heardLine(heard: string) {
 
 // Cartesia speaks the reply and it goes out as a Telegram voice note. The text is already sent, so a failure
 // here only costs the audio.
-async function sendSpokenReply(chatId: string, markdown: string) {
-  const transcript = toSpeech(markdown);
+async function sendSpokenReply(chatId: string, markdown: string, language: Lang) {
+  const transcript = toSpeech(markdown, undefined, language);
   if (!transcript) return;
   try {
     void sendChatAction(chatId, "record_voice").catch(() => {});
-    const mp3 = await (await synthesizeMp3(transcript)).arrayBuffer();
+    const mp3 = await (await synthesizeMp3(transcript, language)).arrayBuffer();
     // At 128 kbps, 16,000 bytes is one second.
     await sendVoice(chatId, new Blob([mp3], { type: "audio/mpeg" }), Math.max(1, Math.round(mp3.byteLength / 16_000)));
   } catch (e) {
@@ -506,7 +511,8 @@ export const getUser = internalQuery({
 // Per-user cap on messages to the model (app + Telegram combined), over a rolling 24 hours.
 export const DAILY_LIMIT = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const LIMIT_REPLY = `You've reached today's limit of ${DAILY_LIMIT} messages. Please try again tomorrow. If this is an emergency, call 911.`;
+export const LIMIT_REPLY = t("en", "limit", DAILY_LIMIT);
+export const limitReply = (lang: Lang) => t(lang, "limit", DAILY_LIMIT);
 
 export async function overDailyLimit(ctx: MutationCtx, userId: Id<"users">) {
   const recent = await ctx.db

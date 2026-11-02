@@ -41,7 +41,12 @@ http.route({
       // A photo (Telegram sends several sizes, smallest first), or an image sent as a file.
       const photo = pickPhoto(msg);
       if (msg.text) {
-        await ctx.runMutation(internal.telegram.handleIncoming, { chatId, text: msg.text, name });
+        await ctx.runMutation(internal.telegram.handleIncoming, {
+          chatId,
+          text: msg.text,
+          name,
+          languageCode: typeof msg.from?.language_code === "string" ? msg.from.language_code : undefined,
+        });
       } else if (typeof audio?.file_id === "string") {
         await ctx.runMutation(internal.telegram.handleVoice, {
           chatId,

@@ -6,7 +6,8 @@ import { Id } from "./_generated/dataModel";
 import { audioFileName, downloadFile, finishLinkPrompt, sendLinkPrompt, sendTelegram, sendTyping } from "./lib/telegram";
 import { transcribe } from "./lib/cartesia";
 import { internal } from "./_generated/api";
-import { enqueueUserMessage, LIMIT_REPLY, overDailyLimit } from "./pipeline";
+import { enqueueUserMessage, limitReply, overDailyLimit } from "./pipeline";
+import { isLang, langOf, t } from "./lib/language";
 
 const LINK_TTL_MS = 15 * 60 * 1000;
 const WELCOME =
@@ -27,12 +28,25 @@ export const createLinkUrl = mutation({
 });
 
 export const handleIncoming = internalMutation({
-  args: { chatId: v.string(), text: v.string(), name: v.optional(v.string()) },
-  handler: async (ctx, { chatId, text, name }) => {
+  args: { chatId: v.string(), text: v.string(), name: v.optional(v.string()), languageCode: v.optional(v.string()) },
+  handler: async (ctx, { chatId, text, name, languageCode }) => {
     const existing = await ctx.db
       .query("users")
       .withIndex("by_telegram", (q) => q.eq("telegramChatId", chatId))
       .unique();
+
+    // /language es | el | en
+    const setLang = text.match(/^\/language(?:@\w+)?\s*(\S*)/i);
+    if (setLang) {
+      const userId = existing?._id ?? (await findOrCreateTelegramUser(ctx, chatId, name, languageCode));
+      const wanted = setLang[1].toLowerCase().slice(0, 2);
+      const reply = isLang(wanted)
+        ? t(wanted, "languageSet")
+        : "Choose a language: /language en (English), /language es (Español), /language el (Ελληνικά).";
+      if (isLang(wanted)) await ctx.db.patch(userId, { language: wanted });
+      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: reply });
+      return;
+    }
 
     const start = text.match(/^\/start(?:\s+(\S+))?/);
     if (start) {
@@ -54,7 +68,7 @@ export const handleIncoming = internalMutation({
         });
         return;
       }
-      const userId = existing?._id ?? (await findOrCreateTelegramUser(ctx, chatId, name));
+      const userId = existing?._id ?? (await findOrCreateTelegramUser(ctx, chatId, name, languageCode));
       await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, {
         userId,
         text: start[1]
@@ -65,10 +79,10 @@ export const handleIncoming = internalMutation({
     }
 
     // Telegram-only users: first message creates the account.
-    const userId = existing?._id ?? (await findOrCreateTelegramUser(ctx, chatId, name));
+    const userId = existing?._id ?? (await findOrCreateTelegramUser(ctx, chatId, name, languageCode));
     const messageId = await enqueueUserMessage(ctx, userId, text.slice(0, 4000), "telegram");
     if (messageId === null) {
-      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: LIMIT_REPLY });
+      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: limitReply(langOf(await ctx.db.get(userId))) });
     }
   },
 });
@@ -91,7 +105,7 @@ export const handleVoice = internalMutation({
     const userId = await findOrCreateTelegramUser(ctx, chatId, name);
     const reply = (text: string) => ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text });
     if (await overDailyLimit(ctx, userId)) {
-      await reply(LIMIT_REPLY);
+      await reply(limitReply(langOf(await ctx.db.get(userId))));
       return;
     }
     if (duration > MAX_VOICE_SECONDS) {
@@ -110,7 +124,8 @@ export const transcribeVoice = internalAction({
     let text: string;
     try {
       const { audio, path } = await downloadFile(fileId);
-      text = await transcribe(audio, audioFileName(path, mimeType));
+      const user = await ctx.runQuery(internal.pipeline.getUser, { userId });
+      text = await transcribe(audio, audioFileName(path, mimeType), langOf(user));
     } catch (e) {
       console.error("voice note transcription failed", e);
       await sendTelegram(chatId, VOICE_UNREADABLE);
@@ -129,7 +144,7 @@ export const enqueueVoiceNote = internalMutation({
   handler: async (ctx, { userId, text }) => {
     const messageId = await enqueueUserMessage(ctx, userId, text.slice(0, 4000), "telegram", true);
     if (messageId === null) {
-      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: LIMIT_REPLY });
+      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: limitReply(langOf(await ctx.db.get(userId))) });
     }
   },
 });
@@ -145,7 +160,7 @@ export const handlePhoto = internalMutation({
     const userId = await findOrCreateTelegramUser(ctx, chatId, name);
     const reply = (text: string) => ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text });
     if (await overDailyLimit(ctx, userId)) {
-      await reply(LIMIT_REPLY);
+      await reply(limitReply(langOf(await ctx.db.get(userId))));
       return;
     }
     if (size > MAX_PHOTO_BYTES) {
@@ -182,7 +197,7 @@ export const enqueuePhoto = internalMutation({
     const messageId = await enqueueUserMessage(ctx, userId, caption.trim(), "telegram", false, image);
     if (messageId === null) {
       await ctx.storage.delete(image);
-      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: LIMIT_REPLY });
+      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: limitReply(langOf(await ctx.db.get(userId))) });
     }
   },
 });
@@ -288,10 +303,13 @@ export const deleteExpiredLinks = internalMutation({
   },
 });
 
-async function findOrCreateTelegramUser(ctx: MutationCtx, chatId: string, name?: string) {
+// A new Telegram-only user starts in their Telegram app's language when it's one Wellnest speaks.
+async function findOrCreateTelegramUser(ctx: MutationCtx, chatId: string, name?: string, languageCode?: string) {
   const existing = await ctx.db
     .query("users")
     .withIndex("by_telegram", (q) => q.eq("telegramChatId", chatId))
     .unique();
-  return existing?._id ?? (await ctx.db.insert("users", { name, telegramChatId: chatId }));
+  if (existing) return existing._id;
+  const code = languageCode?.toLowerCase().slice(0, 2);
+  return await ctx.db.insert("users", { name, telegramChatId: chatId, ...(isLang(code) && code !== "en" && { language: code }) });
 }

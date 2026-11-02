@@ -3,6 +3,7 @@ import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { healthMetrics } from "./lib/health";
 import { schedule } from "./lib/reminders";
+import { language } from "./lib/language";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -78,7 +79,7 @@ export default defineSchema({
     // They aren't deleted, so the daily message limit still counts them.
     chatClearedAt: v.optional(v.number()),
     // Reply and voice language (convex/lib/language.ts); English when unset.
-    language: v.optional(v.union(v.literal("en"), v.literal("es"), v.literal("el"))),
+    language: v.optional(language),
     // Set while "Delete everything" runs (convex/me.ts).
     deleting: v.optional(v.boolean()),
     // IANA zone from the app (e.g. "America/Los_Angeles"), for medication reminder times; the offset is a fallback.

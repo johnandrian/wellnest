@@ -6,6 +6,7 @@ import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { checkSchedule, describeSchedule, localTimeText, MAX_ACTIVE, nextDue, schedule, Schedule } from "./lib/reminders";
+import { langOf, t, timeText } from "./lib/language";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A dose due within a minute of a course's end counts as past it ("every 12 hours for 1 day" is 2 reminders).
@@ -131,7 +132,7 @@ export const fire = internalMutation({
         role: "assistant",
         channel: "app",
         kind: "reminder",
-        text: `💊 Time for your **${med.name}**${med.dose ? ` (${med.dose})` : ""}. Due ${localTimeText(dueAt, med.timeZone)}.`,
+        text: t(langOf(user), "reminder", med.name, med.dose ?? "", timeText(dueAt, med.timeZone, langOf(user))),
         urgent: false,
         reminder: { medicationId: id, dueAt },
       });

@@ -10,6 +10,7 @@ import { dateDaysAgo, healthReport } from "./lib/health";
 import { DEFAULT_VISIT_DAYS, VISIT_PROMPT, visitMaterial } from "./lib/visit";
 import { saveAssistantReply } from "./pipeline";
 import { channel } from "./schema";
+import { LANGUAGES, langOf, t } from "./lib/language";
 
 export const DAILY_SUMMARIES = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -143,10 +144,14 @@ export const generate = internalAction({
         medications: medications || undefined,
         facts,
       });
+      const lang = langOf(await ctx.runQuery(internal.pipeline.getUser, { userId: data.row.userId }));
       const { content } = await complete({
         model: CORE_MODEL(),
         messages: [
-          { role: "system", content: VISIT_PROMPT },
+          {
+            role: "system",
+            content: lang === "en" ? VISIT_PROMPT : `${VISIT_PROMPT}\nWrite the whole summary, headings included, in ${LANGUAGES[lang].english}.`,
+          },
           { role: "user", content: material },
         ],
         maxTokens: 2500,
@@ -173,7 +178,7 @@ export const finish = internalMutation({
       ? "Sorry, I couldn't write your visit summary just now. Please try again in a bit."
       : row.notify === "telegram"
         ? text
-        : "**Your visit summary is ready.** Open it with the clipboard button at the top to read, share or print it.";
+        : t(langOf(await ctx.db.get(row.userId)), "visitReady");
     await saveAssistantReply(ctx, { userId: row.userId, text: reply, channel: row.notify, urgent: false });
   },
 });

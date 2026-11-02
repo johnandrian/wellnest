@@ -30,17 +30,11 @@ import { RemindersPanel } from "./RemindersPanel";
 import { AboutPanel } from "./AboutPanel";
 import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
+import { Lang, LANGUAGE_NAMES, strings } from "./i18n";
 
 // The panels that open under the header.
 type Panel = "settings" | "visit" | "reminders" | "about";
 
-// One tap sends these from the empty chat, so first-time users (and judges) can try it right away.
-const STARTERS = [
-  "I have a mild headache, what should I do?",
-  "My allergies are acting up today",
-  "How much water should I drink a day?",
-  "I just got my period and the cramps are bad",
-];
 
 // Camera or library: native asks which; web (and desktop browsers) only have the library.
 function chooseSource(): Promise<"library" | "camera" | null> {
@@ -132,7 +126,11 @@ export function Chat() {
     }
   };
 
-  const voice = useVoice(!!me?.voiceMode, messages, submit);
+  const s = strings(me?.language);
+  const voice = useVoice(!!me?.voiceMode, messages, submit, me?.language, {
+    recording: s.listening,
+    transcribing: s.transcribing,
+  });
   const health = useHealthSync();
 
   // Medication reminders fire at local times, so the backend needs this device's time zone.
@@ -159,7 +157,7 @@ export function Chat() {
           <View>
             <Text style={styles.headerTitle}>Wellnest</Text>
             <Text style={styles.headerSubtitle}>
-              {me?.voiceMode ? "Voice on · talk or type" : "Text mode"} · not a doctor
+              {me?.voiceMode ? s.subtitleVoice : s.subtitleText} · {s.notDoctor}
             </Text>
           </View>
         </View>
@@ -220,13 +218,12 @@ export function Chat() {
               <View style={styles.welcomeIcon}>
                 <Ionicons name={me?.voiceMode ? "mic" : "chatbubble-ellipses"} size={30} color={colors.primary} />
               </View>
-              <Text style={styles.welcomeTitle}>How are you feeling?</Text>
+              <Text style={styles.welcomeTitle}>{s.welcome}</Text>
               <Text style={styles.empty}>
-                {me?.voiceMode ? "Tap the mic and just talk, or type below." : "Type a question below."} I'm not a
-                doctor; in an emergency call 911.
+                {me?.voiceMode ? s.introVoice : s.introText} {s.disclaimer}
               </Text>
               <View style={styles.chips}>
-                {STARTERS.map((q) => (
+                {s.starters.map((q) => (
                   <Pressable
                     key={q}
                     style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
@@ -278,7 +275,7 @@ export function Chat() {
                           size={15}
                           color={on ? "#fff" : colors.primary}
                         />
-                        <Text style={[styles.doseText, on && styles.doseTextOn]}>{status === "taken" ? "Taken" : "Skip"}</Text>
+                        <Text style={[styles.doseText, on && styles.doseTextOn]}>{status === "taken" ? s.taken : s.skip}</Text>
                       </Pressable>
                     );
                   })}
@@ -295,7 +292,7 @@ export function Chat() {
                   accessibilityLabel="Speaking. Tap to stop."
                 >
                   <Ionicons name="volume-high" size={14} color={colors.primary} />
-                  <Text style={styles.speakingText}>Speaking · tap to stop</Text>
+                  <Text style={styles.speakingText}>{s.speaking}</Text>
                 </Pressable>
               )}
             </View>
@@ -359,7 +356,7 @@ export function Chat() {
         )}
         <TextInput
           style={styles.input}
-          placeholder={photo ? "Add a question about the photo" : me?.voiceMode ? "Type or tap the mic" : "Type a message"}
+          placeholder={photo ? s.placeholderPhoto : me?.voiceMode ? s.placeholderVoice : s.placeholderText}
           placeholderTextColor={colors.muted}
           value={text}
           onChangeText={setText}
@@ -409,12 +406,13 @@ function Settings({
   onVoiceModeOn,
   onOpenAbout,
 }: {
-  me: { email: string | null; voiceMode: boolean; telegramLinked: boolean; location: string };
+  me: { email: string | null; voiceMode: boolean; telegramLinked: boolean; location: string; language: string };
   health: HealthSync;
   onVoiceModeOn: () => void;
   onOpenAbout: () => void;
 }) {
   const setVoiceMode = useMutation(api.chat.setVoiceMode);
+  const setLanguage = useMutation(api.chat.setLanguage);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -444,6 +442,22 @@ function Settings({
             if (enabled) onVoiceModeOn();
           }}
         />
+      </View>
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Language</Text>
+        <View style={styles.langChips}>
+          {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
+            <Pressable
+              key={code}
+              style={[styles.langChip, me.language === code && styles.langChipOn]}
+              onPress={() => void setLanguage({ language: code })}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: me.language === code }}
+            >
+              <Text style={[styles.langChipText, me.language === code && styles.langChipTextOn]}>{LANGUAGE_NAMES[code]}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>Location</Text>
@@ -500,6 +514,11 @@ const styles = StyleSheet.create({
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 16, color: colors.text },
   locationInput: { flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
+  langChips: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, marginLeft: 16 },
+  langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  langChipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  langChipText: { color: colors.text, fontSize: 14 },
+  langChipTextOn: { color: colors.primary, fontWeight: "600" },
   settingButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: 10, padding: 12, alignItems: "center" },
   settingButtonText: { color: colors.primary, fontWeight: "600" },
   muted: { color: colors.muted },

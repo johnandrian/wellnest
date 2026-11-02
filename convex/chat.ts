@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { DAILY_LIMIT, enqueueUserMessage } from "./pipeline";
+import { language } from "./lib/language";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -89,6 +90,7 @@ export const me = query({
     return {
       email: user.email ?? null,
       voiceMode: user.voiceMode ?? true, // voice is on until the user turns it off
+      language: user.language ?? "en",
       location: user.location ?? "",
       telegramLinked: !!user.telegramChatId,
     };
@@ -111,6 +113,15 @@ export const setVoiceMode = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     await ctx.db.patch(userId, { voiceMode: enabled });
+  },
+});
+
+export const setLanguage = mutation({
+  args: { language },
+  handler: async (ctx, { language }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    await ctx.db.patch(userId, { language });
   },
 });
 

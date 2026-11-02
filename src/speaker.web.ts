@@ -144,11 +144,13 @@ export function createSpeaker(deps: SpeakerDeps): Speaker {
 
   // Resolves when Cartesia has generated the whole reply; its audio may still be playing.
   const generate = async (u: Utterance) => {
-    const transcript = toSpeech(u.text);
+    // The voice and language come from the latest token, so a language change applies to the next reply.
+    const { voiceId: voice, language } = await deps.cartesiaToken();
+    const transcript = toSpeech(u.text, undefined, language);
     if (!transcript) return;
     const started = epoch;
     await unlock();
-    const { socket: ws, voiceId: voice } = await open();
+    const { socket: ws } = await open();
     if (epoch !== started) return;
     await new Promise<void>((resolve, reject) => {
       const g: Generation = {
@@ -169,7 +171,7 @@ export function createSpeaker(deps: SpeakerDeps): Speaker {
           model_id: TTS_MODEL,
           transcript,
           voice,
-          language: "en",
+          language,
           context_id: g.contextId,
           output_format: { container: "raw", encoding: "pcm_f32le", sample_rate: SAMPLE_RATE },
           continue: false,

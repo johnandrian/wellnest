@@ -21,6 +21,7 @@ import type * as lib_env from "../lib/env.js";
 import type * as lib_health from "../lib/health.js";
 import type * as lib_jev from "../lib/jev.js";
 import type * as lib_jina from "../lib/jina.js";
+import type * as lib_language from "../lib/language.js";
 import type * as lib_reminders from "../lib/reminders.js";
 import type * as lib_shopping_airquality from "../lib/shopping/airquality.js";
 import type * as lib_shopping_catalog from "../lib/shopping/catalog.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "lib/health": typeof lib_health;
   "lib/jev": typeof lib_jev;
   "lib/jina": typeof lib_jina;
+  "lib/language": typeof lib_language;
   "lib/reminders": typeof lib_reminders;
   "lib/shopping/airquality": typeof lib_shopping_airquality;
   "lib/shopping/catalog": typeof lib_shopping_catalog;

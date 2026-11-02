@@ -44,7 +44,13 @@ function micBlocked(): VoiceError {
     : { text: "Microphone access is off for Wellnest.", openSettings: true };
 }
 
-export function useVoice(enabled: boolean, messages: ChatMessage[] | undefined, submit: (text: string) => Promise<void>) {
+export function useVoice(
+  enabled: boolean,
+  messages: ChatMessage[] | undefined,
+  submit: (text: string) => Promise<void>,
+  language = "en",
+  statusText: Partial<Record<MicState, string>> = {},
+) {
   const getToken = useAction(api.voice.token);
   const authToken = useAuthToken();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -74,6 +80,10 @@ export function useVoice(enabled: boolean, messages: ChatMessage[] | undefined, 
     }
     return tokenRef.current.value;
   };
+
+  useEffect(() => {
+    tokenRef.current = null;
+  }, [language]);
 
   const speaker = useMemo(
     () =>
@@ -205,7 +215,7 @@ export function useVoice(enabled: boolean, messages: ChatMessage[] | undefined, 
     mic,
     speaking: speakingId !== null,
     speakingId,
-    status: MIC_STATUS[mic],
+    status: (mic !== "idle" && statusText[mic]) || MIC_STATUS[mic],
     error,
     prepare,
     start: () => void start(),

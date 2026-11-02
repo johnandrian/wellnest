@@ -2,7 +2,8 @@
 // Replies are spoken by ./speaker (WebSocket streaming on web, a streamed MP3 on native).
 import { Platform } from "react-native";
 
-export type CartesiaToken = { token: string; version: string; voiceId: string };
+// `voiceId` and `language` follow the user's language setting.
+export type CartesiaToken = { token: string; version: string; voiceId: string; language: string };
 
 export async function transcribe(t: CartesiaToken, uri: string): Promise<string> {
   const form = new FormData();
@@ -14,7 +15,7 @@ export async function transcribe(t: CartesiaToken, uri: string): Promise<string>
     form.append("file", { uri, name: "audio.m4a", type: "audio/m4a" } as any);
   }
   form.append("model", "ink-whisper");
-  form.append("language", "en");
+  form.append("language", t.language);
   const res = await fetch("https://api.cartesia.ai/stt", {
     method: "POST",
     headers: { Authorization: `Bearer ${t.token}`, "Cartesia-Version": t.version },

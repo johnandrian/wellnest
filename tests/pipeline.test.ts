@@ -104,6 +104,7 @@ describe("app chat", () => {
     expect(await as.query(api.chat.me)).toEqual({
       email: "a@example.com",
       voiceMode: true,
+      language: "en",
       location: "",
       telegramLinked: false,
     });
