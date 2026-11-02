@@ -31,6 +31,7 @@ import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
 import { Lang, LANGUAGE_NAMES, Strings, strings } from "./i18n";
 import { pushSupported, usePush } from "./push";
+import { AppointmentCard } from "./TelehealthCard";
 
 // The panels that open under the header.
 type Panel = "settings" | "hub" | "about";
@@ -139,7 +140,7 @@ export function Chat() {
   const health = useHealthSync();
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
-  const pushToken = usePush(s, (kind) => openHub(kind === "reminders" ? "reminders" : "journal"));
+  const pushToken = usePush(s, (kind) => openHub(kind === "reminders" ? "reminders" : "care"));
 
   // Medication reminders fire at local times, so the backend needs this device's time zone.
   useEffect(() => {
@@ -241,7 +242,7 @@ export function Chat() {
                 styles.bubble,
                 item.role === "user" ? styles.userBubble : styles.botBubble,
                 item.urgent && styles.urgentBubble,
-                (item.kind === "reminder" || item.kind === "checkin") && styles.reminderBubble,
+                (item.kind === "reminder" || item.kind === "checkin" || item.kind === "appointment") && styles.reminderBubble,
               ]}
             >
               {item.imageUrl && (
@@ -257,6 +258,7 @@ export function Chat() {
               ) : (
                 <Markdown text={item.text} style={styles.botText} />
               )}
+              {item.appointmentId && <AppointmentCard id={item.appointmentId} s={s} />}
               {item.reminder && (
                 <View style={styles.doseRow}>
                   {(["taken", "skipped"] as const).map((status) => {

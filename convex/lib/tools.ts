@@ -203,6 +203,28 @@ export const findCareTool: ToolDef = {
   },
 };
 
+// Handled in the pipeline: offers telehealth video visit times (convex/telehealth.ts). Not offered for emergencies.
+export const telehealthTool: ToolDef = {
+  type: "function",
+  function: {
+    name: "suggest_telehealth",
+    description:
+      "Offer the user a video visit with a clinician when their problem needs one but isn't an emergency: likely needs " +
+      "a prescription or test (UTI symptoms, possible strep, pink eye, a rash that's spreading or not improving), " +
+      "symptoms lasting longer than they should (a cough over 3 weeks, sinus pain over 10 days, a fever over 3 days), " +
+      "a medication question for a prescriber, or the user asks to talk to a doctor. Finds times and shows them as " +
+      "buttons; nothing is booked until the user confirms. Never for emergencies (send them to 911 / the ER instead).",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: { type: "string", description: "One line for the clinician, e.g. 'Burning when urinating for 2 days, no fever'" },
+        urgency: { type: "string", enum: ["today", "soon"], description: "today: should be seen today; soon: within a day or two" },
+      },
+      required: ["reason", "urgency"],
+    },
+  },
+};
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

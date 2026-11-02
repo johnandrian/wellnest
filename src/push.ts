@@ -1,7 +1,7 @@
 // iOS/Android push notifications (convex/push.ts sends them): medication reminders with Taken / Skip buttons, and
 // telehealth appointment updates. Needs a development or store build with an EAS project id; web uses ./push.web.ts.
 import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
@@ -74,6 +74,10 @@ export function usePush(s: Strings, onOpen: (kind: string) => void) {
       const data = (r.notification.request.content.data ?? {}) as Record<string, string>;
       if ((r.actionIdentifier === "taken" || r.actionIdentifier === "skipped") && data.messageId) {
         void logDose({ messageId: data.messageId as Id<"messages">, status: r.actionIdentifier }).catch(() => {});
+        return;
+      }
+      if (data.url && /^https:\/\//.test(data.url)) {
+        void Linking.openURL(data.url);
         return;
       }
       if (data.kind) openRef.current(data.kind);

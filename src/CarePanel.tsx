@@ -1,5 +1,5 @@
-// Care tab: nearby ERs, urgent care, pharmacies and doctors (convex/care.ts, OpenStreetMap) with Call and Directions.
-// In an emergency, call 911.
+// Care tab: telehealth video visits (./TelehealthCard), and nearby ERs, urgent care, pharmacies and doctors
+// (convex/care.ts, OpenStreetMap) with Call and Directions. In an emergency, call 911.
 import { useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAction } from "convex/react";
@@ -8,6 +8,7 @@ import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import type { Strings } from "./i18n";
+import { TelehealthCard } from "./TelehealthCard";
 
 type Kind = "er" | "urgent_care" | "pharmacy" | "doctor";
 type Place = { name: string; lat: number; lon: number; km: number; phone?: string; address?: string; hours?: string; open24?: boolean };
@@ -63,6 +64,8 @@ export function CarePanel({ s }: { s: Strings }) {
         <Ionicons name="call" size={18} color="#fff" />
         <Text style={styles.emergencyText}>{s.careCall911}</Text>
       </Pressable>
+
+      <TelehealthCard s={s} />
 
       <Text style={styles.section}>{s.careNearby}</Text>
       <View style={styles.kinds}>

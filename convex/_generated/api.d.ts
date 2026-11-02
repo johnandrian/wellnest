@@ -41,6 +41,7 @@ import type * as lib_shopping_planner from "../lib/shopping/planner.js";
 import type * as lib_shopping_understanding from "../lib/shopping/understanding.js";
 import type * as lib_speech from "../lib/speech.js";
 import type * as lib_telegram from "../lib/telegram.js";
+import type * as lib_telehealth from "../lib/telehealth.js";
 import type * as lib_tools from "../lib/tools.js";
 import type * as lib_visit from "../lib/visit.js";
 import type * as me from "../me.js";
@@ -49,6 +50,7 @@ import type * as push from "../push.js";
 import type * as reminders from "../reminders.js";
 import type * as shop from "../shop.js";
 import type * as telegram from "../telegram.js";
+import type * as telehealth from "../telehealth.js";
 import type * as visit from "../visit.js";
 import type * as voice from "../voice.js";
 
@@ -92,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "lib/shopping/understanding": typeof lib_shopping_understanding;
   "lib/speech": typeof lib_speech;
   "lib/telegram": typeof lib_telegram;
+  "lib/telehealth": typeof lib_telehealth;
   "lib/tools": typeof lib_tools;
   "lib/visit": typeof lib_visit;
   me: typeof me;
@@ -100,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   reminders: typeof reminders;
   shop: typeof shop;
   telegram: typeof telegram;
+  telehealth: typeof telehealth;
   visit: typeof visit;
   voice: typeof voice;
 }>;

@@ -212,7 +212,7 @@ const category = v.union(
 );
 
 const STEPS = {
-  chat: ["messages", "photoUploads", "creaoRuns", "checkins"],
+  chat: ["messages", "photoUploads", "creaoRuns", "checkins", "appointments"],
   health: ["healthDays"],
   reminders: ["medications", "doseLogs"],
   summaries: ["visitSummaries"],
@@ -267,6 +267,14 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
         // Uploads that never made it into a message still have their file.
         if (!r.messageId) await ctx.storage.delete(r.storageId).catch(() => {});
         await ctx.db.delete(r._id);
+      }
+      return rows.length;
+    }
+    case "appointments": {
+      const rows = await ctx.db.query("appointments").withIndex("by_user", (q) => q.eq("userId", userId)).take(BATCH);
+      for (const a of rows) {
+        if (a.remindJobId) await ctx.scheduler.cancel(a.remindJobId).catch(() => {});
+        await ctx.db.delete(a._id);
       }
       return rows.length;
     }

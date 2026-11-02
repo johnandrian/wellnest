@@ -69,6 +69,7 @@ describe("app chat", () => {
       "bio_research",
       "save_location",
       "find_care",
+      "suggest_telehealth",
       "prepare_visit_summary",
       "set_medication_reminder",
       "cancel_medication_reminder",

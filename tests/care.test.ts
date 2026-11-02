@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 const BERKELEY = { lat: 37.8716, lon: -122.2727 };
-const ELEMENTS = [
+const ELEMENTS: any[] = [
   { type: "way", id: 1, center: { lat: 37.8636, lon: -122.2567 }, tags: { name: "Alta Bates Medical Center", amenity: "hospital", emergency: "yes", phone: "+1 510-204-4444", "addr:housenumber": "2450", "addr:street": "Ashby Avenue", "addr:city": "Berkeley", opening_hours: "24/7" } },
   { type: "node", id: 2, lat: 37.8637, lon: -122.2568, tags: { name: "Alta Bates Medical Center", amenity: "hospital" } }, // same place again
   { type: "node", id: 3, lat: 37.9, lon: -122.3, tags: { name: "Far Hospital", amenity: "hospital" } },

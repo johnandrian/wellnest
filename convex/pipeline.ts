@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, telehealthTool, toolDefs, visitSummaryTool } from "./lib/tools";
 import { careForModel } from "./care";
 import { journalText } from "./lib/journal";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
@@ -148,6 +148,14 @@ export const respond = internalAction({
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
         facts,
+        telehealth: (rawArgs) => {
+          const args = parseArgs(rawArgs);
+          return ctx.runMutation(internal.telehealth.suggestFromChat, {
+            userId,
+            reason: String(args.reason ?? ""),
+            urgency: args.urgency === "today" ? "today" : "soon",
+          });
+        },
         findCare: (rawArgs) => {
           const kind = String(parseArgs(rawArgs).kind ?? "");
           return kind === "er" || kind === "urgent_care" || kind === "pharmacy" || kind === "doctor"
@@ -277,6 +285,7 @@ async function runCore(opts: {
   medications: string;
   facts: string[];
   findCare: (rawArgs: string) => Promise<string>;
+  telehealth: (rawArgs: string) => Promise<string>;
   fact: (name: string, rawArgs: string) => Promise<string>;
   journal: (name: string, rawArgs: string) => Promise<string>;
   reminder: (name: string, rawArgs: string) => Promise<string>;
@@ -314,6 +323,7 @@ ${opts.medications}`);
     ...toolDefs,
     saveLocationTool,
     findCareTool,
+    ...(urgent ? [] : [telehealthTool]),
     visitSummaryTool,
     ...reminderTools,
     ...factTools,
@@ -348,6 +358,10 @@ ${opts.medications}`);
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "suggest_telehealth") {
+        result = urgent
+          ? "Tool error: this is an emergency; send the user to 911 or the ER, not a video visit."
+          : await opts.telehealth(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "find_care") {
         result = await opts.findCare(call.function.arguments);
       } else if (call.function.name === "log_symptom" || call.function.name === "get_symptom_journal") {

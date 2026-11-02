@@ -53,6 +53,48 @@ const TEXT = {
     es: () => "**Tu resumen para la consulta está listo.** Ábrelo con el botón del portapapeles arriba para leerlo, compartirlo o imprimirlo.",
     el: () => "**Η σύνοψη για το ραντεβού σου είναι έτοιμη.** Άνοιξέ την με το κουμπί του πρόχειρου επάνω για να τη διαβάσεις, να τη μοιραστείς ή να την εκτυπώσεις.",
   },
+  visitSuggested: {
+    en: (provider: string, times: string) => `🩺 This is worth a quick video visit with a clinician. ${provider} has: ${times}. Pick a time below; nothing is booked until you confirm.`,
+    es: (provider: string, times: string) => `🩺 Vale la pena una videoconsulta breve con un profesional. ${provider} tiene: ${times}. Elige una hora abajo; no se reserva nada hasta que confirmes.`,
+    el: (provider: string, times: string) => `🩺 Αξίζει μια σύντομη βιντεοκλήση με γιατρό. Το ${provider} έχει: ${times}. Διάλεξε ώρα παρακάτω· τίποτα δεν κλείνεται μέχρι να επιβεβαιώσεις.`,
+  },
+  visitNoSlots: {
+    en: () => "I couldn't find video visit times right now. If you need care today, the Care tab lists urgent care near you; call 911 in an emergency.",
+    es: () => "Ahora no encontré horarios para videoconsulta. Si necesitas atención hoy, la pestaña Atención muestra urgencias cerca; en una emergencia llama al 911.",
+    el: () => "Δεν βρήκα ώρες για βιντεοκλήση αυτή τη στιγμή. Αν χρειάζεσαι φροντίδα σήμερα, η καρτέλα Φροντίδα δείχνει επείγοντα κοντά σου· σε επείγουσα περίπτωση κάλεσε το 112.",
+  },
+  visitSuggestedTitle: { en: () => "Video visit suggested", es: () => "Videoconsulta sugerida", el: () => "Προτεινόμενη βιντεοκλήση" },
+  visitSuggestedBody: {
+    en: (time: string) => `First available at ${time}. Open Wellnest to pick a time.`,
+    es: (time: string) => `La primera a las ${time}. Abre Wellnest para elegir una hora.`,
+    el: (time: string) => `Η πρώτη στις ${time}. Άνοιξε το Wellnest για να διαλέξεις ώρα.`,
+  },
+  visitBookedTitle: { en: () => "Video visit booked", es: () => "Videoconsulta reservada", el: () => "Η βιντεοκλήση κλείστηκε" },
+  visitBookedBody: {
+    en: (who: string, time: string) => `${who} at ${time}. We'll remind you 15 minutes before.`,
+    es: (who: string, time: string) => `${who} a las ${time}. Te avisaremos 15 minutos antes.`,
+    el: (who: string, time: string) => `${who} στις ${time}. Θα σου θυμίσουμε 15 λεπτά πριν.`,
+  },
+  visitSoonTitle: { en: () => "Your video visit starts soon", es: () => "Tu videoconsulta empieza pronto", el: () => "Η βιντεοκλήση σου ξεκινά σύντομα" },
+  visitSoonBody: {
+    en: () => "In 15 minutes. Open Wellnest and tap Join.",
+    es: () => "En 15 minutos. Abre Wellnest y toca Unirse.",
+    el: () => "Σε 15 λεπτά. Άνοιξε το Wellnest και πάτα Σύνδεση.",
+  },
+  visitFailedTitle: { en: () => "Couldn't book the visit", es: () => "No se pudo reservar", el: () => "Δεν έγινε η κράτηση" },
+  visitFailedBody: {
+    en: () => "That time may have been taken. Ask Wellnest for new times.",
+    es: () => "Puede que esa hora ya no esté libre. Pide nuevos horarios a Wellnest.",
+    el: () => "Ίσως η ώρα δεν είναι πια διαθέσιμη. Ζήτα νέες ώρες από το Wellnest.",
+  },
+  visitCancelledTitle: { en: () => "Video visit cancelled", es: () => "Videoconsulta cancelada", el: () => "Η βιντεοκλήση ακυρώθηκε" },
+  visitCancelledBody: { en: () => "It's off your schedule.", es: () => "Ya no está en tu agenda.", el: () => "Αφαιρέθηκε από το πρόγραμμά σου." },
+  visitCancelFailedTitle: { en: () => "Couldn't cancel yet", es: () => "Aún no se pudo cancelar", el: () => "Δεν ακυρώθηκε ακόμη" },
+  visitCancelFailedBody: {
+    en: () => "The visit is still booked. Try again, or contact the provider.",
+    es: () => "La consulta sigue reservada. Inténtalo de nuevo o contacta al proveedor.",
+    el: () => "Η επίσκεψη είναι ακόμη κλεισμένη. Δοκίμασε ξανά ή επικοινώνησε με τον πάροχο.",
+  },
   languageSet: {
     en: () => "Okay, I'll reply in English.",
     es: () => "De acuerdo, te responderé en español.",

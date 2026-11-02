@@ -5,6 +5,7 @@ import { healthMetrics, healthSource } from "./lib/health";
 import { schedule } from "./lib/reminders";
 import { language } from "./lib/language";
 import { entrySource } from "./lib/journal";
+import { slot, urgency as visitUrgency } from "./lib/telehealth";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -117,7 +118,9 @@ export default defineSchema({
     // "links": the shopper's store links under a reply. "reminder": a medication reminder (convex/reminders.ts).
     // Both are shown but never read aloud in voice mode.
     // "checkin": a proactive question about a change in the user's health data (convex/checkins.ts).
-    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"))),
+    // "appointment": offered video visit times, shown as buttons (convex/telehealth.ts).
+    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"), v.literal("appointment"))),
+    appointmentId: v.optional(v.id("appointments")),
     // On a reminder: which dose, and the user's Taken / Skip.
     reminder: v.optional(
       v.object({
@@ -155,6 +158,34 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_token", ["token"]),
+
+  // Telehealth video visits (convex/telehealth.ts): offered times, then a booking once the user confirms.
+  appointments: defineTable({
+    userId: v.id("users"),
+    status: v.union(
+      v.literal("finding"),
+      v.literal("suggested"),
+      v.literal("booking"),
+      v.literal("booked"),
+      v.literal("cancelling"),
+      v.literal("cancelled"),
+      v.literal("dismissed"),
+      v.literal("expired"),
+      v.literal("failed"),
+    ),
+    reason: v.string(),
+    urgency: visitUrgency,
+    provider: v.string(), // "test" or "http" (convex/lib/telehealth.ts)
+    providerName: v.optional(v.string()),
+    slots: v.array(slot),
+    slotId: v.optional(v.string()),
+    bookingId: v.optional(v.string()),
+    joinUrl: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    remindJobId: v.optional(v.id("_scheduled_functions")),
+    messageId: v.optional(v.id("messages")),
+    error: v.optional(v.string()),
+  }).index("by_user", ["userId"]),
 
   // Proactive check-ins sent, for the once-a-day and same-kind limits (convex/checkins.ts).
   checkins: defineTable({
