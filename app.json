@@ -34,6 +34,14 @@
           "NSHealthUpdateUsageDescription": false,
           "background": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wellnest uses your photos when you choose one to ask about, like a pill bottle, a label or lab results.",
+          "cameraPermission": "Wellnest uses the camera when you take a photo to ask about, like a pill bottle or a rash.",
+          "microphonePermission": false
+        }
       ]
     ]
   }

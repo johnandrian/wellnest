@@ -7,6 +7,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `health.ios.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health on iPhone (see below); `health.ts` is the web/Android stand-in.
   - `VisitPanel.tsx` + `printable.ts` — the doctor-visit summary panel (clipboard button), with share / print-to-PDF.
   - `RemindersPanel.tsx` — medication reminders (pill button); reminder messages in the chat get Taken / Skip buttons.
+  - `photo.ts` — pick or take a photo, shrink it to 1600px, upload it to Convex file storage.
   - `useVoice.ts` — voice mode: mic → Cartesia STT → send; replies → Cartesia TTS. `speaker.web.ts` / `speaker.ts` — streaming playback on web / iOS + Android (see Voice below).
 - `convex/` — backend.
   - `pipeline.ts` — shared pipeline: Jina embed → vector search memory → Cortex triage → Cortex core model + tools → reply.
@@ -39,6 +40,7 @@ Voice recording needs a development build on native (`npx expo run:ios`), not Ex
 | `SNOWFLAKE_ACCOUNT_URL` | `https://<account-identifier>.snowflakecomputing.com` |
 | `SNOWFLAKE_PAT` | Snowflake programmatic access token |
 | `CORTEX_SHOPPER_MODEL` / `CORTEX_CORE_MODEL` | optional, default `claude-haiku-4-5` / `openai-gpt-5.4` (core must be a Claude/OpenAI model for tools) |
+| `CORTEX_VISION_MODEL` | optional; the model for turns with a photo (must accept images; default: the core model) |
 | `JINA_API_KEY` | embeddings, search, reader |
 | `CARTESIA_API_KEY` | voice (app voice mode and Telegram voice notes); optional `CARTESIA_VOICE_ID` (default: the Sonic voice `db6b0ed5-…`) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | bot |
@@ -69,6 +71,12 @@ Each due dose posts a reminder message in the app chat ("💊 Time for your **Ib
 - **Time zones:** the app reports the device's IANA zone (`chat.setTimeZone`) on start; daily times follow it across daylight saving. Until the app has been opened, times are UTC (the model says so). A fixed UTC offset is the fallback if the runtime can't resolve the zone.
 - **Scheduling:** one scheduled function per reminder (`fire`), which posts the message and schedules the next dose. Stopping cancels it; stale jobs are ignored.
 - **Chat:** "remind me to take ibuprofen 400 mg every 6 hours for 3 days" → `set_medication_reminder`; "stop my ibuprofen reminders" → `cancel_medication_reminder`. The model sees the user's current reminders, and visit summaries get them with the last 30 days of Taken / Skip.
+
+## Photos
+Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a wound.
+- **App:** the camera button picks from the library (web) or takes / picks a photo (iOS/Android). It's shrunk to at most 1600px, uploaded to Convex file storage with a one-time upload URL, claimed by the uploader (`chat.claimUpload`), then sent with the message; `send` only accepts the sender's own unused upload of an image under 8 MB. The chat shows the photo in the bubble.
+- **Telegram:** photos (the largest size up to 1600px) and images sent as files, with the caption as the question. They're stored the same way, so the app shows them too. Over 8 MB or over the daily limit is refused before downloading.
+- **Model:** the photo goes to Cortex as an image content part (a base64 data URL) with that turn only, using `CORTEX_VISION_MODEL` (default: the core model). The system prompt asks it to read labels exactly and say when text is unreadable, to describe skin/wound photos without diagnosing and list what would make them urgent, and never to identify people. Later turns see "[sent a photo]" in the history, not the image.
 
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):

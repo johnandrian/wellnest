@@ -27,6 +27,8 @@ import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { VisitPanel } from "./VisitPanel";
 import { RemindersPanel } from "./RemindersPanel";
+import { Picked, pickPhoto, uploadPhoto } from "./photo";
+import type { Id } from "../convex/_generated/dataModel";
 
 // The panels that open under the header.
 type Panel = "settings" | "visit" | "reminders";
@@ -38,6 +40,18 @@ const STARTERS = [
   "How much water should I drink a day?",
   "I just got my period and the cramps are bad",
 ];
+
+// Camera or library: native asks which; web (and desktop browsers) only have the library.
+function chooseSource(): Promise<"library" | "camera" | null> {
+  if (Platform.OS === "web") return Promise.resolve("library");
+  return new Promise((resolve) =>
+    Alert.alert("Add a photo", "A pill bottle, a label, lab results, a rash...", [
+      { text: "Take photo", onPress: () => resolve("camera") },
+      { text: "Choose from library", onPress: () => resolve("library") },
+      { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
+    ]),
+  );
+}
 
 // Yes/no before clearing: a browser dialog on web, a native alert on iOS/Android.
 function confirmClear(): Promise<boolean> {
@@ -58,6 +72,10 @@ export function Chat() {
   const clearChat = useMutation(api.chat.clear);
   const setTimeZone = useMutation(api.chat.setTimeZone);
   const logDose = useMutation(api.reminders.log);
+  const uploadUrl = useMutation(api.chat.generateUploadUrl);
+  const claimUpload = useMutation(api.chat.claimUpload);
+  const [photo, setPhoto] = useState<Picked | null>(null);
+  const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [panel, setPanel] = useState<Panel | null>(null);
   const toggle = (p: Panel) => setPanel((open) => (open === p ? null : p));
@@ -67,15 +85,48 @@ export function Chat() {
   const last = messages?.[messages.length - 1];
   const waiting = last?.role === "user";
 
-  const submit = async (value = text) => {
-    if (!value.trim()) return;
+  const submit = async (value = text, attached: Picked | null = photo) => {
+    if (!value.trim() && !attached) return;
     voice.prepare();
     setText("");
     setNotice(null);
-    const res = await send({ text: value });
-    if (res.limited) {
+    let imageId: Id<"_storage"> | undefined;
+    if (attached) {
+      setSending(true);
+      try {
+        imageId = (await uploadPhoto(attached, () => uploadUrl(), (storageId) =>
+          claimUpload({ storageId: storageId as Id<"_storage"> }),
+        )) as Id<"_storage">;
+      } catch (e) {
+        setText(value);
+        setNotice((e as Error).message);
+        return;
+      } finally {
+        setSending(false);
+      }
+      setPhoto(null);
+    }
+    try {
+      const res = await send({ text: value, imageId });
+      if (res.limited) {
+        setText(value);
+        setNotice(`You've reached today's limit of ${res.limit} messages. Please try again tomorrow. In an emergency, call 911.`);
+      }
+    } catch (e) {
       setText(value);
-      setNotice(`You've reached today's limit of ${res.limit} messages. Please try again tomorrow. In an emergency, call 911.`);
+      setNotice((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+    }
+  };
+
+  const addPhoto = async () => {
+    setNotice(null);
+    try {
+      const source = await chooseSource();
+      if (!source) return;
+      const picked = await pickPhoto(source);
+      if (picked) setPhoto(picked);
+    } catch (e) {
+      setNotice((e as Error).message);
     }
   };
 
@@ -194,8 +245,16 @@ export function Chat() {
                 item.kind === "reminder" && styles.reminderBubble,
               ]}
             >
+              {item.imageUrl && (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.photo}
+                  resizeMode="cover"
+                  accessibilityLabel="Photo you sent"
+                />
+              )}
               {item.role === "user" ? (
-                <Text style={styles.userText}>{item.text}</Text>
+                !!item.text && <Text style={styles.userText}>{item.text}</Text>
               ) : (
                 <Markdown text={item.text} style={styles.botText} />
               )}
@@ -248,7 +307,27 @@ export function Chat() {
         />
       )}
 
+      {photo && (
+        <View style={styles.attachment}>
+          <Image source={{ uri: photo.uri }} style={styles.attachmentThumb} />
+          <Text style={styles.attachmentText}>{sending ? "Uploading photo…" : "Photo attached"}</Text>
+          {!sending && (
+            <Pressable onPress={() => setPhoto(null)} accessibilityRole="button" accessibilityLabel="Remove photo">
+              <Ionicons name="close-circle" size={22} color={colors.muted} />
+            </Pressable>
+          )}
+        </View>
+      )}
       <View style={styles.inputRow}>
+        <Pressable
+          style={({ pressed }) => [styles.iconButton, styles.photoButton, pressed && styles.pressed]}
+          onPress={() => void addPhoto()}
+          disabled={sending}
+          accessibilityRole="button"
+          accessibilityLabel="Add a photo"
+        >
+          <Ionicons name="camera-outline" size={22} color={colors.primary} />
+        </Pressable>
         {me?.voiceMode && (
           <View>
             {voice.mic === "recording" && <PulseRing color={colors.danger} style={styles.ring} />}
@@ -277,7 +356,7 @@ export function Chat() {
         )}
         <TextInput
           style={styles.input}
-          placeholder={me?.voiceMode ? "Type or tap the mic" : "Type a message"}
+          placeholder={photo ? "Add a question about the photo" : me?.voiceMode ? "Type or tap the mic" : "Type a message"}
           placeholderTextColor={colors.muted}
           value={text}
           onChangeText={setText}
@@ -285,9 +364,9 @@ export function Chat() {
           returnKeyType="send"
         />
         <Pressable
-          style={({ pressed }) => [styles.iconButton, styles.send, !text.trim() && styles.sendIdle, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconButton, styles.send, !text.trim() && !photo && styles.sendIdle, pressed && styles.pressed]}
           onPress={() => submit()}
-          disabled={!text.trim()}
+          disabled={(!text.trim() && !photo) || sending}
           accessibilityRole="button"
           accessibilityLabel="Send message"
         >
@@ -439,6 +518,11 @@ const styles = StyleSheet.create({
   doseText: { color: colors.primary, fontWeight: "600", fontSize: 13 },
   doseTextOn: { color: "#fff" },
   userText: { color: "#fff", fontSize: 16 },
+  photo: { width: 220, height: 220, borderRadius: 10, marginBottom: 6, backgroundColor: colors.border },
+  attachment: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: colors.border },
+  attachmentThumb: { width: 44, height: 44, borderRadius: 8 },
+  attachmentText: { flex: 1, color: colors.muted },
+  photoButton: { backgroundColor: colors.primarySoft },
   botText: { color: colors.text, fontSize: 16, lineHeight: 22 },
   channel: { fontSize: 11, color: colors.muted, marginTop: 4 },
   inputRow: {

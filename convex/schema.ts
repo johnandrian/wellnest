@@ -114,6 +114,8 @@ export default defineSchema({
     ),
     // A user message that came in as a Telegram voice note (text is the transcript); the reply is also spoken.
     voice: v.optional(v.boolean()),
+    // A photo the user sent with the message (app upload or Telegram), in file storage.
+    image: v.optional(v.id("_storage")),
   })
     .index("by_user", ["userId"])
     .vectorIndex("by_embedding", {
@@ -152,6 +154,13 @@ export default defineSchema({
     dueAt: v.number(),
     status: v.union(v.literal("taken"), v.literal("skipped")),
   }).index("by_medication_and_due", ["medicationId", "dueAt"]),
+
+  // Photos uploaded from the app: who uploaded each file, and the message that used it (convex/chat.ts).
+  photoUploads: defineTable({
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    messageId: v.optional(v.id("messages")),
+  }).index("by_storage", ["storageId"]),
 
   // Doctor-visit summaries (convex/visit.ts).
   visitSummaries: defineTable({

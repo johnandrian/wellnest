@@ -7,8 +7,12 @@ export type ToolCall = {
   function: { name: string; arguments: string };
 };
 
+// Text plus images (as data: URLs) for vision-capable models.
+export type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+
 export type ChatMessage =
-  | { role: "system" | "user"; content: string }
+  | { role: "system"; content: string }
+  | { role: "user"; content: string | ContentPart[] }
   | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
 
@@ -18,6 +22,16 @@ export type ToolDef = {
 };
 
 export const CORE_MODEL = () => process.env.CORTEX_CORE_MODEL ?? "openai-gpt-5.4";
+// For turns with a photo; must accept image input (defaults to the core model).
+export const VISION_MODEL = () => process.env.CORTEX_VISION_MODEL ?? CORE_MODEL();
+
+// A data: URL for an image, for ContentPart. Works without Node's Buffer.
+export async function imageDataUrl(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:${blob.type || "image/jpeg"};base64,${btoa(binary)}`;
+}
 
 export async function complete(opts: {
   model: string;

@@ -10,7 +10,7 @@ import { enqueueUserMessage, LIMIT_REPLY, overDailyLimit } from "./pipeline";
 
 const LINK_TTL_MS = 15 * 60 * 1000;
 const WELCOME =
-  "Hi! I'm Wellnest, your AI health assistant. Text me any health question, or send a voice note and I'll answer out loud too. I'm not a doctor; in an emergency call 911.";
+  "Hi! I'm Wellnest, your AI health assistant. Text me any health question, send a voice note and I'll answer out loud too, or send a photo (a pill bottle, a label, a rash). I'm not a doctor; in an emergency call 911.";
 
 // App user taps "Text me on Telegram" -> gets t.me/<bot>?start=<code>.
 export const createLinkUrl = mutation({
@@ -129,6 +129,59 @@ export const enqueueVoiceNote = internalMutation({
   handler: async (ctx, { userId, text }) => {
     const messageId = await enqueueUserMessage(ctx, userId, text.slice(0, 4000), "telegram", true);
     if (messageId === null) {
+      await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: LIMIT_REPLY });
+    }
+  },
+});
+
+// Photos: checked here (daily limit, size) before anything is downloaded.
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+const PHOTO_TOO_BIG = "That photo is too large. Please send one under 8 MB.";
+const PHOTO_UNREADABLE = "Sorry, I couldn't open that photo. Please try sending it again.";
+
+export const handlePhoto = internalMutation({
+  args: { chatId: v.string(), name: v.optional(v.string()), fileId: v.string(), size: v.number(), caption: v.string() },
+  handler: async (ctx, { chatId, name, fileId, size, caption }) => {
+    const userId = await findOrCreateTelegramUser(ctx, chatId, name);
+    const reply = (text: string) => ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text });
+    if (await overDailyLimit(ctx, userId)) {
+      await reply(LIMIT_REPLY);
+      return;
+    }
+    if (size > MAX_PHOTO_BYTES) {
+      await reply(PHOTO_TOO_BIG);
+      return;
+    }
+    await ctx.scheduler.runAfter(0, internal.telegram.storePhoto, { userId, chatId, fileId, caption: caption.slice(0, 4000) });
+  },
+});
+
+// Download the photo into file storage (so the app shows it too), then run it like a message.
+export const storePhoto = internalAction({
+  args: { userId: v.id("users"), chatId: v.string(), fileId: v.string(), caption: v.string() },
+  handler: async (ctx, { userId, chatId, fileId, caption }) => {
+    void sendTyping(chatId).catch(() => {});
+    let image: Id<"_storage">;
+    try {
+      const { audio: file, path } = await downloadFile(fileId);
+      if (file.size > MAX_PHOTO_BYTES) throw new Error("photo too large");
+      const type = /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg";
+      image = await ctx.storage.store(new Blob([await file.arrayBuffer()], { type }));
+    } catch (e) {
+      console.error("telegram photo download failed", e);
+      await sendTelegram(chatId, PHOTO_UNREADABLE);
+      return;
+    }
+    await ctx.runMutation(internal.telegram.enqueuePhoto, { userId, caption, image });
+  },
+});
+
+export const enqueuePhoto = internalMutation({
+  args: { userId: v.id("users"), caption: v.string(), image: v.id("_storage") },
+  handler: async (ctx, { userId, caption, image }) => {
+    const messageId = await enqueueUserMessage(ctx, userId, caption.trim(), "telegram", false, image);
+    if (messageId === null) {
+      await ctx.storage.delete(image);
       await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: LIMIT_REPLY });
     }
   },

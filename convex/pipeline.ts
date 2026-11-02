@@ -4,7 +4,7 @@ import { v } from "convex/values";
 import { ActionCtx, internalAction, internalMutation, internalQuery, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { ChatMessage, complete, CORE_MODEL } from "./lib/cortex";
+import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
 import { analyzeSymptomsTool, healthDataTool, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
@@ -33,6 +33,11 @@ Start your reply with a clear warning: tell the user to seek care now and to cal
 Then help them find nearby urgent care or an ER: if you know their location, use web_search to list a few nearby options; if not, ask for their city/zip (and save it with save_location).`;
 
 const OFFER_ANALYSIS_PROMPT = `Answer briefly, then offer a detailed symptom analysis by the CREAO symptom analyzer: it ranks the most likely conditions with reasoning and care guidance, takes a few minutes, and sends what the user has told you to that service. Ask them to reply yes if they want it. Don't run it yourself.`;
+
+const PHOTO_PROMPT = `The user attached a photo. Look at it carefully and say briefly what you see before answering.
+- Labels, pill bottles, prescriptions, lab results: read the text exactly; if part is unreadable, say so rather than guessing a name or dose.
+- Skin, rashes, wounds, eyes, swelling: describe what's visible, but you can't diagnose from a photo. Say what would make it urgent (spreading redness, fever, severe pain, trouble breathing...) and when to see a clinician.
+- Never try to identify people in photos.`;
 
 const HEALTH_PROMPT = `The user connected Apple Health. When their metrics could help (tiredness, sleep, possible illness, heart rate, their cycle), call get_health_data and mention the specific numbers that matter. Don't recite numbers that aren't relevant, and don't diagnose from them.`;
 
@@ -70,7 +75,7 @@ export const respond = internalAction({
 
       // 2. Jev routes: emergency triage, shopping, the symptom analyzer (only with the user's OK), or the regular assistant.
       const routed = await runRoute({
-        text: message.text,
+        text: message.text || "(sent a photo)",
         lastAssistant: history.findLast((m) => m.role === "assistant")?.text,
         analysisOffered,
       });
@@ -79,7 +84,7 @@ export const respond = internalAction({
       // anything in the recent chat window, or newer than its oldest message, is skipped.
       let memory: Doc<"messages">[] = [];
       try {
-        const vector = await embed(message.text);
+        const vector = await embed(message.text || "(photo)");
         await ctx.runMutation(internal.pipeline.setEmbedding, { messageId, embedding: vector });
         const hits = await ctx.vectorSearch("messages", "by_embedding", {
           vector,
@@ -118,9 +123,15 @@ export const respond = internalAction({
         });
       }
 
-      // 7. Core model with tools.
+      // 7. Core model with tools. A photo goes along as an image (only with this message, not in history).
+      let image: string | undefined;
+      if (message.image) {
+        const blob = await ctx.storage.get(message.image);
+        if (blob) image = await imageDataUrl(blob);
+      }
       reply = await runCore({
         message,
+        image,
         memory,
         history,
         urgent,
@@ -219,6 +230,7 @@ async function runShopper(text: string) {
 
 async function runCore(opts: {
   message: Doc<"messages">;
+  image?: string; // data: URL of the photo sent with this message
   memory: Doc<"messages">[];
   history: Doc<"messages">[];
   urgent: boolean;
@@ -246,6 +258,7 @@ ${opts.medications}`);
     );
   }
   if (opts.healthConnected) system.push(HEALTH_PROMPT);
+  if (opts.image) system.push(PHOTO_PROMPT);
   if (urgent) system.push(URGENT_PROMPT);
   if (analysis === "offer") system.push(OFFER_ANALYSIS_PROMPT);
   if (analysis !== "none" && opts.healthInAnalysis) system.push(HEALTH_IN_ANALYSIS_PROMPT);
@@ -264,16 +277,21 @@ ${opts.medications}`);
     { role: "system", content: system.join("\n\n") },
     ...history
       .filter((m) => m._id !== message._id)
-      .map((m) => ({ role: m.role, content: m.text }) as ChatMessage),
-    { role: "user", content: message.text },
+      .map((m) => ({ role: m.role, content: m.image ? `[sent a photo] ${m.text}`.trim() : m.text }) as ChatMessage),
+    {
+      role: "user",
+      content: opts.image
+        ? [
+            { type: "text", text: message.text || "(no message, just the photo)" },
+            { type: "image_url", image_url: { url: opts.image } },
+          ]
+        : message.text,
+    },
   ];
+  const model = opts.image ? VISION_MODEL() : CORE_MODEL();
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const { content, toolCalls } = await complete({
-      model: CORE_MODEL(),
-      messages,
-      tools,
-    });
+    const { content, toolCalls } = await complete({ model, messages, tools });
     if (!toolCalls.length) return content?.trim() || "Sorry, I don't have an answer for that.";
     opts.typing();
     messages.push({ role: "assistant", content, tool_calls: toolCalls });
@@ -301,7 +319,7 @@ ${opts.medications}`);
     }
   }
   // Out of tool rounds: ask for a final answer without tools.
-  const { content } = await complete({ model: CORE_MODEL(), messages });
+  const { content } = await complete({ model, messages });
   return content?.trim() || "Sorry, I couldn't finish researching that.";
 }
 
@@ -489,9 +507,17 @@ export async function enqueueUserMessage(
   text: string,
   ch: "app" | "telegram",
   voice = false, // a transcribed Telegram voice note
+  image?: Id<"_storage">, // a photo sent with it
 ) {
   if (await overDailyLimit(ctx, userId)) return null;
-  const messageId = await ctx.db.insert("messages", { userId, role: "user", text, channel: ch, ...(voice && { voice }) });
+  const messageId = await ctx.db.insert("messages", {
+    userId,
+    role: "user",
+    text,
+    channel: ch,
+    ...(voice && { voice }),
+    ...(image && { image }),
+  });
   await ctx.scheduler.runAfter(0, internal.pipeline.respond, { messageId });
   return messageId;
 }

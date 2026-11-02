@@ -38,6 +38,8 @@ http.route({
       const name = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || undefined;
       // A voice note, or an audio file sent to the bot.
       const audio = msg.voice ?? msg.audio;
+      // A photo (Telegram sends several sizes, smallest first), or an image sent as a file.
+      const photo = pickPhoto(msg);
       if (msg.text) {
         await ctx.runMutation(internal.telegram.handleIncoming, { chatId, text: msg.text, name });
       } else if (typeof audio?.file_id === "string") {
@@ -47,6 +49,14 @@ http.route({
           fileId: audio.file_id,
           duration: Number(audio.duration) || 0,
           mimeType: typeof audio.mime_type === "string" ? audio.mime_type : undefined,
+        });
+      } else if (photo) {
+        await ctx.runMutation(internal.telegram.handlePhoto, {
+          chatId,
+          name,
+          fileId: photo.fileId,
+          size: photo.size,
+          caption: typeof msg.caption === "string" ? msg.caption : "",
         });
       } else if (msg.location) {
         await ctx.runMutation(internal.telegram.saveSharedLocation, {
@@ -94,3 +104,18 @@ function safeEqual(a: string, b: string) {
 }
 
 export default http;
+
+// The largest photo size up to 1600px wide (plenty to read a label, and small enough to send to the model).
+function pickPhoto(msg: any): { fileId: string; size: number } | null {
+  if (Array.isArray(msg.photo) && msg.photo.length) {
+    const sizes = msg.photo.filter((p: any) => typeof p?.file_id === "string");
+    const fit = sizes.filter((p: any) => Number(p.width) <= 1600);
+    const best = fit.at(-1) ?? sizes[0];
+    return best ? { fileId: best.file_id, size: Number(best.file_size) || 0 } : null;
+  }
+  const doc = msg.document;
+  if (typeof doc?.file_id === "string" && /^image\/(jpeg|png|webp)$/.test(String(doc.mime_type))) {
+    return { fileId: doc.file_id, size: Number(doc.file_size) || 0 };
+  }
+  return null;
+}

@@ -104,7 +104,7 @@ export const material = internalQuery({
     )
       .reverse()
       .filter((m) => m.kind !== "links")
-      .map((m) => ({ role: m.role, text: m.text, at: m._creationTime }));
+      .map((m) => ({ role: m.role, text: m.image ? `(sent a photo) ${m.text}`.trim() : m.text, at: m._creationTime }));
     const analyses = (
       await ctx.db
         .query("creaoRuns")
