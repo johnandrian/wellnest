@@ -205,6 +205,18 @@ export default defineSchema({
     source: entrySource,
   }).index("by_user_and_date", ["userId", "date"]),
 
+  // The daily check-in: mood, energy and sleep quality, 1-5 (convex/daily.ts).
+  dailyLogs: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // YYYY-MM-DD in the user's time zone
+    mood: v.optional(v.number()),
+    energy: v.optional(v.number()),
+    sleepQuality: v.optional(v.number()),
+    note: v.optional(v.string()),
+    skipped: v.optional(v.boolean()), // "Not today" on the card
+    source: v.union(v.literal("card"), v.literal("chat")),
+  }).index("by_user_and_date", ["userId", "date"]),
+
   // Medication reminders (convex/reminders.ts). Stopped ones are kept (active false) for the dose history.
   medications: defineTable({
     userId: v.id("users"),

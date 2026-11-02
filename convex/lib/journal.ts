@@ -90,17 +90,72 @@ export function summaries(entries: Entry[]): string[] {
   return out;
 }
 
+// The daily check-in (convex/daily.ts): 1-5 for mood, energy and sleep quality.
+export type DailyLog = { date: string; mood?: number; energy?: number; sleepQuality?: number; note?: string };
+const DAILY_KEYS = [
+  ["mood", "Mood"],
+  ["energy", "Energy"],
+  ["sleepQuality", "Sleep quality"],
+] as const;
+
+export function dailySummary(daily: DailyLog[]): string[] {
+  return DAILY_KEYS.flatMap(([key, label]) => {
+    const vals = daily.flatMap((d) => (d[key] === undefined ? [] : [d[key]!]));
+    if (!vals.length) return [];
+    const recent = mean(vals.slice(-3))!;
+    return [`${label}: average ${fmt(mean(vals)!)}/5 over ${vals.length} days, last 3 days ${fmt(recent)}/5.`];
+  });
+}
+
+// Mood and energy on days with a health factor vs without (3+ days each side, a gap of at least 1 point).
+export function dailyPatterns(daily: DailyLog[], health: HealthDay[]): string[] {
+  const byDate = new Map(health.map((d) => [d.date, d]));
+  const out: string[] = [];
+  for (const [key, label] of DAILY_KEYS.slice(0, 2)) {
+    for (const f of FACTORS) {
+      const yes: number[] = [];
+      const no: number[] = [];
+      for (const d of daily) {
+        const h = byDate.get(d.date);
+        const hit = h && f.test(h);
+        if (d[key] === undefined) continue;
+        if (hit === true) yes.push(d[key]!);
+        else if (hit === false) no.push(d[key]!);
+      }
+      const a = mean(yes);
+      const b = mean(no);
+      if (a === undefined || b === undefined || yes.length < 3 || no.length < 3 || Math.abs(a - b) < 1) continue;
+      out.push(`${label} averaged ${fmt(a)}/5 on days with ${f.label} (${yes.length} days) vs ${fmt(b)}/5 otherwise (${no.length} days).`);
+    }
+  }
+  return out;
+}
+
 // What the model and visit summaries read.
-export function journalText(entries: Entry[], health: HealthDay[]): string {
-  if (!entries.length) return "No symptom journal entries for that period.";
+export function journalText(entries: Entry[], health: HealthDay[], daily: DailyLog[] = []): string {
+  if (!entries.length && !daily.length) return "No symptom journal entries for that period.";
+  const checkins = daily.length
+    ? "Daily check-ins (1-5):\n" +
+      dailySummary(daily).join("\n") +
+      "\n" +
+      daily
+        .slice(-30)
+        .map((d) => `${d.date}: ${[d.mood && `mood ${d.mood}`, d.energy && `energy ${d.energy}`, d.sleepQuality && `sleep quality ${d.sleepQuality}`, d.note].filter(Boolean).join(", ")}`)
+        .join("\n")
+    : "";
+  const dailyFound = dailyPatterns(daily, health);
+  if (!entries.length) {
+    return [checkins, dailyFound.length ? "Patterns with health data (associations, not causes):\n" + dailyFound.join("\n") : ""].filter(Boolean).join("\n\n");
+  }
   const lines = entries
     .slice(-60)
     .map((e) => `${e.date}: ${e.symptom}${e.severity !== undefined ? ` ${e.severity}/10` : ""}${e.note ? ` (${e.note})` : ""}`);
-  const found = patterns(entries, health);
+  const found = [...patterns(entries, health), ...dailyFound];
   return [
     "Summary:\n" + summaries(entries).join("\n"),
     found.length ? "Patterns with health data (associations, not causes):\n" + found.join("\n") : "",
     "Entries:\n" + lines.join("\n"),
+    checkins,
   ]
     .filter(Boolean)
     .join("\n\n");

@@ -4,7 +4,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { clampSeverity, dailySeverity, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
+import { clampSeverity, dailyPatterns, dailySeverity, dailySummary, DailyLog, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
 import { isDate } from "./lib/health";
 import { zoneOffsetMin } from "./lib/reminders";
 
@@ -94,6 +94,19 @@ export const since = internalQuery({
   handler: (ctx, { userId, since }) => entriesSince(ctx, userId, since),
 });
 
+export async function dailySince(ctx: QueryCtx, userId: Id<"users">, since: string): Promise<DailyLog[]> {
+  const rows = await ctx.db
+    .query("dailyLogs")
+    .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
+    .take(400);
+  return rows.filter((r) => !r.skipped).map(({ date, mood, energy, sleepQuality, note }) => ({ date, mood, energy, sleepQuality, note }));
+}
+
+export const dailyFrom = internalQuery({
+  args: { userId: v.id("users"), since: v.string() },
+  handler: (ctx, { userId, since }) => dailySince(ctx, userId, since),
+});
+
 // The Journal tab: per-symptom daily severity for the charts, sleep for comparison, patterns and recent entries.
 // `since` comes from the app (queries can't read the clock).
 export const view = query({
@@ -102,6 +115,7 @@ export const view = query({
     const userId = await getAuthUserId(ctx);
     if (!userId || !isDate(since)) return null;
     const entries = await entriesSince(ctx, userId, since);
+    const daily = await dailySince(ctx, userId, since);
     const health = (
       await ctx.db
         .query("healthDays")
@@ -126,8 +140,9 @@ export const view = query({
         })),
       sleep: health.flatMap((d) => (d.metrics.sleepHours === undefined ? [] : [{ date: d.date, hours: d.metrics.sleepHours }])),
       periodDays: health.filter((d) => d.metrics.menstrualFlow && d.metrics.menstrualFlow !== "none").map((d) => d.date),
-      summaries: summaries(entries),
-      patterns: patterns(entries, health),
+      daily: daily.map(({ date, mood, energy, sleepQuality }) => ({ date, mood: mood ?? null, energy: energy ?? null, sleepQuality: sleepQuality ?? null })),
+      summaries: [...summaries(entries), ...dailySummary(daily)],
+      patterns: [...patterns(entries, health), ...dailyPatterns(daily, health)],
       recent: recent.map(({ _id, date, symptom, severity, note, source }) => ({ _id, date, symptom, severity: severity ?? null, note: note ?? null, source })),
     };
   },

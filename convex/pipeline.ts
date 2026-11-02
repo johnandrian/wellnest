@@ -164,6 +164,15 @@ export const respond = internalAction({
         },
         journal: async (name, rawArgs) => {
           const args = parseArgs(rawArgs);
+          if (name === "log_how_i_feel") {
+            return ctx.runMutation(internal.daily.fromChat, {
+              userId,
+              mood: typeof args.mood === "number" ? args.mood : undefined,
+              energy: typeof args.energy === "number" ? args.energy : undefined,
+              sleepQuality: typeof args.sleep_quality === "number" ? args.sleep_quality : undefined,
+              note: typeof args.note === "string" ? args.note : undefined,
+            });
+          }
           if (name === "log_symptom") {
             return ctx.runMutation(internal.journal.logFromChat, {
               userId,
@@ -176,7 +185,8 @@ export const respond = internalAction({
           const days = Math.min(180, Math.max(1, Math.round(Number(args.days ?? 30)) || 30));
           const since = dateDaysAgo(Date.now(), days - 1);
           const entries = await ctx.runQuery(internal.journal.since, { userId, since });
-          return journalText(entries, await healthDays(ctx, userId, Math.min(days, 90)));
+          const daily = await ctx.runQuery(internal.journal.dailyFrom, { userId, since });
+          return journalText(entries, await healthDays(ctx, userId, Math.min(days, 90)), daily);
         },
         fact: (name, rawArgs) => {
           const text = String(parseArgs(rawArgs).fact ?? "");
@@ -379,7 +389,7 @@ ${opts.medications}`);
           : await opts.telehealth(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "find_care") {
         result = await opts.findCare(call.function.arguments);
-      } else if (call.function.name === "log_symptom" || call.function.name === "get_symptom_journal") {
+      } else if (["log_symptom", "get_symptom_journal", "log_how_i_feel"].includes(call.function.name)) {
         result = await opts.journal(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {
         result = await opts.fact(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);

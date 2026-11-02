@@ -178,6 +178,7 @@ export const exportRest = internalQuery({
       visitSummaries: await ctx.db.query("visitSummaries").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomAnalyses: await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomJournal: await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
+      dailyCheckins: await ctx.db.query("dailyLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
     };
   },
 });
@@ -219,7 +220,7 @@ const STEPS = {
   reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
   facts: ["memoryFacts"],
-  journal: ["symptomEntries"],
+  journal: ["symptomEntries", "dailyLogs"],
 } as const;
 // Only "everything" also removes the account's devices and sign-in records.
 const ACCOUNT_STEPS = ["pushTokens", "auth"] as const;
@@ -303,6 +304,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       return rows.length;
     }
     case "symptomEntries":
+    case "dailyLogs":
     case "healthDays": {
       const rows = await ctx.db.query(step).withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) await ctx.db.delete(r._id);

@@ -32,6 +32,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { Lang, LANGUAGE_NAMES, Strings, strings } from "./i18n";
 import { pushSupported, usePush } from "./push";
 import { AppointmentCard } from "./TelehealthCard";
+import { DailyCard } from "./DailyCard";
 
 // The panels that open under the header.
 type Panel = "settings" | "hub" | "about";
@@ -203,6 +204,7 @@ export function Chat() {
       {panel === "about" && <AboutPanel s={s} />}
       {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} />}
 
+      {panel === null && !!messages?.length && <DailyCard s={s} inChat />}
       {messages === undefined ? (
         <ActivityIndicator style={{ flex: 1 }} />
       ) : (

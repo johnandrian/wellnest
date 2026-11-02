@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import type { Strings } from "./i18n";
+import { DailyCard, DailyChart } from "./DailyCard";
 
 const PERIODS = [14, 30, 90];
 
@@ -102,6 +103,7 @@ export function JournalPanel({ s }: { s: Strings }) {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
+      <DailyCard s={s} />
       <Text style={styles.note}>{s.journalIntro}</Text>
       <View style={styles.chips}>
         {PERIODS.map((p) => (
@@ -111,6 +113,7 @@ export function JournalPanel({ s }: { s: Strings }) {
         ))}
       </View>
 
+      {!!data?.daily.length && <DailyChart days={days} daily={data.daily} s={s} />}
       {data && data.symptoms.length === 0 && <Text style={styles.empty}>{s.journalEmpty}</Text>}
       {data?.symptoms.slice(0, 5).map((sym) => (
         <View key={sym.name} style={styles.card}>

@@ -198,6 +198,25 @@ export const journalTools: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "log_how_i_feel",
+      description:
+        "Log today's check-in when the user says how they feel overall: mood, energy and/or how well they slept, each " +
+        "1-5 (1 awful, 3 okay, 5 great), e.g. \"I'm wiped out\" is energy 1, \"slept great\" is sleep_quality 5. " +
+        "Only the parts they mentioned. Mention briefly that you logged it.",
+      parameters: {
+        type: "object",
+        properties: {
+          mood: { type: "integer" },
+          energy: { type: "integer" },
+          sleep_quality: { type: "integer" },
+          note: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_symptom_journal",
       description:
         "Read the user's symptom journal: per-symptom trends, patterns against their health data (sleep, steps, periods) " +

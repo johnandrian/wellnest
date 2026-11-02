@@ -77,6 +77,7 @@ describe("app chat", () => {
       "remember_fact",
       "forget_fact",
       "log_symptom",
+      "log_how_i_feel",
       "get_symptom_journal",
     ]);
     expect(cx.every((c) => c.body.max_tokens === undefined && c.body.stream === false)).toBe(true);

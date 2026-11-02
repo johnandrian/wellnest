@@ -280,6 +280,11 @@ const STRINGS = {
     form_cream: "Cream",
     form_drops: "Drops",
     form_other: "Other",
+    dailyTitle: "How's today?",
+    dailyMood: "Mood",
+    dailyEnergy: "Energy",
+    dailySleep: "Sleep",
+    dailyNotToday: "Not today",
   },
   es: {
     starters: [
@@ -557,6 +562,11 @@ const STRINGS = {
     form_cream: "Crema",
     form_drops: "Gotas",
     form_other: "Otro",
+    dailyTitle: "¿Qué tal hoy?",
+    dailyMood: "Ánimo",
+    dailyEnergy: "Energía",
+    dailySleep: "Sueño",
+    dailyNotToday: "Hoy no",
   },
   el: {
     starters: [
@@ -834,6 +844,11 @@ const STRINGS = {
     form_cream: "Κρέμα",
     form_drops: "Σταγόνες",
     form_other: "Άλλο",
+    dailyTitle: "Πώς είσαι σήμερα;",
+    dailyMood: "Διάθεση",
+    dailyEnergy: "Ενέργεια",
+    dailySleep: "Ύπνος",
+    dailyNotToday: "Όχι σήμερα",
   },
 } satisfies Record<Lang, Record<string, string | string[]>>;
 
