@@ -8,6 +8,7 @@ import { Id } from "./_generated/dataModel";
 import { complete, CORE_MODEL } from "./lib/cortex";
 import { dateDaysAgo, healthReport } from "./lib/health";
 import { DEFAULT_VISIT_DAYS, VISIT_PROMPT, visitMaterial } from "./lib/visit";
+import { journalText } from "./lib/journal";
 import { saveAssistantReply } from "./pipeline";
 import { channel } from "./schema";
 import { LANGUAGES, langOf, t } from "./lib/language";
@@ -134,6 +135,7 @@ export const generate = internalAction({
     try {
       const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId: data.row.userId, now });
       const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId: data.row.userId });
+      const entries = await ctx.runQuery(internal.journal.since, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
       const material = visitMaterial({
         reason: data.row.reason,
         days: data.row.days,
@@ -143,6 +145,7 @@ export const generate = internalAction({
         health: data.healthDays.length ? healthReport(data.healthDays, today) : undefined,
         medications: medications || undefined,
         facts,
+        journal: entries.length ? journalText(entries, data.healthDays) : undefined,
       });
       const lang = langOf(await ctx.runQuery(internal.pipeline.getUser, { userId: data.row.userId }));
       const { content } = await complete({

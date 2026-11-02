@@ -9,7 +9,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { colors } from "./theme";
 
-type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "everything";
+type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "everything";
 
 function confirm(title: string, message: string, action: string): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
@@ -104,6 +104,7 @@ export function AboutPanel() {
       what: "all messages, photos and symptom analyses",
     },
     { label: "Photos", value: count(counts.photos) },
+    { label: "Symptom journal", value: count(counts.journal), category: counts.journal.n ? "journal" : undefined, what: "your symptom journal" },
     { label: "Symptom analyses", value: count(counts.analyses) },
     {
       label: "Apple Health",

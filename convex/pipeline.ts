@@ -6,7 +6,8 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, factTools, healthDataTool, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { analyzeSymptomsTool, factTools, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, toolDefs, visitSummaryTool } from "./lib/tools";
+import { journalText } from "./lib/journal";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -146,6 +147,22 @@ export const respond = internalAction({
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
         facts,
+        journal: async (name, rawArgs) => {
+          const args = parseArgs(rawArgs);
+          if (name === "log_symptom") {
+            return ctx.runMutation(internal.journal.logFromChat, {
+              userId,
+              symptom: String(args.symptom ?? ""),
+              severity: typeof args.severity === "number" ? args.severity : undefined,
+              note: typeof args.note === "string" ? args.note : undefined,
+              date: typeof args.date === "string" ? args.date : undefined,
+            });
+          }
+          const days = Math.min(180, Math.max(1, Math.round(Number(args.days ?? 30)) || 30));
+          const since = dateDaysAgo(Date.now(), days - 1);
+          const entries = await ctx.runQuery(internal.journal.since, { userId, since });
+          return journalText(entries, await healthDays(ctx, userId, Math.min(days, 90)));
+        },
         fact: (name, rawArgs) => {
           const text = String(parseArgs(rawArgs).fact ?? "");
           return name === "remember_fact"
@@ -253,6 +270,7 @@ async function runCore(opts: {
   medications: string;
   facts: string[];
   fact: (name: string, rawArgs: string) => Promise<string>;
+  journal: (name: string, rawArgs: string) => Promise<string>;
   reminder: (name: string, rawArgs: string) => Promise<string>;
   prepareVisit: (rawArgs: string) => Promise<string>;
   healthConnected: boolean;
@@ -290,6 +308,7 @@ ${opts.medications}`);
     visitSummaryTool,
     ...reminderTools,
     ...factTools,
+    ...journalTools,
     ...(opts.healthConnected ? [healthDataTool] : []),
     ...(analysis === "run" ? [analyzeSymptomsTool] : []),
   ];
@@ -320,6 +339,8 @@ ${opts.medications}`);
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "log_symptom" || call.function.name === "get_symptom_journal") {
+        result = await opts.journal(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {
         result = await opts.fact(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "set_medication_reminder" || call.function.name === "cancel_medication_reminder") {

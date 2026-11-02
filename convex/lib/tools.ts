@@ -152,6 +152,40 @@ export const factTools: ToolDef[] = [
   },
 ];
 
+// Handled in the pipeline: the symptom journal (convex/journal.ts).
+export const journalTools: ToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "log_symptom",
+      description:
+        "Add to the user's symptom journal whenever they report a symptom they have now or had on a recent day " +
+        "(\"my headache's a 6 today\", \"cramps were bad yesterday\"). One call per symptom. Don't ask permission; " +
+        "mention briefly that you logged it. Use a short common name (headache, nausea, cramps, fatigue).",
+      parameters: {
+        type: "object",
+        properties: {
+          symptom: { type: "string" },
+          severity: { type: "integer", description: "0-10 if the user gave one or clearly implied it (mild ~3, bad ~7)" },
+          note: { type: "string", description: "Short context: triggers, timing, what helped" },
+          date: { type: "string", description: "YYYY-MM-DD if not today (e.g. yesterday)" },
+        },
+        required: ["symptom"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_symptom_journal",
+      description:
+        "Read the user's symptom journal: per-symptom trends, patterns against Apple Health (sleep, steps, periods) " +
+        "and the entries. Use when they ask how a symptom has been, what triggers it, or whether it's improving.",
+      parameters: { type: "object", properties: { days: { type: "integer", description: "1-180, default 30" } } },
+    },
+  },
+];
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

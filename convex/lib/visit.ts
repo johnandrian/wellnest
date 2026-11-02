@@ -51,6 +51,7 @@ export function visitMaterial(opts: {
   health?: string;
   medications?: string;
   facts?: string[];
+  journal?: string;
 }): string {
   const parts = [
     `Today: ${opts.today}. Period covered: the last ${opts.days} days.`,
@@ -58,6 +59,7 @@ export function visitMaterial(opts: {
   ];
   if (opts.facts?.length) parts.push(`Facts the patient saved in Wellnest:\n${opts.facts.map((f) => `- ${f}`).join("\n")}`);
   if (opts.medications) parts.push(`Medications and reminders the patient set up in Wellnest:\n${opts.medications}`);
+  if (opts.journal) parts.push(`Symptom journal:\n${opts.journal}`);
   if (opts.health) parts.push(`Apple Health:\n${opts.health}`);
   for (const a of opts.analyses) parts.push(`Earlier AI symptom analysis (${day(a.at)}):\n${a.report.slice(0, 3000)}`);
   parts.push(opts.messages.length ? `Chat:\n${transcript(opts.messages)}` : "Chat: (no messages in this period)");

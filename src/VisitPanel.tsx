@@ -143,7 +143,7 @@ export function VisitPanel() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { maxHeight: "75%", flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  scroll: { maxHeight: "75%", flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 17, fontWeight: "700", color: colors.text },

@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { healthMetrics } from "./lib/health";
 import { schedule } from "./lib/reminders";
 import { language } from "./lib/language";
+import { entrySource } from "./lib/journal";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -147,6 +148,16 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_token", ["token"]),
+
+  // Symptom journal (convex/journal.ts): one entry per symptom per local day.
+  symptomEntries: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // YYYY-MM-DD in the user's time zone
+    symptom: v.string(), // normalized: lower case, singular ("headache")
+    severity: v.optional(v.number()), // 0-10
+    note: v.optional(v.string()),
+    source: entrySource,
+  }).index("by_user_and_date", ["userId", "date"]),
 
   // Medication reminders (convex/reminders.ts). Stopped ones are kept (active false) for the dose history.
   medications: defineTable({

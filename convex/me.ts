@@ -109,6 +109,7 @@ export const overview = query({
     const summaries = await ctx.db.query("visitSummaries").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const analyses = await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const facts = await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS);
+    const journal = await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     return {
       profile: {
         email: user.email ?? null,
@@ -129,6 +130,7 @@ export const overview = query({
         doses: count(doses),
         summaries: count(summaries),
         analyses: count(analyses),
+        journal: count(journal),
       },
       since: first?._creationTime ?? null,
       chatClearedAt: user.chatClearedAt ?? null,
@@ -175,6 +177,7 @@ export const exportRest = internalQuery({
       doseLogs: await ctx.db.query("doseLogs").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       visitSummaries: await ctx.db.query("visitSummaries").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomAnalyses: await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
+      symptomJournal: await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
     };
   },
 });
@@ -206,6 +209,7 @@ const category = v.union(
   v.literal("reminders"),
   v.literal("summaries"),
   v.literal("facts"),
+  v.literal("journal"),
   v.literal("everything"),
 );
 
@@ -215,6 +219,7 @@ const STEPS = {
   reminders: ["medications", "doseLogs"],
   summaries: ["visitSummaries"],
   facts: ["memoryFacts"],
+  journal: ["symptomEntries"],
 } as const;
 // Only "everything" also removes the account's devices and sign-in records.
 const ACCOUNT_STEPS = ["pushTokens", "auth"] as const;
@@ -284,8 +289,9 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       for (const r of rows) await ctx.db.delete(r._id);
       return rows.length;
     }
+    case "symptomEntries":
     case "healthDays": {
-      const rows = await ctx.db.query("healthDays").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(BATCH);
+      const rows = await ctx.db.query(step).withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) await ctx.db.delete(r._id);
       return rows.length;
     }

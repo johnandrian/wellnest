@@ -25,8 +25,7 @@ import { Markdown } from "./Markdown";
 import { PulseRing, ThinkingDots } from "./Motion";
 import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
-import { VisitPanel } from "./VisitPanel";
-import { RemindersPanel } from "./RemindersPanel";
+import { HubPanel, HubTab } from "./HubPanel";
 import { AboutPanel } from "./AboutPanel";
 import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
@@ -34,7 +33,7 @@ import { Lang, LANGUAGE_NAMES, Strings, strings } from "./i18n";
 import { pushSupported, usePush } from "./push";
 
 // The panels that open under the header.
-type Panel = "settings" | "visit" | "reminders" | "about";
+type Panel = "settings" | "hub" | "about";
 
 
 // Camera or library: native asks which; web (and desktop browsers) only have the library.
@@ -74,6 +73,11 @@ export function Chat() {
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [panel, setPanel] = useState<Panel | null>(null);
+  const [hubTab, setHubTab] = useState<HubTab>("journal");
+  const openHub = (tab: HubTab) => {
+    setHubTab(tab);
+    setPanel("hub");
+  };
   // "about" opens from Settings, so the settings button closes it too.
   const toggle = (p: Panel) => setPanel((open) => (open === p || (p === "settings" && open === "about") ? null : p));
   const [notice, setNotice] = useState<string | null>(null);
@@ -135,7 +139,7 @@ export function Chat() {
   const health = useHealthSync();
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
-  const pushToken = usePush(s, (kind) => setPanel(kind === "reminders" ? "reminders" : null));
+  const pushToken = usePush(s, (kind) => openHub(kind === "reminders" ? "reminders" : "journal"));
 
   // Medication reminders fire at local times, so the backend needs this device's time zone.
   useEffect(() => {
@@ -178,19 +182,11 @@ export function Chat() {
           )}
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => toggle("reminders")}
+            onPress={() => toggle("hub")}
             accessibilityRole="button"
-            accessibilityLabel={panel === "reminders" ? "Close reminders" : "Medication reminders"}
+            accessibilityLabel={panel === "hub" ? `${s.close} ${s.hubTitle}` : s.hubTitle}
           >
-            <Ionicons name={panel === "reminders" ? "close" : "medkit-outline"} size={21} color={colors.text} />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => toggle("visit")}
-            accessibilityRole="button"
-            accessibilityLabel={panel === "visit" ? "Close visit summary" : "Visit summary"}
-          >
-            <Ionicons name={panel === "visit" ? "close" : "clipboard-outline"} size={21} color={colors.text} />
+            <Ionicons name={panel === "hub" ? "close" : "pulse"} size={22} color={colors.text} />
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -203,8 +199,7 @@ export function Chat() {
         </View>
       </View>
 
-      {panel === "visit" && <VisitPanel />}
-      {panel === "reminders" && <RemindersPanel />}
+      {panel === "hub" && <HubPanel tab={hubTab} onTab={setHubTab} s={s} />}
       {panel === "about" && <AboutPanel />}
       {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onVoiceModeOn={() => voice.prepare(true)} onOpenAbout={() => setPanel("about")} />}
 

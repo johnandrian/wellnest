@@ -73,6 +73,8 @@ describe("app chat", () => {
       "cancel_medication_reminder",
       "remember_fact",
       "forget_fact",
+      "log_symptom",
+      "get_symptom_journal",
     ]);
     expect(cx.every((c) => c.body.max_tokens === undefined && c.body.stream === false)).toBe(true);
   });
