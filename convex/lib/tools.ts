@@ -57,6 +57,22 @@ export const saveLocationTool: ToolDef = {
   },
 };
 
+// Handled in the pipeline: reads the user's synced Apple Health summaries (convex/health.ts). Offered only once connected.
+export const healthDataTool: ToolDef = {
+  type: "function",
+  function: {
+    name: "get_health_data",
+    description:
+      "Read the user's Apple Health daily summaries (steps, resting heart rate, HRV, sleep, breathing rate, SpO2, wrist " +
+      "temperature, weight, logged periods) with averages and recent changes. Use when their metrics could help answer, " +
+      "e.g. tiredness, sleep, possible illness, heart rate, cycle questions.",
+    parameters: {
+      type: "object",
+      properties: { days: { type: "integer", description: "How many days back, 1-90 (default 14; use 90 for cycle questions)" } },
+    },
+  },
+};
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

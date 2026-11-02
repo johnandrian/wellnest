@@ -4,6 +4,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
 
 ## Layout
 - `App.tsx`, `src/` — Expo app: sign-in, chat, settings (voice mode, "Text me on Telegram").
+  - `health.ios.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health on iPhone (see below); `health.ts` is the web/Android stand-in.
   - `useVoice.ts` — voice mode: mic → Cartesia STT → send; replies → Cartesia TTS. `speaker.web.ts` / `speaker.ts` — streaming playback on web / iOS + Android (see Voice below).
 - `convex/` — backend.
   - `pipeline.ts` — shared pipeline: Jina embed → vector search memory → Cortex triage → Cortex core model + tools → reply.
@@ -12,6 +13,7 @@ Chat in the app (web + iOS + Android, Expo) or text the Telegram bot, by typing 
   - `lib/` — Cortex, Jina, Telegram, Cartesia (`cartesia.ts`) clients, `speech.ts` (Markdown → speakable text), and model tools (`web_search`, `read_page`, `bio_research`).
   - `creao.ts` + `lib/creao.ts` — detailed symptom analysis by the CREAO agent (see below).
   - `shop.ts` + `lib/shopping/` — Health Supply Shopper: Amazon and Walmart links for OTC health supplies (see below).
+  - `health.ts` + `lib/health.ts` — Apple Health daily summaries: sync API, `get_health_data` text, CREAO fields.
   - `lib/jev.ts` — routes each message: shopping, symptom analyzer, or regular.
 - `creao/` — the CREAO agent bundle: `SKILL.md` (its program), `config.yaml` (form fields, memory), `README.md`.
 
@@ -42,6 +44,14 @@ Voice recording needs a development build on native (`npx expo run:ios`), not Ex
 | `CREAO_APP_ID` | optional, defaults to the Symptom & Biosensor Health Analyzer (`4a2f70bf-4da0-422d-a0e2-9c9bc003fd9c`) |
 | `JEV_API_KEY` | TypeSafe Jev key; routes each message (optional `JEV_MODEL`, default `jev-latest`) |
 | `CORTEX_SHOPPER_MODEL` | optional; the Snowflake model that reads shopping requests (default: the triage model) |
+
+## Apple Health
+The iPhone app reads **daily summaries** from HealthKit and syncs them to `healthDays` (one row per user per local day): steps, active energy, resting heart rate, HRV (SDNN), sleep (asleep time, overlapping watch/phone logs merged), breathing rate, SpO2, sleeping wrist temperature, weight, and menstrual flow. Raw samples never leave the phone. Cycle apps like Flo, Clue and the Health app itself write flow logs to Apple Health, so period data comes along without a Flo integration; Garmin, Oura and Whoop also copy much of their data there.
+- **Sync:** Settings → Apple Health → Connect asks iOS for read access and sends the last 90 days. After that the app re-syncs when opened or brought back (at most every 30 minutes): the days since the last sync plus two before, because watch data arrives late.
+- **Model:** once connected, the core model gets a `get_health_data` tool (1-90 days). It returns averages, the last 3 days compared to the days before, cycle facts (period starts, cycle day, average length), and one line per day.
+- **CREAO:** summaries go to a symptom analysis only if the user turns on "Include in symptom analyses". Then empty `biosensor_data`, `cycle_data` and `last_period_start` fields are filled from the last 14 days (vitals) and 90 days (cycle).
+- **Disconnect:** removes the link and deletes every synced day. Web and Android show the status and can disconnect, but can't connect (HealthKit exists only on iPhone).
+- **Building:** HealthKit doesn't work in Expo Go. Build a development client with EAS (`eas.json` is set up; needs an Apple Developer account): `npx eas-cli build --profile development --platform ios`, install it on the iPhone, then `npx expo start --dev-client`. The bundle id is `health.talktothebeak.wellnest` (`app.json`); change it if you prefer another.
 
 ## Routing (Jev)
 Before the model runs, `convex/lib/jev.ts` asks Jev yes/no questions about the message (plus the assistant's previous message):

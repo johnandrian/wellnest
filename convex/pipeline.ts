@@ -6,7 +6,8 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, runTool, saveLocationTool, toolDefs } from "./lib/tools";
+import { analyzeSymptomsTool, healthDataTool, runTool, saveLocationTool, toolDefs } from "./lib/tools";
+import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
 import { shopTurn } from "./shop";
@@ -32,6 +33,10 @@ Start your reply with a clear warning: tell the user to seek care now and to cal
 Then help them find nearby urgent care or an ER: if you know their location, use web_search to list a few nearby options; if not, ask for their city/zip (and save it with save_location).`;
 
 const OFFER_ANALYSIS_PROMPT = `Answer briefly, then offer a detailed symptom analysis by the CREAO symptom analyzer: it ranks the most likely conditions with reasoning and care guidance, takes a few minutes, and sends what the user has told you to that service. Ask them to reply yes if they want it. Don't run it yourself.`;
+
+const HEALTH_PROMPT = `The user connected Apple Health. When their metrics could help (tiredness, sleep, possible illness, heart rate, their cycle), call get_health_data and mention the specific numbers that matter. Don't recite numbers that aren't relevant, and don't diagnose from them.`;
+
+const HEALTH_IN_ANALYSIS_PROMPT = `The user has agreed to include their Apple Health summaries in symptom analyses; they're added to it automatically.`;
 
 const RUN_ANALYSIS_PROMPT = `The user agreed to a detailed symptom analysis. Call analyze_symptoms now with every symptom detail they've given in this conversation (plus any health-app data or cycle info), then tell them the report will arrive in a few minutes.`;
 
@@ -123,10 +128,24 @@ export const respond = internalAction({
         typing,
         saveLocation: (location) =>
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
+        healthConnected: !!user?.health,
+        healthInAnalysis: !!user?.health?.shareWithAnalysis,
+        getHealthData: async (days) => healthReport(await healthDays(ctx, userId, days), dateDaysAgo(Date.now(), 0)),
         analyzeSymptoms: async (rawArgs) => {
           const parsed = parseInputs(rawArgs);
           if ("error" in parsed) return `Tool error: ${parsed.error}`;
-          return ctx.runMutation(internal.creao.request, { userId, channel: message.channel, inputs: parsed.inputs });
+          const inputs = parsed.inputs;
+          // With the user's OK, the analyzer gets their Apple Health summaries where the model left the fields empty.
+          if (user?.health?.shareWithAnalysis) {
+            const days = await healthDays(ctx, userId, 90);
+            const cycle = cycleSummary(days, dateDaysAgo(Date.now(), 0));
+            inputs.biosensor_data ??= biosensorText(days.slice(-14));
+            if (cycle) {
+              inputs.cycle_data ??= cycle.text;
+              inputs.last_period_start ??= cycle.lastPeriodStart;
+            }
+          }
+          return ctx.runMutation(internal.creao.request, { userId, channel: message.channel, inputs });
         },
       });
     } catch (e) {
@@ -144,6 +163,10 @@ export const respond = internalAction({
     });
   },
 });
+
+async function healthDays(ctx: ActionCtx, userId: Id<"users">, days: number): Promise<HealthDay[]> {
+  return ctx.runQuery(internal.health.daysSince, { userId, since: dateDaysAgo(Date.now(), days - 1) });
+}
 
 async function runRoute(opts: Parameters<typeof route>[0]): Promise<Route> {
   try {
@@ -173,6 +196,9 @@ async function runCore(opts: {
   location?: string;
   typing: () => void;
   saveLocation: (location: string) => Promise<null>;
+  healthConnected: boolean;
+  healthInAnalysis: boolean;
+  getHealthData: (days: number) => Promise<string>;
   analyzeSymptoms: (rawArgs: string) => Promise<string>;
 }): Promise<string> {
   const { message, memory, history, urgent, analysis, location } = opts;
@@ -183,11 +209,18 @@ async function runCore(opts: {
       "Relevant past messages:\n" + memory.map((m) => `- [${m.role}] ${m.text}`).join("\n"),
     );
   }
+  if (opts.healthConnected) system.push(HEALTH_PROMPT);
   if (urgent) system.push(URGENT_PROMPT);
   if (analysis === "offer") system.push(OFFER_ANALYSIS_PROMPT);
+  if (analysis !== "none" && opts.healthInAnalysis) system.push(HEALTH_IN_ANALYSIS_PROMPT);
   if (analysis === "run") system.push(RUN_ANALYSIS_PROMPT);
   if (opts.linksShown) system.push(LINKS_PROMPT);
-  const tools = [...toolDefs, saveLocationTool, ...(analysis === "run" ? [analyzeSymptomsTool] : [])];
+  const tools = [
+    ...toolDefs,
+    saveLocationTool,
+    ...(opts.healthConnected ? [healthDataTool] : []),
+    ...(analysis === "run" ? [analyzeSymptomsTool] : []),
+  ];
 
   const messages: ChatMessage[] = [
     { role: "system", content: system.join("\n\n") },
@@ -210,6 +243,10 @@ async function runCore(opts: {
       let result: string;
       if (call.function.name === "save_location") {
         result = await runSaveLocation(call.function.arguments, opts.saveLocation);
+      } else if (call.function.name === "get_health_data") {
+        result = !opts.healthConnected
+          ? "Tool error: the user hasn't connected Apple Health."
+          : await opts.getHealthData(healthDaysArg(call.function.arguments)).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "analyze_symptoms") {
         result =
           analysis !== "run"
@@ -224,6 +261,15 @@ async function runCore(opts: {
   // Out of tool rounds: ask for a final answer without tools.
   const { content } = await complete({ model: CORE_MODEL(), messages });
   return content?.trim() || "Sorry, I couldn't finish researching that.";
+}
+
+function healthDaysArg(rawArgs: string) {
+  try {
+    const days = Math.round(Number(JSON.parse(rawArgs || "{}").days ?? 14));
+    return Number.isFinite(days) ? Math.min(90, Math.max(1, days)) : 14;
+  } catch {
+    return 14;
+  }
 }
 
 async function runSaveLocation(rawArgs: string, save: (location: string) => Promise<null>) {

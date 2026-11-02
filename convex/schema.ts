@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { healthMetrics } from "./lib/health";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -75,6 +76,15 @@ export default defineSchema({
     // "Clear chat": messages before this time are hidden and left out of the model's context and memory.
     // They aren't deleted, so the daily message limit still counts them.
     chatClearedAt: v.optional(v.number()),
+    // Apple Health link (convex/health.ts). Set on the first sync; removed on disconnect.
+    health: v.optional(
+      v.object({
+        connectedAt: v.number(),
+        syncedAt: v.number(),
+        // The user's OK to include their Apple Health summaries in CREAO symptom analyses.
+        shareWithAnalysis: v.boolean(),
+      }),
+    ),
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
@@ -98,6 +108,14 @@ export default defineSchema({
       dimensions: EMBEDDING_DIMS,
       filterFields: ["userId"],
     }),
+
+  // One summary per user per local calendar day, sent by the phone from Apple Health (convex/health.ts).
+  healthDays: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // YYYY-MM-DD, the phone's local date
+    source: v.literal("apple_health"),
+    metrics: healthMetrics,
+  }).index("by_user_and_date", ["userId", "date"]),
 
   // One-time codes for t.me/<bot>?start=<code> account linking.
   telegramLinks: defineTable({

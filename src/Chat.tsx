@@ -8,6 +8,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -22,6 +23,8 @@ import { colors } from "./theme";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { PulseRing, ThinkingDots } from "./Motion";
+import { HealthSync, useHealthSync } from "./useHealthSync";
+import { HealthSettings } from "./HealthSettings";
 
 // One tap sends these from the empty chat, so first-time users (and judges) can try it right away.
 const STARTERS = [
@@ -69,6 +72,7 @@ export function Chat() {
   };
 
   const voice = useVoice(!!me?.voiceMode, messages, submit);
+  const health = useHealthSync();
 
   const clear = async () => {
     if (!(await confirmClear())) return;
@@ -114,7 +118,7 @@ export function Chat() {
         </View>
       </View>
 
-      {showSettings && me && <Settings me={me} onVoiceModeOn={() => voice.prepare(true)} />}
+      {showSettings && me && <Settings me={me} health={health} onVoiceModeOn={() => voice.prepare(true)} />}
 
       {messages === undefined ? (
         <ActivityIndicator style={{ flex: 1 }} />
@@ -263,9 +267,11 @@ export function Chat() {
 
 function Settings({
   me,
+  health,
   onVoiceModeOn,
 }: {
   me: { email: string | null; voiceMode: boolean; telegramLinked: boolean; location: string };
+  health: HealthSync;
   onVoiceModeOn: () => void;
 }) {
   const setVoiceMode = useMutation(api.chat.setVoiceMode);
@@ -287,7 +293,7 @@ function Settings({
   };
 
   return (
-    <View style={styles.settings}>
+    <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settings}>
       <Text style={styles.muted}>{me.email}</Text>
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>Voice mode</Text>
@@ -317,10 +323,11 @@ function Settings({
         </Text>
       </Pressable>
       {error && <Text style={styles.error}>{error}</Text>}
+      <HealthSettings health={health} />
       <Pressable onPress={() => void signOut()}>
         <Text style={styles.headerLink}>Sign out</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -345,7 +352,8 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: "row", alignItems: "center", gap: 2 },
   headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerLink: { color: colors.primary, fontSize: 16 },
-  settings: { padding: 16, gap: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  settingsScroll: { maxHeight: "70%", flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 16, color: colors.text },
   locationInput: { flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
