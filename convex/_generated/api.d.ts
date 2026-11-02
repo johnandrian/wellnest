@@ -15,6 +15,7 @@ import type * as checkins from "../checkins.js";
 import type * as creao from "../creao.js";
 import type * as crons from "../crons.js";
 import type * as daily from "../daily.js";
+import type * as exercises from "../exercises.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as journal from "../journal.js";
@@ -74,6 +75,7 @@ declare const fullApi: ApiFromModules<{
   creao: typeof creao;
   crons: typeof crons;
   daily: typeof daily;
+  exercises: typeof exercises;
   health: typeof health;
   http: typeof http;
   journal: typeof journal;

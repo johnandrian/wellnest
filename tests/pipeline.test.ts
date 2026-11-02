@@ -81,6 +81,8 @@ describe("app chat", () => {
       "log_symptom",
       "log_how_i_feel",
       "log_condition_event",
+      "add_exercise",
+      "log_exercise_done",
       "get_symptom_journal",
     ]);
     expect(cx.every((c) => c.body.max_tokens === undefined && c.body.stream === false)).toBe(true);

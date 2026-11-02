@@ -4,10 +4,11 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { clampSeverity, dailyPatterns, dailySeverity, dailySummary, DailyLog, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
+import { clampSeverity, dailyPatterns, exercisePatterns, dailySeverity, dailySummary, DailyLog, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
 import { isDate } from "./lib/health";
 import { painAsEntries } from "./lib/trackers";
 import { trackersSince } from "./trackers";
+import { adherence } from "./exercises";
 import { zoneOffsetMin } from "./lib/reminders";
 
 const MAX_ROWS = 1000;
@@ -112,8 +113,8 @@ export const dailyFrom = internalQuery({
 // The Journal tab: per-symptom daily severity for the charts, sleep for comparison, patterns and recent entries.
 // `since` comes from the app (queries can't read the clock).
 export const view = query({
-  args: { since: v.string() },
-  handler: async (ctx, { since }) => {
+  args: { since: v.string(), today: v.optional(v.string()) },
+  handler: async (ctx, { since, today }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId || !isDate(since)) return null;
     const tracked = await trackersSince(ctx, userId, since);
@@ -145,7 +146,11 @@ export const view = query({
       periodDays: health.filter((d) => d.metrics.menstrualFlow && d.metrics.menstrualFlow !== "none").map((d) => d.date),
       daily: daily.map(({ date, mood, energy, sleepQuality }) => ({ date, mood: mood ?? null, energy: energy ?? null, sleepQuality: sleepQuality ?? null })),
       summaries: [...summaries(entries), ...dailySummary(daily)],
-      patterns: [...patterns(entries, health), ...dailyPatterns(daily, health)],
+      patterns: [
+        ...patterns(entries, health),
+        ...dailyPatterns(daily, health),
+        ...(today && isDate(today) ? await adherence(ctx, userId, since, today).then((a) => exercisePatterns(entries, a.doneDates, a.missedDates)) : []),
+      ],
       recent: recent.map(({ _id, date, symptom, severity, note, source }) => ({ _id, date, symptom, severity: severity ?? null, note: note ?? null, source })),
     };
   },

@@ -247,6 +247,27 @@ export default defineSchema({
     source: v.union(v.literal("manual"), v.literal("chat")),
   }).index("by_user_and_date", ["userId", "date"]),
 
+  // Exercises and physio routines (convex/exercises.ts). Stopped ones stay for the history.
+  exercises: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    sets: v.optional(v.number()),
+    reps: v.optional(v.number()),
+    minutes: v.optional(v.number()),
+    days: v.array(v.number()), // weekdays, 0 = Sunday; empty = every day
+    notes: v.optional(v.string()),
+    active: v.boolean(),
+  }).index("by_user_and_active", ["userId", "active"]),
+
+  // One row per exercise per day it was done.
+  exerciseLogs: defineTable({
+    userId: v.id("users"),
+    exerciseId: v.id("exercises"),
+    date: v.string(),
+  })
+    .index("by_exercise_and_date", ["exerciseId", "date"])
+    .index("by_user_and_date", ["userId", "date"]),
+
   // The daily check-in: mood, energy and sleep quality, 1-5 (convex/daily.ts).
   dailyLogs: defineTable({
     userId: v.id("users"),

@@ -262,6 +262,33 @@ export const journalTools: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "add_exercise",
+      description: "Add an exercise or physio routine the user is meant to do (e.g. from a physio): name, sets/reps or minutes, and weekdays.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          sets: { type: "integer" },
+          reps: { type: "integer" },
+          minutes: { type: "integer" },
+          days: { type: "array", items: { type: "integer" }, description: "Weekdays 0 (Sunday) to 6; leave out for every day" },
+          notes: { type: "string" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_exercise_done",
+      description: "Tick off an exercise the user says they did (name, or \"all\" for the whole routine).",
+      parameters: { type: "object", properties: { name: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD if not today" } }, required: ["name"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_symptom_journal",
       description:
         "Read the user's symptom journal: per-symptom trends, patterns against their health data (sleep, steps, periods) " +

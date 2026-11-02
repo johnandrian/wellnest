@@ -10,12 +10,14 @@ import { MedicationsPanel } from "./MedicationsPanel";
 import { VisitsPanel } from "./VisitsPanel";
 import { VisitPanel } from "./VisitPanel";
 import { CarePanel } from "./CarePanel";
+import { ExercisePanel } from "./ExercisePanel";
 
-export type HubTab = "journal" | "reminders" | "visits" | "visit" | "care";
+export type HubTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "care";
 
 const TABS: { tab: HubTab; icon: keyof typeof Ionicons.glyphMap; label: (s: Strings) => string }[] = [
   { tab: "journal", icon: "pulse", label: (s) => s.tabJournal },
   { tab: "reminders", icon: "medkit-outline", label: (s) => s.tabMeds },
+  { tab: "exercise", icon: "barbell-outline", label: (s) => s.tabExercise },
   { tab: "visits", icon: "calendar-outline", label: (s) => s.tabVisits },
   { tab: "visit", icon: "clipboard-outline", label: (s) => s.tabVisit },
   { tab: "care", icon: "location-outline", label: (s) => s.tabCare },
@@ -44,6 +46,7 @@ export function HubPanel({ tab, onTab, s }: { tab: HubTab; onTab: (t: HubTab) =>
       </ScrollView>
       {tab === "journal" && <JournalPanel s={s} />}
       {tab === "reminders" && <MedicationsPanel s={s} />}
+      {tab === "exercise" && <ExercisePanel s={s} />}
       {tab === "visits" && (
         <VisitsPanel
           s={s}

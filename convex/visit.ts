@@ -140,6 +140,7 @@ export const generate = internalAction({
       const daily = await ctx.runQuery(internal.journal.dailyFrom, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
       const tracked = await ctx.runQuery(internal.trackers.since, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
       const conditions = trackersText(tracked.entries, tracked.peakFlowBest);
+      const ex = await ctx.runQuery(internal.exercises.adherenceFor, { userId: data.row.userId, from: dateDaysAgo(now, data.row.days - 1), to: today });
       const appointments: string = await ctx.runQuery(internal.visits.textFor, { userId: data.row.userId, from: now - data.row.days * DAY_MS, to: now + 60 * DAY_MS });
       const material = visitMaterial({
         reason: data.row.reason,
@@ -151,7 +152,7 @@ export const generate = internalAction({
         medications: medications || undefined,
         facts,
         journal:
-          [entries.length || daily.length ? journalText([...entries, ...painAsEntries(tracked.entries)], data.healthDays, daily) : "", conditions && `Condition trackers:\n${conditions}`]
+          [entries.length || daily.length ? journalText([...entries, ...painAsEntries(tracked.entries)], data.healthDays, daily) : "", conditions && `Condition trackers:\n${conditions}`, ex.text && `Exercises and physio:\n${ex.text}`]
             .filter(Boolean)
             .join("\n\n") || undefined,
         appointments: appointments || undefined,

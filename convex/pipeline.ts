@@ -9,7 +9,7 @@ import { embed } from "./lib/jina";
 import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, telehealthTool, toolDefs, visitSummaryTool, visitTools } from "./lib/tools";
 import { careForModel } from "./care";
 import { localToday } from "./journal";
-import { journalText } from "./lib/journal";
+import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
@@ -186,6 +186,25 @@ export const respond = internalAction({
         },
         journal: async (name, rawArgs) => {
           const args = parseArgs(rawArgs);
+          if (name === "add_exercise") {
+            const a = args as Record<string, any>;
+            return ctx.runMutation(internal.exercises.addFromChat, {
+              userId,
+              name: String(a.name ?? ""),
+              sets: typeof a.sets === "number" ? a.sets : undefined,
+              reps: typeof a.reps === "number" ? a.reps : undefined,
+              minutes: typeof a.minutes === "number" ? a.minutes : undefined,
+              days: Array.isArray(a.days) ? a.days.filter((d: unknown): d is number => typeof d === "number") : undefined,
+              notes: typeof a.notes === "string" ? a.notes : undefined,
+            });
+          }
+          if (name === "log_exercise_done") {
+            return ctx.runMutation(internal.exercises.doneFromChat, {
+              userId,
+              name: String(args.name ?? ""),
+              date: typeof args.date === "string" ? args.date : undefined,
+            });
+          }
           if (name === "log_condition_event") {
             const tracker = args.tracker === "pain" || args.tracker === "asthma" || args.tracker === "seizure" ? args.tracker : null;
             if (!tracker) return Promise.resolve('Tool error: tracker must be "pain", "asthma" or "seizure".');
@@ -235,7 +254,16 @@ export const respond = internalAction({
           const tracked = await ctx.runQuery(internal.trackers.since, { userId, since });
           const text = journalText([...entries, ...painAsEntries(tracked.entries)], await healthDays(ctx, userId, Math.min(days, 90)), daily);
           const conditions = trackersText(tracked.entries, tracked.peakFlowBest);
-          return conditions ? `${text}\n\nCondition trackers:\n${conditions}` : text;
+          const ex = await ctx.runQuery(internal.exercises.adherenceFor, { userId, from: since, to: dateDaysAgo(Date.now(), 0) });
+          const found = exercisePatterns([...entries, ...painAsEntries(tracked.entries)], ex.doneDates, ex.missedDates);
+          return [
+            text,
+            conditions && `Condition trackers:\n${conditions}`,
+            ex.text && `Exercises:\n${ex.text}`,
+            found.length ? `Exercise patterns (associations, not causes):\n${found.join("\n")}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n");
         },
         fact: (name, rawArgs) => {
           const text = String(parseArgs(rawArgs).fact ?? "");
@@ -447,7 +475,7 @@ ${opts.medications}`);
         result = await opts.visit(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "find_care") {
         result = await opts.findCare(call.function.arguments);
-      } else if (["log_symptom", "get_symptom_journal", "log_how_i_feel", "log_condition_event"].includes(call.function.name)) {
+      } else if (["log_symptom", "get_symptom_journal", "log_how_i_feel", "log_condition_event", "add_exercise", "log_exercise_done"].includes(call.function.name)) {
         result = await opts.journal(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "remember_fact" || call.function.name === "forget_fact") {
         result = await opts.fact(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);

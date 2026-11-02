@@ -131,6 +131,22 @@ export function dailyPatterns(daily: DailyLog[], health: HealthDay[]): string[] 
   return out;
 }
 
+// Symptoms on days the exercises were done vs days they were scheduled and missed.
+export function exercisePatterns(entries: Entry[], doneDates: string[], missedDates: string[]): string[] {
+  const done = new Set(doneDates);
+  const missed = new Set(missedDates);
+  const out: string[] = [];
+  for (const [symptom, days] of dailySeverity(entries)) {
+    const yes = [...days].filter(([d]) => done.has(d)).map(([, v]) => v);
+    const no = [...days].filter(([d]) => missed.has(d)).map(([, v]) => v);
+    const a = mean(yes);
+    const b = mean(no);
+    if (a === undefined || b === undefined || yes.length < 3 || no.length < 3 || Math.abs(a - b) < 1.5) continue;
+    out.push(`${cap(symptom)} averaged ${fmt(a)}/10 on days you did your exercises (${yes.length} days) vs ${fmt(b)}/10 on days you missed them (${no.length} days).`);
+  }
+  return out;
+}
+
 // What the model and visit summaries read.
 export function journalText(entries: Entry[], health: HealthDay[], daily: DailyLog[] = []): string {
   if (!entries.length && !daily.length) return "No symptom journal entries for that period.";

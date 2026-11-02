@@ -78,7 +78,7 @@ function Chart({ days, points, sleep, periodDays, s }: {
 export function JournalPanel({ s }: { s: Strings }) {
   const [period, setPeriod] = useState(30);
   const days = useMemo(() => lastDays(period), [period]);
-  const data = useQuery(api.journal.view, { since: days[0] });
+  const data = useQuery(api.journal.view, { since: days[0], today: days[days.length - 1] });
   const add = useMutation(api.journal.add);
   const remove = useMutation(api.journal.remove);
   const [symptom, setSymptom] = useState("");
