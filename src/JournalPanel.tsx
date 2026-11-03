@@ -1,11 +1,12 @@
 // Symptom journal (convex/journal.ts): a severity chart per symptom with sleep and period days underneath, patterns,
 // and a quick way to log or remove an entry. Most entries come from chat ("my headache's a 6 today").
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
@@ -25,7 +26,7 @@ function lastDays(n: number) {
   return out;
 }
 
-const severityColor = (s: number) => (s >= 7 ? colors.danger : s >= 4 ? "#D97706" : colors.mint);
+const severityColor = (s: number) => (s >= 7 ? colors.danger : s >= 4 ? colors.amber : colors.mint);
 
 function Chart({ days, points, sleep, periodDays, s }: {
   days: string[];
@@ -112,9 +113,9 @@ export function JournalPanel({ s }: { s: Strings }) {
       <Text style={styles.note}>{s.journalIntro}</Text>
       <View style={styles.chips}>
         {PERIODS.map((p) => (
-          <Pressable key={p} style={[styles.chip, period === p && styles.chipOn]} onPress={() => setPeriod(p)} accessibilityRole="radio" accessibilityState={{ selected: period === p }}>
+          <Tap key={p} style={[styles.chip, period === p && styles.chipOn]} onPress={() => setPeriod(p)} accessibilityRole="radio" accessibilityState={{ selected: period === p }}>
             <Text style={[styles.chipText, period === p && styles.chipTextOn]}>{s.lastNDays.replace("{n}", String(p))}</Text>
-          </Pressable>
+          </Tap>
         ))}
       </View>
 
@@ -132,7 +133,7 @@ export function JournalPanel({ s }: { s: Strings }) {
         <View style={styles.legend}>
           <View style={[styles.legendSwatch, { backgroundColor: colors.mint }]} />
           <Text style={styles.small}>{s.legendSeverity}</Text>
-          {sleep.size > 0 && <View style={[styles.legendSwatch, { backgroundColor: "#6366F1" }]} />}
+          {sleep.size > 0 && <View style={[styles.legendSwatch, { backgroundColor: colors.sleep }]} />}
           {sleep.size > 0 && <Text style={styles.small}>{s.legendSleep}</Text>}
           {periodDays.size > 0 && <View style={[styles.legendSwatch, styles.periodDot]} />}
           {periodDays.size > 0 && <Text style={styles.small}>{s.legendPeriod}</Text>}
@@ -162,7 +163,7 @@ export function JournalPanel({ s }: { s: Strings }) {
       <TextInput style={styles.input} placeholder={s.journalSymptomPlaceholder} placeholderTextColor={colors.muted} value={symptom} onChangeText={setSymptom} maxLength={60} />
       <View style={styles.severityRow}>
         {Array.from({ length: 11 }, (_, n) => (
-          <Pressable
+          <Tap
             key={n}
             style={[styles.sev, severity === n && { backgroundColor: severityColor(n), borderColor: severityColor(n) }]}
             onPress={() => setSeverity(severity === n ? null : n)}
@@ -171,13 +172,13 @@ export function JournalPanel({ s }: { s: Strings }) {
             accessibilityState={{ selected: severity === n }}
           >
             <Text style={[styles.sevText, severity === n && styles.sevTextOn]}>{n}</Text>
-          </Pressable>
+          </Tap>
         ))}
       </View>
       <TextInput style={styles.input} placeholder={s.journalNotePlaceholder} placeholderTextColor={colors.muted} value={note} onChangeText={setNote} maxLength={300} />
-      <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
+      <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
         <Text style={styles.buttonText}>{s.journalSave}</Text>
-      </Pressable>
+      </Tap>
       {error && <Text style={styles.error}>{error}</Text>}
 
       {!!data?.recent.length && <Text style={styles.section}>{s.journalRecent}</Text>}
@@ -188,9 +189,9 @@ export function JournalPanel({ s }: { s: Strings }) {
             {e.severity !== null ? ` ${e.severity}/10` : ""}
             {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
           </Text>
-          <Pressable onPress={() => void remove({ id: e._id })} accessibilityRole="button" accessibilityLabel={s.remove}>
+          <Tap onPress={() => void remove({ id: e._id })} accessibilityRole="button" accessibilityLabel={s.remove}>
             <Ionicons name="close" size={18} color={colors.muted} />
-          </Pressable>
+          </Tap>
         </View>
       ))}
     </ScrollView>
@@ -198,40 +199,40 @@ export function JournalPanel({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
-  empty: { color: colors.muted, fontStyle: "italic" },
+  empty: { ...ui.empty },
   small: { color: colors.muted, fontSize: 12, fontWeight: "400" },
-  section: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 6 },
+  section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   line: { color: colors.text, fontSize: 14, lineHeight: 20 },
   flex: { flex: 1 },
   chips: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 14 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, gap: 6 },
+  card: { ...ui.card, padding: 10, gap: 6 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: colors.text },
   bars: { height: 70, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 4 },
   barSlot: { flex: 1, height: "100%", justifyContent: "flex-end" },
   bar: { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   sleepRow: { height: 22, flexDirection: "row", alignItems: "flex-end", gap: 1, marginTop: 3 },
-  sleepBar: { backgroundColor: "#6366F1", borderTopLeftRadius: 2, borderTopRightRadius: 2 },
+  sleepBar: { backgroundColor: colors.sleep, borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   periodRow: { height: 8, flexDirection: "row", gap: 1, marginTop: 3 },
   periodDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#E5484D", alignSelf: "center" },
   axis: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
-  axisText: { color: colors.muted, fontSize: 11 },
+  axisText: { color: colors.muted, fontSize: 12 },
   legend: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
   insights: { backgroundColor: colors.primarySoft, borderRadius: 10, padding: 10, gap: 4 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   severityRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   sev: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   sevText: { fontSize: 13, color: colors.text },
-  sevTextOn: { color: "#fff", fontWeight: "700" },
-  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  sevTextOn: { color: colors.onPrimary, fontWeight: "700" },
+  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
   entry: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
   error: { color: colors.danger, fontSize: 13 },
 });

@@ -1,11 +1,12 @@
 // "Prepare for a visit": writes a one-page summary of recent chats, the journal, analyses, medications and health data
 // (convex/visit.ts), then lets the user read, share, copy or print it.
 import { useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
 import type { Strings } from "./i18n";
@@ -80,7 +81,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
           />
           <View style={styles.chips}>
             {PERIODS.map((p) => (
-              <Pressable
+              <Tap
                 key={p.days}
                 style={[styles.chip, days === p.days && styles.chipOn]}
                 onPress={() => setDays(p.days)}
@@ -88,12 +89,12 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
                 accessibilityState={{ selected: days === p.days }}
               >
                 <Text style={[styles.chipText, days === p.days && styles.chipTextOn]}>{p.label(s)}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
-          <Pressable style={styles.button} onPress={() => void generate()} accessibilityRole="button">
+          <Tap style={styles.button} onPress={() => void generate()} accessibilityRole="button">
             <Text style={styles.buttonText}>{s.writeSummary}</Text>
-          </Pressable>
+          </Tap>
           {latest?.status === "failed" && !composing && (
             <Text style={styles.error}>{s.summaryFailed}</Text>
           )}
@@ -116,24 +117,24 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
             <Markdown text={latest.text} style={styles.docText} />
           </View>
           <View style={styles.actions}>
-            <Pressable style={styles.action} onPress={() => void share(latest.text!)} accessibilityRole="button">
+            <Tap style={styles.action} onPress={() => void share(latest.text!)} accessibilityRole="button">
               <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color={colors.primary} />
               <Text style={styles.link}>{Platform.OS === "web" ? s.printPdf : s.share}</Text>
-            </Pressable>
+            </Tap>
             {Platform.OS === "web" && (
-              <Pressable style={styles.action} onPress={() => void copy(latest.text!)} accessibilityRole="button">
+              <Tap style={styles.action} onPress={() => void copy(latest.text!)} accessibilityRole="button">
                 <Ionicons name="copy-outline" size={18} color={colors.primary} />
                 <Text style={styles.link}>{copied ? s.copied : s.copy}</Text>
-              </Pressable>
+              </Tap>
             )}
-            <Pressable style={styles.action} onPress={() => setComposing(true)} accessibilityRole="button">
+            <Tap style={styles.action} onPress={() => setComposing(true)} accessibilityRole="button">
               <Ionicons name="refresh" size={18} color={colors.primary} />
               <Text style={styles.link}>{s.newSummary}</Text>
-            </Pressable>
-            <Pressable style={styles.action} onPress={() => void remove({ id: latest._id })} accessibilityRole="button">
+            </Tap>
+            <Tap style={styles.action} onPress={() => void remove({ id: latest._id })} accessibilityRole="button">
               <Ionicons name="trash-outline" size={18} color={colors.danger} />
               <Text style={[styles.link, { color: colors.danger }]}>{s.delete}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       )}
@@ -145,21 +146,21 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 17, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19, flexShrink: 1 },
   small: { color: colors.muted, fontSize: 12 },
   form: { gap: 10 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 15 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 15 },
   chips: { flexDirection: "row", gap: 8 },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 14 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
   generating: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   result: { gap: 8 },
   doc: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 14, backgroundColor: colors.bg },

@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui } from "./theme";
 import type { Strings } from "./i18n";
 
 export function InsightsCard({ today, s }: { today: string; s: Strings }) {
@@ -54,7 +54,7 @@ export function useHasInsights(today: string) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, gap: 6, backgroundColor: colors.primarySoft },
+  card: { ...ui.card, padding: 12, gap: 6, backgroundColor: colors.primarySoft },
   header: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 15, fontWeight: "700", color: colors.text, flexShrink: 1 },
   subtitle: { fontSize: 14, fontWeight: "600", color: colors.text, marginTop: 4 },

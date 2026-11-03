@@ -1,11 +1,12 @@
 // Emergency action plan (convex/emergency.ts) in the Care tab: write your steps (templates to start from), contacts
 // and asthma action plan; show it full screen with call buttons; share it with carers through a private link.
 import { useState } from "react";
-import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { shareUrl } from "./ShareCard";
 
@@ -41,13 +42,13 @@ function PlanView({ sections, contacts, asthma, notes, s, big = false }: { secti
         </View>
       )}
       {contacts.map((c, i) => (
-        <Pressable key={i} style={styles.contact} onPress={() => void Linking.openURL(tel(c.phone))} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${c.name}`}>
+        <Tap key={i} style={styles.contact} onPress={() => void Linking.openURL(tel(c.phone))} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${c.name}`}>
           <Ionicons name="call" size={big ? 22 : 18} color={colors.primary} />
           <Text style={[styles.contactText, big && styles.bigStep]}>
             {c.name}
             {c.relation ? ` (${c.relation})` : ""} · {c.phone}
           </Text>
-        </Pressable>
+        </Tap>
       ))}
       {notes && <Text style={styles.small}>{notes}</Text>}
     </View>
@@ -127,9 +128,9 @@ export function EmergencyCard({ s }: { s: Strings }) {
             <View key={i} style={styles.editBlock}>
               <View style={styles.inline}>
                 <TextInput style={[styles.input, styles.flex]} value={sec.title} onChangeText={(title) => setSections(sections.map((x, j) => (j === i ? { ...x, title } : x)))} placeholder={s.emSectionTitle} placeholderTextColor={colors.muted} />
-                <Pressable onPress={() => setSections(sections.filter((_, j) => j !== i))} accessibilityRole="button" accessibilityLabel={s.remove}>
+                <Tap onPress={() => setSections(sections.filter((_, j) => j !== i))} accessibilityRole="button" accessibilityLabel={s.remove}>
                   <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                </Pressable>
+                </Tap>
               </View>
               <TextInput
                 style={[styles.input, styles.multi]}
@@ -143,13 +144,13 @@ export function EmergencyCard({ s }: { s: Strings }) {
           ))}
           <View style={styles.chips}>
             {templates.map((tpl) => (
-              <Pressable key={tpl.title} style={styles.chip} onPress={() => setSections([...sections, tpl])} accessibilityRole="button">
+              <Tap key={tpl.title} style={styles.chip} onPress={() => setSections([...sections, tpl])} accessibilityRole="button">
                 <Text style={styles.chipText}>+ {tpl.title}</Text>
-              </Pressable>
+              </Tap>
             ))}
-            <Pressable style={styles.chip} onPress={() => setSections([...sections, { title: "", steps: [] }])} accessibilityRole="button">
+            <Tap style={styles.chip} onPress={() => setSections([...sections, { title: "", steps: [] }])} accessibilityRole="button">
               <Text style={styles.chipText}>+ {s.emBlank}</Text>
-            </Pressable>
+            </Tap>
           </View>
           <Text style={styles.small}>{s.emTemplateNote}</Text>
 
@@ -159,14 +160,14 @@ export function EmergencyCard({ s }: { s: Strings }) {
               <TextInput style={[styles.input, styles.flex]} value={c.name} onChangeText={(name) => setContacts(contacts.map((x, j) => (j === i ? { ...x, name } : x)))} placeholder={s.careTeam_name} placeholderTextColor={colors.muted} />
               <TextInput style={[styles.input, styles.rel]} value={c.relation ?? ""} onChangeText={(relation) => setContacts(contacts.map((x, j) => (j === i ? { ...x, relation } : x)))} placeholder={s.emRelation} placeholderTextColor={colors.muted} />
               <TextInput style={[styles.input, styles.phone]} value={c.phone} onChangeText={(phone) => setContacts(contacts.map((x, j) => (j === i ? { ...x, phone } : x)))} placeholder={s.careTeam_phone} placeholderTextColor={colors.muted} keyboardType="phone-pad" />
-              <Pressable onPress={() => setContacts(contacts.filter((_, j) => j !== i))} accessibilityRole="button" accessibilityLabel={s.remove}>
+              <Tap onPress={() => setContacts(contacts.filter((_, j) => j !== i))} accessibilityRole="button" accessibilityLabel={s.remove}>
                 <Ionicons name="close" size={18} color={colors.danger} />
-              </Pressable>
+              </Tap>
             </View>
           ))}
-          <Pressable onPress={() => setContacts([...contacts, { name: "", phone: "" }])} accessibilityRole="button">
+          <Tap onPress={() => setContacts([...contacts, { name: "", phone: "" }])} accessibilityRole="button">
             <Text style={styles.link}>+ {s.emAddContact}</Text>
-          </Pressable>
+          </Tap>
 
           {asthma ? (
             <View style={styles.form}>
@@ -185,43 +186,43 @@ export function EmergencyCard({ s }: { s: Strings }) {
               <Text style={styles.small}>{s.emAsthmaNote}</Text>
             </View>
           ) : (
-            <Pressable onPress={() => setAsthma({})} accessibilityRole="button">
+            <Tap onPress={() => setAsthma({})} accessibilityRole="button">
               <Text style={styles.link}>+ {s.emAddAsthma}</Text>
-            </Pressable>
+            </Tap>
           )}
           <TextInput style={[styles.input, styles.multi]} value={notes} onChangeText={setNotes} placeholder={s.emNotes} placeholderTextColor={colors.muted} multiline />
           <View style={styles.inline}>
-            <Pressable style={styles.button} onPress={() => void submit()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void submit()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.save}</Text>
-            </Pressable>
-            <Pressable onPress={() => setEditing(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setEditing(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : plan.exists ? (
         <>
           <PlanView sections={plan.sections} contacts={plan.contacts} asthma={plan.asthma} notes={plan.notes} s={s} />
           <View style={styles.inline}>
-            <Pressable style={[styles.button, styles.redButton]} onPress={() => setFull(true)} accessibilityRole="button">
-              <Ionicons name="expand-outline" size={16} color="#fff" />
+            <Tap style={[styles.button, styles.redButton]} onPress={() => setFull(true)} accessibilityRole="button">
+              <Ionicons name="expand-outline" size={16} color={colors.onPrimary} />
               <Text style={styles.buttonText}>{s.emShowFull}</Text>
-            </Pressable>
-            <Pressable onPress={() => void shareWithCarers()} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => void shareWithCarers()} accessibilityRole="button">
               <Text style={styles.link}>{s.emShare}</Text>
-            </Pressable>
-            <Pressable onPress={startEdit} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={startEdit} accessibilityRole="button">
               <Text style={styles.link}>{s.edit}</Text>
-            </Pressable>
+            </Tap>
           </View>
           {notice && <Text style={styles.small}>✓ {notice}</Text>}
         </>
       ) : (
         <>
           <Text style={styles.note}>{s.emIntro}</Text>
-          <Pressable style={styles.button} onPress={startEdit} accessibilityRole="button">
+          <Tap style={styles.button} onPress={startEdit} accessibilityRole="button">
             <Text style={styles.buttonText}>{s.emCreate}</Text>
-          </Pressable>
+          </Tap>
         </>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -231,14 +232,14 @@ export function EmergencyCard({ s }: { s: Strings }) {
           <ScrollView contentContainerStyle={styles.fullScreen}>
             <View style={styles.fullHead}>
               <Text style={styles.fullTitle}>{s.emTitle}</Text>
-              <Pressable onPress={() => setFull(false)} accessibilityRole="button" accessibilityLabel={s.close}>
+              <Tap onPress={() => setFull(false)} accessibilityRole="button" accessibilityLabel={s.close}>
                 <Ionicons name="close" size={30} color={colors.text} />
-              </Pressable>
+              </Tap>
             </View>
-            <Pressable style={styles.call911} onPress={() => void Linking.openURL(`tel:${s.emergencyNumber}`)} accessibilityRole="button">
-              <Ionicons name="call" size={24} color="#fff" />
+            <Tap style={styles.call911} onPress={() => void Linking.openURL(`tel:${s.emergencyNumber}`)} accessibilityRole="button">
+              <Ionicons name="call" size={24} color={colors.onPrimary} />
               <Text style={styles.call911Text}>{s.careCall911}</Text>
-            </Pressable>
+            </Tap>
             <PlanView sections={plan.sections} contacts={plan.contacts} asthma={plan.asthma} notes={plan.notes} s={s} big />
           </ScrollView>
         </Modal>
@@ -248,7 +249,7 @@ export function EmergencyCard({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: "#FCA5A5", borderRadius: 10, padding: 12, gap: 8 },
+  card: { ...ui.card, borderColor: colors.dangerBorder, padding: 12, gap: 8 },
   title: { fontSize: 16, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   small: { color: colors.muted, fontSize: 12, lineHeight: 17 },
@@ -257,12 +258,12 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   form: { gap: 8 },
   editBlock: { gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   multi: { minHeight: 70, textAlignVertical: "top" },
   rel: { width: 90 },
   phone: { width: 130 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderWidth: 1, borderColor: colors.primary, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip },
   chipText: { color: colors.primary, fontSize: 13, fontWeight: "600" },
   view: { gap: 10 },
   block: { gap: 3 },
@@ -270,20 +271,20 @@ const styles = StyleSheet.create({
   step: { fontSize: 14, color: colors.text, lineHeight: 20 },
   zone: { fontSize: 14, lineHeight: 20, borderRadius: 6, padding: 6, color: colors.text },
   green: { backgroundColor: "#DCFCE7" },
-  amber: { backgroundColor: "#FEF3C7" },
+  amber: { backgroundColor: colors.warningSoft },
   red: { backgroundColor: "#FEE2E2" },
   contact: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
   contactText: { fontSize: 15, color: colors.primary, fontWeight: "600", flexShrink: 1 },
-  button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start" },
+  button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH, justifyContent: "center" },
   redButton: { backgroundColor: colors.danger },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
   link: { color: colors.primary, fontWeight: "600" },
   error: { color: colors.danger, fontSize: 13 },
   fullScreen: { padding: 20, paddingTop: Platform.OS === "web" ? 20 : 60, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   fullHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   fullTitle: { fontSize: 26, fontWeight: "800", color: colors.danger },
   call911: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: colors.danger, borderRadius: 14, padding: 18 },
-  call911Text: { color: "#fff", fontSize: 20, fontWeight: "800" },
+  call911Text: { color: colors.onPrimary, fontSize: 20, fontWeight: "800" },
   bigTitle: { fontSize: 20 },
   bigStep: { fontSize: 18, lineHeight: 26 },
 });
