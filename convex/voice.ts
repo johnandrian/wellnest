@@ -6,7 +6,7 @@ import { action, httpAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { accessToken, CARTESIA_VERSION, synthesizeMp3, voiceId } from "./lib/cartesia";
 import { toSpeech } from "./lib/speech";
-import { langOf, voiceFor } from "./lib/language";
+import { Lang, langOf, voiceFor } from "./lib/language";
 
 export const token = action({
   args: {},
@@ -23,7 +23,7 @@ export const ttsStream = httpAction(async (ctx, req) => {
   const userId = await getAuthUserId(ctx);
   if (!userId) return new Response("Not signed in", { status: 401 });
   const messageId = new URL(req.url).searchParams.get("message") ?? "";
-  const spoken: { text: string; language: "en" | "es" | "el" } | null = await ctx.runQuery(internal.voice.spokenText, { userId, messageId });
+  const spoken: { text: string; language: Lang } | null = await ctx.runQuery(internal.voice.spokenText, { userId, messageId });
   if (!spoken) return new Response("Not found", { status: 404 });
   try {
     const audio = await synthesizeMp3(spoken.text, spoken.language);

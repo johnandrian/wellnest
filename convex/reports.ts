@@ -17,7 +17,7 @@ import { visitsText } from "./visits";
 import { emergencyData } from "./emergency";
 
 const DAY_MS = 86_400_000;
-const TITLES = { en: "Health report", es: "Informe de salud", el: "Αναφορά υγείας" } as const;
+const TITLES = { en: "Health report", es: "Informe de salud", el: "Αναφορά υγείας", zh: "健康报告" } as const;
 
 async function medsFor(ctx: QueryCtx, userId: Id<"users">, fromMs: number, toMs: number): Promise<ReportMed[]> {
   const meds = (await ctx.db.query("medications").withIndex("by_user_and_active", (q) => q.eq("userId", userId)).take(100)).filter(

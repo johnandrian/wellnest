@@ -72,6 +72,9 @@ describe("account setup", () => {
     expect(welcome).toHaveLength(1);
     expect(welcome[0].text).toBe(welcomeText("en", "Maria", ["asthma"]));
     expect(welcome[0].text).toContain("Welcome, Maria! You're all set.\n\n• Log peak flow and reliever puffs");
+    expect(welcomeText("zh", "小明", ["medications"])).toBe(
+      "👋 欢迎，小明！一切都设置好了。\n\n• 你的提醒带有“已服用 / 跳过”按钮；有任何副作用随时告诉我。\n\n你可以随时在设置中修改这些内容。你今天感觉怎么样？",
+    );
   });
 
   test("the model is told who the user is and what they use Wellnest for", async () => {

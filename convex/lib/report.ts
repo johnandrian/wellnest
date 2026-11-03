@@ -86,6 +86,13 @@ const HEAD: Record<Lang, Record<string, string>> = {
     taken: "Ελήφθησαν", sideEffects: "Παρενέργειες", changes: "Αλλαγές", careTeam: "Ομάδα φροντίδας", role: "Ρόλος", phone: "Τηλέφωνο", patterns: "Μοτίβα (συσχετίσεις, όχι αιτίες)",
     sleep: "Ύπνος (ώρες)", contacts: "Επαφές έκτακτης ανάγκης", asthmaPlan: "Πλάνο δράσης για το άσθμα", disclaimer: "Δημιουργήθηκε από το Wellnest με όσα κατέγραψε το άτομο. Δεν είναι διάγνωση ούτε ιατρικός φάκελος.",
   },
+  zh: {
+    period: "期间", generated: "生成于", facts: "关键信息", medications: "药物", journal: "症状和每日签到",
+    trackers: "病情记录", exercises: "运动和理疗", health: "健康数据", appointments: "预约和医护团队",
+    emergency: "紧急预案", none: "此期间没有记录。", name: "名称", dose: "剂量", schedule: "时间安排", status: "状态",
+    taken: "已服用", sideEffects: "副作用", changes: "变更", careTeam: "医护团队", role: "角色", phone: "电话", patterns: "规律（相关性，并非因果）",
+    sleep: "睡眠（小时）", contacts: "紧急联系人", asthmaPlan: "哮喘行动计划", disclaimer: "由 Wellnest 根据本人的记录生成。这不是诊断，也不是病历。",
+  },
 };
 
 export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

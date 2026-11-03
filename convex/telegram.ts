@@ -36,14 +36,14 @@ export const handleIncoming = internalMutation({
       .withIndex("by_telegram", (q) => q.eq("telegramChatId", chatId))
       .unique();
 
-    // /language es | el | en
+    // /language es | el | zh | en
     const setLang = text.match(/^\/language(?:@\w+)?\s*(\S*)/i);
     if (setLang) {
       const userId = existing?._id ?? (await findOrCreateTelegramUser(ctx, chatId, name, languageCode));
       const wanted = setLang[1].toLowerCase().slice(0, 2);
       const reply = isLang(wanted)
         ? t(wanted, "languageSet")
-        : "Choose a language: /language en (English), /language es (Español), /language el (Ελληνικά).";
+        : "Choose a language: /language en (English), /language es (Español), /language el (Ελληνικά), /language zh (简体中文).";
       if (isLang(wanted)) await ctx.db.patch(userId, { language: wanted });
       await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId, text: reply });
       return;

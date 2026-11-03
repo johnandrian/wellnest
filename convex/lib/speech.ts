@@ -13,6 +13,7 @@ const REST_IN_TEXT: Record<string, string> = {
   en: "The rest is in the text.",
   es: "El resto está en el texto.",
   el: "Τα υπόλοιπα είναι στο κείμενο.",
+  zh: "其余内容在文字中。",
 };
 
 export function toSpeech(markdown: string, max = MAX_SPEECH_CHARS, lang = "en"): string {

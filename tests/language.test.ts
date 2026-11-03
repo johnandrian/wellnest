@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../convex/_generated/api";
 import { toSpeech } from "../convex/lib/speech";
 import { languagePrompt, t as text } from "../convex/lib/language";
-import { strings } from "../src/i18n";
+import { LANGUAGE_NAMES, strings } from "../src/i18n";
 import { Call, cortexCalls, createAppUser, drain, messagesOf, mockApis, setEnv, setup, telegramSends } from "./helpers";
 
 beforeEach(() => {
@@ -108,6 +108,18 @@ describe("language on Telegram", () => {
     expect(cortexCalls(calls)[0].body.messages[0].content).toContain("Reply in Spanish");
   });
 
+  test("Chinese: a Telegram user in zh-hans starts in Chinese, and /language zh confirms in Chinese", async () => {
+    const t = setup();
+    const { calls } = mockApis({ core: [{ content: "你好" }] });
+    await post(t, { text: "你好" }, { language_code: "zh-hans" });
+    await drain(t);
+    expect((await tgUser(t))!.language).toBe("zh");
+    expect(cortexCalls(calls)[0].body.messages[0].content).toContain("The user's language is Simplified Chinese (简体中文). Reply in Simplified Chinese");
+    await post(t, { text: "/language zh" });
+    await drain(t);
+    expect(telegramSends(calls).at(-1)!.body.text).toBe("好的，我会用中文回复你。");
+  });
+
   test("unsupported Telegram languages fall back to English", async () => {
     const t = setup();
     mockApis();
@@ -168,5 +180,13 @@ describe("language helpers", () => {
     expect(strings("el").welcome).toBe("Πώς νιώθεις;");
     expect(strings("xx").welcome).toBe("How are you feeling?");
     expect(strings("es").starters).toHaveLength(4);
+    expect(strings("zh").welcome).toBe("你感觉怎么样？");
+    expect(LANGUAGE_NAMES.zh).toBe("简体中文");
+  });
+
+  test("every fixed backend message has Chinese", () => {
+    expect(text("zh", "reminder", "布洛芬", "400 毫克", "20:00")).toBe("💊 该服用 **布洛芬**（400 毫克）了。时间：20:00。");
+    expect(text("zh", "lowSupply", "布洛芬", 3)).toBe("💊 你的 **布洛芬** 快用完了：大约还剩 3 天。是时候续药了。");
+    expect(text("zh", "limit", 100)).toContain("911");
   });
 });

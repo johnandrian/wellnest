@@ -4,7 +4,7 @@ import type { Lang } from "./language";
 import type { ChartMetric, FactorKey, MedEffect, OutcomeKey, Pattern, WeekStat } from "./insights";
 import { aqiBand, pollenBand, type WeatherDay } from "./weather";
 
-const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-ES", el: "el-GR" };
+const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-ES", el: "el-GR", zh: "zh-CN" };
 const num = (n: number, lang: Lang) => n.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -12,6 +12,7 @@ const OUTCOMES: Record<Lang, Record<Exclude<OutcomeKey, `symptom:${string}`>, st
   en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures" },
   es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis" },
   el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις" },
+  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作" },
 };
 
 export function outcomeName(key: OutcomeKey, lang: Lang): string {
@@ -20,11 +21,11 @@ export function outcomeName(key: OutcomeKey, lang: Lang): string {
 
 // "4.2/10", "3.1/5", "410 L/min", "2.5 puffs a day", "0.3 a day".
 export function outcomeValue(key: OutcomeKey, n: number, lang: Lang): string {
-  const perDay = { en: "a day", es: "al día", el: "τη μέρα" }[lang];
+  const perDay = { en: "a day", es: "al día", el: "τη μέρα", zh: "次/天" }[lang];
   if (key === "pain" || key.startsWith("symptom:")) return `${num(n, lang)}/10`;
   if (key === "mood" || key === "energy" || key === "sleepQuality") return `${num(n, lang)}/5`;
   if (key === "peakFlow") return `${num(n, lang)} L/min`;
-  return `${num(n, lang)} ${perDay}`;
+  return lang === "zh" ? `${num(n, lang)}${perDay}` : `${num(n, lang)} ${perDay}`;
 }
 
 // The condition in "on days with ___".
@@ -71,6 +72,20 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     aqi: { below: "δείκτη ποιότητας αέρα κάτω από {t}", atLeast: "δείκτη ποιότητας αέρα {t}+" },
     pollen: { below: "γύρη κάτω από {t}", atLeast: "γύρη {t}+ κόκκους/m³" },
   },
+  zh: {
+    sleepHours: { below: "睡眠不足 {t} 小时", atLeast: "睡眠 {t} 小时或以上" },
+    sleepQuality: { below: "睡眠质量低于 {t}/5", atLeast: "睡眠质量 {t}/5 或以上" },
+    steps: { below: "前一天步数少于 {t}", atLeast: "前一天步数达到 {t} 或以上" },
+    restingHeartRate: { below: "静息心率低于 {t}", atLeast: "静息心率 {t} 或以上" },
+    hrv: { below: "HRV 低于 {t} 毫秒", atLeast: "HRV {t} 毫秒或以上" },
+    period: { yes: "经期" },
+    tempMax: { below: "最高气温低于 {t}°C", atLeast: "最高气温 {t}°C 或以上" },
+    humidity: { below: "湿度低于 {t}%", atLeast: "湿度 {t}% 或以上" },
+    pressureDrop: { yes: "气压下降" },
+    rain: { yes: "下雨" },
+    aqi: { below: "空气质量指数低于 {t}", atLeast: "空气质量指数 {t} 或以上" },
+    pollen: { below: "花粉低于 {t}", atLeast: "花粉 {t} 粒/立方米或以上" },
+  },
 };
 
 export function conditionText(p: Pick<Pattern, "factor" | "side" | "threshold">, lang: Lang): string {
@@ -84,6 +99,7 @@ export function patternText(p: Pattern, lang: Lang): string {
   const b = outcomeValue(p.outcome, p.other, lang);
   const c = conditionText(p, lang);
   if (lang === "es") return `${cap(o)}: media de ${a} los días con ${c} (${p.worseDays} días), frente a ${b} el resto (${p.otherDays}).`;
+  if (lang === "zh") return `${o}：在${c}的日子里平均为 ${a}（${p.worseDays} 天），其他日子为 ${b}（${p.otherDays} 天）。`;
   if (lang === "el") return `${cap(o)}: μέσος όρος ${a} τις μέρες με ${c} (${p.worseDays} μέρες), έναντι ${b} τις υπόλοιπες (${p.otherDays}).`;
   return `${cap(o)} averaged ${a} on days with ${c} (${p.worseDays} days), vs ${b} on other days (${p.otherDays}).`;
 }
@@ -100,6 +116,10 @@ export function medEffectText(e: MedEffect, lang: Lang): string {
     const what = e.kind === "started" ? `empezar ${e.name}` : `cambiar la dosis de ${e.name}`;
     return `${cap(o)} desde ${what} (${d}): ${after}, frente a ${before} las 2 semanas anteriores (${e.better ? "mejor" : "peor"}).`;
   }
+  if (lang === "zh") {
+    const what = e.kind === "started" ? `开始服用 ${e.name}` : `调整 ${e.name} 的剂量`;
+    return `${o}：自 ${d} ${what}以来为 ${after}，之前两周为 ${before}（${e.better ? "好转" : "变差"}）。`;
+  }
   if (lang === "el") {
     const what = e.kind === "started" ? `την έναρξη του ${e.name}` : `την αλλαγή δόσης του ${e.name}`;
     return `${cap(o)} μετά ${what} (${d}): ${after}, έναντι ${before} τις 2 εβδομάδες πριν (${e.better ? "καλύτερα" : "χειρότερα"}).`;
@@ -112,11 +132,13 @@ const AQI_WORDS: Record<Lang, Record<ReturnType<typeof aqiBand>, string>> = {
   en: { good: "good", moderate: "moderate", unhealthy_sensitive: "unhealthy for sensitive groups", unhealthy: "unhealthy" },
   es: { good: "buena", moderate: "moderada", unhealthy_sensitive: "mala para grupos sensibles", unhealthy: "mala" },
   el: { good: "καλή", moderate: "μέτρια", unhealthy_sensitive: "επιβαρυμένη για ευαίσθητες ομάδες", unhealthy: "κακή" },
+  zh: { good: "良好", moderate: "中等", unhealthy_sensitive: "对敏感人群不健康", unhealthy: "不健康" },
 };
 const POLLEN_WORDS: Record<Lang, Record<ReturnType<typeof pollenBand>, string>> = {
   en: { low: "low", moderate: "moderate", high: "high" },
   es: { low: "bajo", moderate: "moderado", high: "alto" },
   el: { low: "χαμηλή", moderate: "μέτρια", high: "υψηλή" },
+  zh: { low: "低", moderate: "中等", high: "高" },
 };
 
 // "18–25°C · humidity 60% · rain 3 mm · air quality 42 (good) · pollen high".
@@ -125,6 +147,7 @@ export function weatherLine(w: WeatherDay, lang: Lang): string {
     en: { humidity: "humidity", rain: "rain", air: "air quality", pollen: "pollen" },
     es: { humidity: "humedad", rain: "lluvia", air: "calidad del aire", pollen: "polen" },
     el: { humidity: "υγρασία", rain: "βροχή", air: "ποιότητα αέρα", pollen: "γύρη" },
+    zh: { humidity: "湿度", rain: "降雨", air: "空气质量", pollen: "花粉" },
   }[lang];
   return [
     w.tempMin !== undefined && w.tempMax !== undefined && `${num(w.tempMin, lang)}–${num(w.tempMax, lang)}°C`,
@@ -158,6 +181,12 @@ const CHART_NAMES: Record<Lang, Record<Exclude<ChartMetric, "symptom">, [string,
     peakFlow: ["Μέγιστη ροή", "L/min"], reliever: ["Εισπνοές ανακουφιστικού", ""], seizures: ["Κρίσεις", ""], tempMax: ["Μέγιστη", "°C"],
     aqi: ["Δείκτης ποιότητας αέρα", ""], pollen: ["Γύρη", "κόκκοι/m³"],
   },
+  zh: {
+    pain: ["疼痛", "/10"], mood: ["心情", "/5"], energy: ["精力", "/5"], sleepQuality: ["睡眠质量", "/5"], sleepHours: ["睡眠", "小时"],
+    steps: ["步数", ""], restingHeartRate: ["静息心率", "次/分"], hrv: ["HRV", "毫秒"], weightKg: ["体重", "公斤"],
+    peakFlow: ["峰流速", "L/min"], reliever: ["缓解药吸入次数", ""], seizures: ["癫痫发作", ""], tempMax: ["最高气温", "°C"],
+    aqi: ["空气质量指数", ""], pollen: ["花粉", "粒/立方米"],
+  },
 };
 
 export function chartName(metric: ChartMetric, lang: Lang, symptom?: string): { title: string; unit: string } {
@@ -182,6 +211,7 @@ export function weeklyText(opts: {
     en: { title: "Your week", last: "last week", better: "better", worse: "worse", doses: "Medications: {a} of {b} doses taken", pattern: "Worth watching", med: "Medication", footer: "Ask me about any of these, or open Health tools for the charts." },
     es: { title: "Tu semana", last: "la semana pasada", better: "mejor", worse: "peor", doses: "Medicamentos: {a} de {b} dosis tomadas", pattern: "Para vigilar", med: "Medicamento", footer: "Pregúntame por cualquiera de estos puntos, o abre Herramientas de salud para ver los gráficos." },
     el: { title: "Η εβδομάδα σου", last: "την προηγούμενη εβδομάδα", better: "καλύτερα", worse: "χειρότερα", doses: "Φάρμακα: {a} από {b} δόσεις", pattern: "Αξίζει προσοχή", med: "Φάρμακο", footer: "Ρώτησέ με για οτιδήποτε από αυτά ή άνοιξε τα Εργαλεία υγείας για τα γραφήματα." },
+    zh: { title: "你的一周", last: "上周", better: "好转", worse: "变差", doses: "药物：已服用 {a}/{b} 剂", pattern: "值得留意", med: "药物", footer: "可以随时问我其中任何一项，或打开健康工具查看图表。" },
   }[lang];
   const lines = [`📅 **${L.title}** (${shortDate(opts.from, lang)} – ${shortDate(opts.to, lang)})`, ""];
   for (const s of opts.stats) {

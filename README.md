@@ -8,7 +8,7 @@
 Wellnest is a health companion you can talk to. Tell it how you feel, ask a question, or send a photo of a pill bottle, and it answers in plain language, remembers what matters, and keeps your health story organised so the next doctor's visit is easier. It is not a doctor: anything urgent gets a clear "get care now", the nearest ER and the emergency number.
 
 What it does:
-- **Talk or type**, in English, Spanish or Greek, in the app or on Telegram. Replies to spoken questions are spoken back.
+- **Talk or type**, in English, Spanish, Greek or Simplified Chinese, in the app or on Telegram. Replies to spoken questions are spoken back.
 - **Remembers you:** past chats, saved facts like allergies, your medications and your appointments.
 - **Keeps a journal for you:** symptoms, a daily mood / energy / sleep check-in, pain and CRPS, asthma (peak flow, inhaler use) and seizure trackers, and your exercise routine, logged just by mentioning them in chat.
 - **Finds your patterns:** what goes with your worse days (sleep, activity, your cycle, local weather, air pressure, air quality, pollen), how things changed after a new medication or dose, charts right in the chat, and a summary of your week every Sunday.
@@ -221,9 +221,9 @@ Settings → **What Wellnest knows about me** shows, in one place:
 - **Delete:** per category (messages with their photos, analyses, check-ins and video visits; health data; medications with their history; the journal with check-ins, trackers and exercises; appointments, care team and emergency plan; visit summaries; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
 
 ## Languages
-Wellnest speaks **English, Spanish and Greek**. The user picks one in Settings, or on Telegram with `/language en|es|el`; a new Telegram user starts in their Telegram app's language if it's one of these.
+Wellnest speaks **English, Spanish, Greek and Simplified Chinese**. The user picks one in Settings or during account setup, or on Telegram with `/language en|es|el|zh`; a new Telegram user starts in their Telegram app's language if it's one of these.
 - **Replies:** the core model is told to answer in that language unless the user writes in another one, using everyday words plus the common name of medical terms.
-- **Voice:** Cartesia STT (ink-whisper) and Sonic TTS get the language: the app's token carries it (`voice.token`), and `/tts` and Telegram voice notes read it from the user. One Sonic voice speaks all three unless `CARTESIA_VOICE_ID_ES` / `_EL` is set. Cut-short speech ends with "the rest is in the text" in that language.
+- **Voice:** Cartesia STT (ink-whisper) and Sonic TTS get the language: the app's token carries it (`voice.token`), and `/tts` and Telegram voice notes read it from the user. One Sonic voice speaks all of them unless `CARTESIA_VOICE_ID_ES` / `_EL` is set. Cut-short speech ends with "the rest is in the text" in that language.
 - **Also translated:** medication reminder messages (local time format), visit summaries (written in that language), check-ins, telehealth messages and push notifications, the daily-limit and error replies, and the whole app: chat, Settings, every Health tools tab and "What Wellnest knows about me" (`src/i18n.ts`; the typecheck fails if a language is missing a string). Still English: the sign-in screen (the language isn't known yet), microphone error messages, and error text that comes from the server.
 
 ## Push notifications

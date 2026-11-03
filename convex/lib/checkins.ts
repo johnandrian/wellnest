@@ -69,7 +69,7 @@ export function shift(date: string, days: number) {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-const n = (x: number, lang: Lang) => x.toLocaleString(lang === "el" ? "el-GR" : lang === "es" ? "es-ES" : "en-US");
+const n = (x: number, lang: Lang) => x.toLocaleString(lang === "el" ? "el-GR" : lang === "es" ? "es-ES" : lang === "zh" ? "zh-CN" : "en-US");
 
 // The check-in message. Each one ends by inviting a reply, which the normal chat (and journal) handles.
 export function checkinText(s: Signal, lang: Lang): string {
@@ -103,6 +103,16 @@ export function checkinText(s: Signal, lang: Lang): string {
       sleep: (s) => `Κοιμήθηκες λιγότερο από 6 ώρες τρεις νύχτες στη σειρά (περίπου ${n(s.avg, lang)} ώρες κατά μέσο όρο). Πώς νιώθεις; Αν θέλεις, σου λέω μερικά πράγματα που βοηθούν στον ύπνο.`,
       hrv: (s) => `Η μεταβλητότητα των παλμών σου έπεσε περίπου στα ${n(s.hrv, lang)} ms από τα συνηθισμένα ${n(s.base, lang)}. Συχνά συνδέεται με άγχος, λίγο ύπνο ή αρρώστια. Πώς νιώθεις;`,
       activity: (s) => `Ήσουν πολύ λιγότερο δραστήριος/α τις τελευταίες μέρες (περίπου ${n(s.steps, lang)} βήματα τη μέρα, έναντι των συνηθισμένων ${n(s.base, lang)}). Απλώς ρωτάω: πώς νιώθεις;`,
+    },
+    zh: {
+      illness: (s) => `过去两天你的静息心率是 ${n(s.hr, lang)} 次/分，高于你平常的 ${n(s.hrBase, lang)}，手腕温度也比平时高 ${n(s.temp, lang)}°C。身体在对抗病菌时可能会这样。你感觉怎么样？`,
+      temperature: (s) => `昨晚你的手腕温度比平时高 ${n(s.temp, lang)}°C。你今天感觉怎么样？有没有发冷、酸痛或其他症状？`,
+      breathing: (s) => `你睡眠时的呼吸频率是每分钟 ${n(s.rate, lang)} 次，高于你平常的 ${n(s.base, lang)} 次。你感觉怎么样？有没有咳嗽或气短？`,
+      oxygen: (s) => `你的血氧读数为 ${n(s.spo2, lang)}%，低于你平常的 ${n(s.base, lang)}%。手表读数可能有误差，但你感觉怎么样？如果呼吸困难，请立即就医。`,
+      heart_rate: (s) => `过去两天你的静息心率是 ${n(s.hr, lang)} 次/分，高于你平常的 ${n(s.hrBase, lang)}。压力、睡眠不好、饮酒或即将感冒都可能导致这种情况。你还好吗？`,
+      sleep: (s) => `你已经连续三晚睡眠不足 6 小时（平均约 ${n(s.avg, lang)} 小时）。你感觉怎么样？如果需要，我可以分享一些有助于睡眠的方法。`,
+      hrv: (s) => `你的心率变异性已降至约 ${n(s.hrv, lang)} 毫秒，而平常是 ${n(s.base, lang)} 毫秒。这通常与压力、睡眠不足或生病有关。你感觉怎么样？`,
+      activity: (s) => `最近几天你的活动量少了很多（每天约 ${n(s.steps, lang)} 步，平常是 ${n(s.base, lang)} 步）。想问问你：感觉怎么样？`,
     },
   };
   return `🩺 ${T[lang][s.kind](s)}`;

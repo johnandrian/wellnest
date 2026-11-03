@@ -44,6 +44,7 @@ describe("patterns", () => {
     expect(p).toMatchObject({ outcome: "pain", factor: "sleepHours", side: "below", threshold: 6.5, worse: 7.5, other: 3, worseDays: 10, otherDays: 10 });
     expect(patternText(p, "en")).toBe("Pain averaged 7.5/10 on days with under 6.5 h of sleep (10 days), vs 3/10 on other days (10).");
     expect(patternText(p, "es")).toBe("Dolor: media de 7,5/10 los días con menos de 6,5 h de sueño (10 días), frente a 3/10 el resto (10).");
+    expect(patternText(p, "zh")).toBe("疼痛：在睡眠不足 6.5 小时的日子里平均为 7.5/10（10 天），其他日子为 3/10（10 天）。");
   });
 
   test("nothing with too few days, or when the gap is small", () => {

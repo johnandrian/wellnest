@@ -46,6 +46,7 @@ export const FACT_PREFIX: Record<Lang, { condition: string; allergy: string }> =
   en: { condition: "Condition", allergy: "Allergy" },
   es: { condition: "Afección", allergy: "Alergia" },
   el: { condition: "Πάθηση", allergy: "Αλλεργία" },
+  zh: { condition: "疾病", allergy: "过敏" },
 };
 
 // One tip per focus for the welcome message.
@@ -80,6 +81,16 @@ const TIPS: Record<Lang, Record<Focus, string>> = {
     wellness: "Ρώτα με ό,τι θέλεις για ύπνο, διατροφή, κίνηση ή άγχος.",
     caregiver: "Όταν ρωτάς για κάποιον άλλο, πες μου ποιος είναι για να μην τα μπερδεύω.",
   },
+  zh: {
+    symptoms: "告诉我某个症状的情况（“我的头痛有 6 分”），我会把它记在你的日志里。",
+    pain: "在聊天中或在 健康工具 → 日志 → 疼痛 中给疼痛打分；我会找出是什么让它加重。",
+    asthma: "记录峰流速和缓解药吸入次数；我会帮你留意空气质量和花粉。",
+    seizures: "记录每次发作的时长和发作前的情况；在 健康工具 → 就医 中设置你的紧急预案。",
+    medications: "你的提醒带有“已服用 / 跳过”按钮；有任何副作用随时告诉我。",
+    mood: "回答每日签到（心情、精力、睡眠），我会找出对你有帮助的事情。",
+    wellness: "关于睡眠、饮食、运动或压力，随时问我。",
+    caregiver: "当你询问其他人的情况时，请告诉我是谁，这样我不会弄混。",
+  },
 };
 
 export function welcomeText(lang: Lang, name: string | undefined, focusList: Focus[]): string {
@@ -87,11 +98,13 @@ export function welcomeText(lang: Lang, name: string | undefined, focusList: Foc
     en: name ? `Welcome, ${name}! You're all set.` : "Welcome! You're all set.",
     es: name ? `¡Hola, ${name}! Ya está todo listo.` : "¡Hola! Ya está todo listo.",
     el: name ? `Καλώς ήρθες, ${name}! Όλα είναι έτοιμα.` : "Καλώς ήρθες! Όλα είναι έτοιμα.",
+    zh: name ? `欢迎，${name}！一切都设置好了。` : "欢迎！一切都设置好了。",
   }[lang];
   const close = {
     en: "You can change any of this in Settings. How are you feeling today?",
     es: "Puedes cambiar todo esto en Ajustes. ¿Cómo te sientes hoy?",
     el: "Μπορείς να τα αλλάξεις όλα από τις Ρυθμίσεις. Πώς νιώθεις σήμερα;",
+    zh: "你可以随时在设置中修改这些内容。你今天感觉怎么样？",
   }[lang];
   const tips = (focusList.length ? focusList : (["symptoms", "wellness"] as Focus[])).slice(0, 3).map((f) => `• ${TIPS[lang][f]}`);
   return [`👋 ${hi}`, "", ...tips, "", close].join("\n");
