@@ -194,7 +194,7 @@ export function JournalPanel({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { maxHeight: "72%", flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  scroll: { flex: 1, backgroundColor: "#fff" },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   empty: { color: colors.muted, fontStyle: "italic" },

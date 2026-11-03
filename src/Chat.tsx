@@ -155,6 +155,15 @@ export function Chat() {
     await clearChat();
   };
 
+  // Health tools take the whole screen; their Chat button comes back here.
+  if (panel === "hub") {
+    return (
+      <View style={styles.container}>
+        <HubPanel tab={hubTab} onTab={setHubTab} onClose={() => setPanel(null)} s={s} />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -183,11 +192,11 @@ export function Chat() {
           )}
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => toggle("hub")}
+            onPress={() => setPanel("hub")}
             accessibilityRole="button"
-            accessibilityLabel={panel === "hub" ? `${s.close} ${s.hubTitle}` : s.hubTitle}
+            accessibilityLabel={s.hubTitle}
           >
-            <Ionicons name={panel === "hub" ? "close" : "pulse"} size={22} color={colors.text} />
+            <Ionicons name="pulse" size={22} color={colors.text} />
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -200,7 +209,6 @@ export function Chat() {
         </View>
       </View>
 
-      {panel === "hub" && <HubPanel tab={hubTab} onTab={setHubTab} s={s} />}
       {panel === "about" && <AboutPanel s={s} />}
       {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} />}
 

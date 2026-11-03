@@ -135,7 +135,7 @@ export function CarePanel({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { maxHeight: "72%", flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  scroll: { flex: 1, backgroundColor: "#fff" },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: 10, padding: 11 },
   emergencyText: { color: "#fff", fontWeight: "700" },
