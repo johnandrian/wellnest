@@ -23,6 +23,16 @@ export const colors = {
   seizure: "#7C3AED",
 };
 
+// Each health tool's colour: the icon (4.5:1 or better on its soft background) and that background.
+export const tint = {
+  journal: { fg: "#0B5D57", bg: "#E4F4EC" },
+  medications: { fg: "#6D28D9", bg: "#EDE9FE" },
+  exercise: { fg: "#C2410C", bg: "#FFEDD5" },
+  appointments: { fg: "#1D4ED8", bg: "#DBEAFE" },
+  reports: { fg: "#334155", bg: "#E2E8F0" },
+  care: { fg: "#B91C1C", bg: "#FEE2E2" },
+};
+
 // Shared shapes for the Health tools screens: soft cards on a light page, comfortable touch targets.
 export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
 export const TOUCH = 44; // minimum touch target (iOS 44pt; Android adds hitSlop to reach 48dp)

@@ -23,6 +23,7 @@ import { synthesizeMp3 } from "./lib/cartesia";
 import { toSpeech } from "./lib/speech";
 import { channel } from "./schema";
 import { Lang, langOf, languagePrompt, t } from "./lib/language";
+import { chatMessages, currentChatKey, insertMessage } from "./lib/chats";
 
 const MAX_TOOL_ROUNDS = 5;
 const HISTORY_LIMIT = 12;
@@ -604,14 +605,9 @@ export const getMessages = internalQuery({
 export const recent = internalQuery({
   args: { userId: v.id("users"), limit: v.number() },
   handler: async (ctx, { userId, limit }) => {
-    const clearedAt = (await ctx.db.get(userId))?.chatClearedAt ?? 0;
-    return (
-      await ctx.db
-        .query("messages")
-        .withIndex("by_user", (q) => q.eq("userId", userId).gt("_creationTime", clearedAt))
-        .order("desc")
-        .take(limit)
-    ).reverse();
+    const user = await ctx.db.get(userId);
+    if (!user) return [];
+    return (await chatMessages(ctx, user, await currentChatKey(ctx, user)).order("desc").take(limit)).reverse();
   },
 });
 
@@ -658,7 +654,7 @@ export async function saveAssistantReply(
   args: { userId: Id<"users">; text: string; channel: "app" | "telegram"; urgent: boolean; kind?: "links" | "summary"; charts?: Chart[] },
   deliver = true,
 ) {
-  const messageId = await ctx.db.insert("messages", { ...args, role: "assistant" });
+  const messageId = await insertMessage(ctx, { ...args, role: "assistant" });
   await ctx.scheduler.runAfter(0, internal.pipeline.embedReply, { messageId });
   if (deliver && args.channel === "telegram") {
     await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, {
@@ -746,7 +742,7 @@ export async function enqueueUserMessage(
   image?: Id<"_storage">, // a photo sent with it
 ) {
   if (await overDailyLimit(ctx, userId)) return null;
-  const messageId = await ctx.db.insert("messages", {
+  const messageId = await insertMessage(ctx, {
     userId,
     role: "user",
     text,

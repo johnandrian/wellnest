@@ -9,6 +9,7 @@ import { Doc } from "./_generated/dataModel";
 import { checkinText, detect, shift } from "./lib/checkins";
 import { langOf } from "./lib/language";
 import { zoneOffsetMin } from "./lib/reminders";
+import { insertMessage } from "./lib/chats";
 
 const CHECKIN_HOUR = 9;
 const BATCH = 100;
@@ -57,7 +58,7 @@ async function maybeCheckIn(ctx: MutationCtx, user: Doc<"users">, now: number) {
   const signal = detect(days, today);
   if (!signal || recent.some((c) => c.kind === signal.kind)) return;
 
-  const messageId = await ctx.db.insert("messages", {
+  const messageId = await insertMessage(ctx, {
     userId: user._id,
     role: "assistant",
     channel: "app",

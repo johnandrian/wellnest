@@ -90,6 +90,8 @@ export default defineSchema({
     // "Clear chat": messages before this time are hidden and left out of the model's context and memory.
     // They aren't deleted, so the daily message limit still counts them.
     chatClearedAt: v.optional(v.number()),
+    // The chat new messages go into (convex/chats.ts); unset until they start a second chat.
+    chatId: v.optional(v.id("chats")),
     // Reply and voice language (convex/lib/language.ts); English when unset.
     language: v.optional(language),
     // Proactive check-ins from Apple Health changes (convex/checkins.ts); on when unset.
@@ -123,8 +125,19 @@ export default defineSchema({
     .index("phone", ["phone"])
     .index("by_telegram", ["telegramChatId"]),
 
+  // The user's chats, newest first in the history list (convex/chats.ts). `title` is the first thing they wrote.
+  // `legacy`: the first chat, whose messages have no chatId.
+  chats: defineTable({
+    userId: v.id("users"),
+    title: v.optional(v.string()),
+    lastAt: v.number(),
+    legacy: v.optional(v.boolean()),
+  }).index("by_user_and_last", ["userId", "lastAt"]),
+
   messages: defineTable({
     userId: v.id("users"),
+    // Which chat it's in (convex/lib/chats.ts); unset in the user's first chat.
+    chatId: v.optional(v.id("chats")),
     role,
     text: v.string(),
     channel,
@@ -154,6 +167,7 @@ export default defineSchema({
     image: v.optional(v.id("_storage")),
   })
     .index("by_user", ["userId"])
+    .index("by_user_and_chat", ["userId", "chatId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: EMBEDDING_DIMS,

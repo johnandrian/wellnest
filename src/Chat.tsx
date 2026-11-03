@@ -34,6 +34,8 @@ import { Lang, LANGUAGE_NAMES, Strings, strings } from "./i18n";
 import { pushSupported, usePush } from "./push";
 import { AppointmentCard } from "./TelehealthCard";
 import { DailyCard } from "./DailyCard";
+import { ChatHistory } from "./ChatHistory";
+import { Icon } from "./Icon";
 
 // The panels that open under the header.
 type Panel = "settings" | "hub" | "about";
@@ -51,17 +53,6 @@ function chooseSource(s: Strings): Promise<"library" | "camera" | null> {
   );
 }
 
-// Yes/no before clearing: a browser dialog on web, a native alert on iOS/Android.
-function confirmClear(s: Strings): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(s.clearBody));
-  return new Promise((resolve) =>
-    Alert.alert(s.clearTitle, s.clearBody, [
-      { text: s.cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: s.clear, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
-
 // Suggestions on an empty chat: one per focus they picked in setup, then the general ones.
 function startersFor(focus: string[], s: Strings) {
   const picked = focus.map((f) => s.startersByFocus[f as keyof Strings["startersByFocus"]]).filter(Boolean);
@@ -72,7 +63,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const messages = useQuery(api.chat.list);
   const me = useQuery(api.chat.me);
   const send = useMutation(api.chat.send);
-  const clearChat = useMutation(api.chat.clear);
+  const newChat = useMutation(api.chats.start);
   const setTimeZone = useMutation(api.chat.setTimeZone);
   const logDose = useMutation(api.reminders.log);
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
@@ -81,7 +72,8 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [panel, setPanel] = useState<Panel | null>(null);
-  const [hubTab, setHubTab] = useState<HubTab>("journal");
+  const [hubTab, setHubTab] = useState<HubTab>("home");
+  const [history, setHistory] = useState(false);
   const openHub = (tab: HubTab) => {
     setHubTab(tab);
     setPanel("hub");
@@ -158,11 +150,11 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
     void setTimeZone({ timeZone, utcOffsetMin: -new Date().getTimezoneOffset() }).catch(() => {});
   }, [setTimeZone]);
 
-  const clear = async () => {
-    if (!(await confirmClear(s))) return;
+  const startChat = async () => {
     voice.stopSpeaking();
     setNotice(null);
-    await clearChat();
+    setPanel(null);
+    await newChat();
   };
 
   // Health tools take the whole screen; their Chat button comes back here.
@@ -181,6 +173,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
     >
       <View style={styles.header}>
         <View style={styles.brand}>
+          <Pressable
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+            onPress={() => setHistory(true)}
+            accessibilityRole="button"
+            accessibilityLabel={s.openHistory}
+          >
+            <Ionicons name="menu-outline" size={24} color={colors.text} />
+          </Pressable>
           <Image source={require("../assets/wellnest-mark.png")} style={styles.logo} accessibilityIgnoresInvertColors />
           <View style={styles.brandText}>
             <Text style={styles.headerTitle}>Wellnest</Text>
@@ -193,20 +193,20 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           {!!messages?.length && (
             <Pressable
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-              onPress={() => void clear()}
+              onPress={() => void startChat()}
               accessibilityRole="button"
-              accessibilityLabel={s.clearChat}
+              accessibilityLabel={s.newChat}
             >
-              <Ionicons name="trash-outline" size={21} color={colors.text} />
+              <Icon name="newChat" size={21} color={colors.text} />
             </Pressable>
           )}
           <Pressable
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => setPanel("hub")}
+            style={({ pressed }) => [styles.dashButton, pressed && styles.pressed]}
+            onPress={() => openHub("home")}
             accessibilityRole="button"
             accessibilityLabel={s.hubTitle}
           >
-            <Ionicons name="pulse" size={22} color={colors.text} />
+            <Icon name="dashboard" size={18} color={colors.onPrimary} />
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -218,6 +218,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           </Pressable>
         </View>
       </View>
+      {history && <ChatHistory s={s} onClose={() => setHistory(false)} />}
 
       {panel === "about" && <AboutPanel s={s} />}
       {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} onRedoSetup={onRedoSetup} />}
@@ -554,11 +555,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
   headerSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
   // The title side shrinks (subtitle truncates) so the four header buttons always fit on a phone.
-  brand: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 1, minWidth: 0 },
+  brand: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 },
   brandText: { flexShrink: 1, minWidth: 0 },
   logo: { width: 38, height: 38, borderRadius: 10 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },
   headerButton: { width: 38, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  // Health tools: the one filled button, so it stands out from the chat's own controls.
+  dashButton: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary, marginHorizontal: 4 },
   headerLink: { color: colors.primary, fontSize: 16 },
   settingsScroll: { maxHeight: "70%", flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
   settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },

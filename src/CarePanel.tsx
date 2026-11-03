@@ -11,15 +11,16 @@ import { colors, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
+import { Icon, IconName } from "./Icon";
 
 type Kind = "er" | "urgent_care" | "pharmacy" | "doctor";
 type Place = { name: string; lat: number; lon: number; km: number; phone?: string; address?: string; hours?: string; open24?: boolean };
 
-const KINDS: { kind: Kind; icon: keyof typeof Ionicons.glyphMap; label: (s: Strings) => string }[] = [
-  { kind: "urgent_care", icon: "medkit-outline", label: (s) => s.careUrgent },
-  { kind: "er", icon: "pulse", label: (s) => s.careEr },
-  { kind: "pharmacy", icon: "bandage-outline", label: (s) => s.carePharmacy },
-  { kind: "doctor", icon: "person-outline", label: (s) => s.careDoctor },
+const KINDS: { kind: Kind; icon: IconName; label: (s: Strings) => string }[] = [
+  { kind: "urgent_care", icon: "urgentCare", label: (s) => s.careUrgent },
+  { kind: "er", icon: "er", label: (s) => s.careEr },
+  { kind: "pharmacy", icon: "pharmacy", label: (s) => s.carePharmacy },
+  { kind: "doctor", icon: "doctor", label: (s) => s.careDoctor },
 ];
 
 const directions = (p: Place) => `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
@@ -80,7 +81,7 @@ export function CarePanel({ s }: { s: Strings }) {
             accessibilityRole="button"
             accessibilityState={{ selected: kind === k.kind }}
           >
-            <Ionicons name={k.icon} size={16} color={kind === k.kind ? colors.primary : colors.text} />
+            <Icon name={k.icon} size={16} color={kind === k.kind ? colors.primary : colors.text} />
             <Text style={[styles.kindText, kind === k.kind && styles.kindTextOn]}>{k.label(s)}</Text>
           </Tap>
         ))}

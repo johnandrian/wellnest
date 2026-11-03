@@ -10,6 +10,7 @@ import { langOf, t, timeText } from "./lib/language";
 import { notify } from "./push";
 import { daysLeft, doseAt, medForm, timeDose } from "./lib/meds";
 import { logEvent } from "./medications";
+import { insertMessage } from "./lib/chats";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A dose due within a minute of a course's end counts as past it ("every 12 hours for 1 day" is 2 reminders).
@@ -163,7 +164,7 @@ async function useSupply(ctx: MutationCtx, medicationId: Id<"medications">) {
   const user = await ctx.db.get(med.userId);
   const lang = langOf(user);
   const text = t(lang, "lowSupply", med.name, left!);
-  await ctx.db.insert("messages", { userId: med.userId, role: "assistant", channel: "app", kind: "reminder", text, urgent: false });
+  await insertMessage(ctx, { userId: med.userId, role: "assistant", channel: "app", kind: "reminder", text, urgent: false });
   await notify(ctx, med.userId, "reminders", { title: `💊 ${med.name}`, body: text, data: {} });
 }
 
@@ -178,7 +179,7 @@ export const fire = internalMutation({
       const local = new Date(dueAt + zoneOffsetMin(dueAt, med.timeZone, med.utcOffsetMin) * 60_000).toISOString().slice(11, 16);
       const dose = doseAt(local, med.dose, med.timeDoses) ?? "";
       const text = t(langOf(user), "reminder", med.name, dose, timeText(dueAt, med.timeZone, langOf(user)));
-      const messageId = await ctx.db.insert("messages", {
+      const messageId = await insertMessage(ctx, {
         userId: med.userId,
         role: "assistant",
         channel: "app",

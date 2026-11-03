@@ -5,6 +5,7 @@ import { mutation, query } from "./_generated/server";
 import { DAILY_LIMIT, enqueueUserMessage } from "./pipeline";
 import { language } from "./lib/language";
 import { refreshSoon } from "./weather";
+import { chatMessages, currentChatKey } from "./lib/chats";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -61,16 +62,14 @@ export const claimUpload = mutation({
   },
 });
 
-// Shows every message for the user, including ones sent on Telegram.
+// The current chat's messages, including ones sent on Telegram.
 export const list = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return [];
-    const clearedAt = (await ctx.db.get(userId))?.chatClearedAt ?? 0;
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_user", (q) => q.eq("userId", userId).gt("_creationTime", clearedAt))
+    const user = userId ? await ctx.db.get(userId) : null;
+    if (!user) return [];
+    const messages = await chatMessages(ctx, user, await currentChatKey(ctx, user))
       .order("desc")
       .take(100);
     return await Promise.all(

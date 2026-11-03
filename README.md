@@ -110,7 +110,7 @@ flowchart LR
 
 ## Layout
 - `App.tsx`, `src/` — the Expo app.
-  - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** button's tabs.
+  - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** screen (dashboard home in `HomePanel.tsx`, then one screen per tool); `ChatHistory.tsx` — the chat history drawer; `Icon.tsx` — one icon per idea.
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
   - `MedicationsPanel.tsx` — medications and reminders; `ExercisePanel.tsx` — exercise routine.
@@ -232,9 +232,12 @@ iOS and Android get push notifications (Expo push) for **medication reminders** 
 - **Devices:** each phone registers its token in `pushTokens` (up to 10 per user; a phone that signs in to another account moves to it). Signing out removes it; tokens Expo reports as `DeviceNotRegistered` are dropped.
 
 ## Symptom journal
-When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (pulse icon) opens tabs for the Journal, Medications, Exercise, Visits, Reports and Care; the tab bar scrolls sideways on phones.
+When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (the filled grid icon) opens a dashboard: the next dose and appointment, days logged and doses taken this week, today's check-in, four weeks of charts for what the user tracks (picked by their setup focus, each compared with last week), the strongest pattern and today's weather (`convex/dashboard.ts`). Tiles under it open the Journal, Medications, Exercise, Visits, Reports and Care; inside a tool, the back button returns to the dashboard and the row under the header switches tools.
 - **Journal tab:** a severity bar chart per symptom for 14, 30 or 90 days, with Apple Health sleep (dark when under 6 h) and period days underneath; per-symptom summaries (days logged, average, latest, getting better or worse); and patterns such as "Headache averaged 7/10 on days with under 6 h of sleep vs 3/10 otherwise", shown only with at least 3 days on each side and a 1.5-point gap, and labelled as associations, not causes. Entries can be added or removed by hand.
 - **Model and summaries:** `get_symptom_journal` gives the model the same summaries, patterns and entries; visit summaries include them. The journal can be deleted from "What Wellnest knows about me".
+
+## Chat history
+The menu button at the top left opens every chat, newest first, named after its first message. **New chat** (the pencil) starts an empty one; tapping an old chat continues it, and the model only sees that chat's messages (long-term memory still searches all of them). Reminders, check-ins and Telegram messages go into whichever chat is open. Deleting a chat deletes its messages (`convex/chats.ts`). Messages from before chats existed have no `chatId` and form the user's first chat.
 
 ## Patterns and triggers
 The Journal tab's **What goes with your worse days** card, and the model's `find_patterns` tool, look through the last 90 days of your own logs (`convex/lib/insights.ts`). Each day becomes one number per measure: pain (the highest that day), your three most-rated symptoms, mood, energy and sleep quality, lowest peak flow, reliever puffs, and seizures (counted as 0 on seizure-free days after the first one). Each is compared with possible triggers: sleep hours and quality, the previous day's steps, resting heart rate, HRV, period days, and local weather (daily high, humidity, a drop in air pressure, rain, air quality index, pollen).

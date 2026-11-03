@@ -14,7 +14,8 @@ export function localDate(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function DailyCard({ s, inChat = false }: { s: Strings; inChat?: boolean }) {
+// `flush`: on the dashboard, which has its own margins.
+export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; inChat?: boolean; flush?: boolean }) {
   const date = localDate();
   const today = useQuery(api.daily.today, { date });
   const log = useMutation(api.daily.log);
@@ -25,7 +26,7 @@ export function DailyCard({ s, inChat = false }: { s: Strings; inChat?: boolean 
   const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
 
   return (
-    <View style={[styles.card, inChat && styles.inChat]}>
+    <View style={[styles.card, inChat && !flush && styles.inChat]}>
       <Text style={styles.title}>{s.dailyTitle}</Text>
       {KEYS.map((k) => (
         <View key={k} style={styles.row}>

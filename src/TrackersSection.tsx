@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
+import { Icon } from "./Icon";
 
 type Tracker = "pain" | "asthma" | "seizure";
 const LOCATIONS = ["head", "neck", "shoulders", "chest", "upper_back", "lower_back", "abdomen", "hips", "left_arm", "right_arm", "left_hand", "right_hand", "left_leg", "right_leg", "left_foot", "right_foot", "whole_body"] as const;
@@ -176,7 +177,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
       <View style={styles.chips}>
         {visibleTrackers(me?.focus ?? [], data, showAll).map((t) => (
           <Tap key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => setTracker(tracker === t ? null : t)} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
-            <Ionicons name={t === "pain" ? "flash-outline" : t === "asthma" ? "cloud-outline" : "pulse-outline"} size={16} color={tracker === t ? colors.primary : colors.text} />
+            <Icon name={t === "seizure" ? "seizures" : t} size={16} color={tracker === t ? colors.primary : colors.text} />
             <Text style={[styles.chipText, tracker === t && styles.chipTextOn]}>{s[`trk_${t}`]}</Text>
             {!!data?.[t].length && <Text style={styles.count}>{data[t].length}</Text>}
           </Tap>

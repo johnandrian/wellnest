@@ -171,6 +171,7 @@ export const exportRest = internalQuery({
         health: user.health,
         createdAt: user._creationTime,
       },
+      chats: (await ctx.db.query("chats").withIndex("by_user_and_last", (q) => q.eq("userId", userId)).take(take)).map(({ _id, title, lastAt }) => ({ _id, title, lastAt })),
       facts: await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS),
       healthDays: await ctx.db.query("healthDays").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       weatherDays: await ctx.db.query("weatherDays").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
@@ -227,7 +228,7 @@ const category = v.union(
 );
 
 const STEPS = {
-  chat: ["messages", "photoUploads", "creaoRuns", "checkins", "appointments"],
+  chat: ["messages", "chats", "photoUploads", "creaoRuns", "checkins", "appointments"],
   health: ["healthDays", "weatherDays"],
   reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
@@ -246,7 +247,7 @@ export const deleteData = mutation({
     const steps: Step[] =
       category === "everything" ? [...Object.values(STEPS).flat(), ...ACCOUNT_STEPS] : [...STEPS[category]];
     // Fields on the user record go right away; rows are deleted in batches in the background.
-    if (category === "chat" || category === "everything") await ctx.db.patch(userId, { chatClearedAt: undefined, analysisOfferedAt: undefined });
+    if (category === "chat" || category === "everything") await ctx.db.patch(userId, { chatClearedAt: undefined, chatId: undefined, analysisOfferedAt: undefined });
     if (category === "health" || category === "everything") await ctx.db.patch(userId, { health: undefined });
     if (category === "everything") await ctx.db.patch(userId, { deleting: true });
     await ctx.scheduler.runAfter(0, internal.me.purge, { userId, steps, deleteUser: category === "everything" });
@@ -329,6 +330,11 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
     case "visitSummaries":
     case "memoryFacts": {
       const rows = await ctx.db.query(step).withIndex("by_user", (q) => q.eq("userId", userId)).take(BATCH);
+      for (const r of rows) await ctx.db.delete(r._id);
+      return rows.length;
+    }
+    case "chats": {
+      const rows = await ctx.db.query("chats").withIndex("by_user_and_last", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) await ctx.db.delete(r._id);
       return rows.length;
     }

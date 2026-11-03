@@ -10,6 +10,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { provider, slot, Slot, urgency, Urgency } from "./lib/telehealth";
 import { langOf, t, timeText } from "./lib/language";
 import { notify } from "./push";
+import { insertMessage } from "./lib/chats";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OFFER_TTL_MS = 2 * 60 * 60 * 1000; // offered times go stale
@@ -92,11 +93,11 @@ export const offer = internalMutation({
     const zone = user?.timeZone ?? "UTC";
     if (!slots.length) {
       await ctx.db.patch(id, { status: "failed", error: "no times" });
-      await ctx.db.insert("messages", { userId: row.userId, role: "assistant", channel: "app", text: t(lang, "visitNoSlots"), urgent: false });
+      await insertMessage(ctx, { userId: row.userId, role: "assistant", channel: "app", text: t(lang, "visitNoSlots"), urgent: false });
       return;
     }
     const times = slots.map((s) => `${timeText(s.startsAt, zone, lang)} (${s.clinician})`).join(", ");
-    const messageId = await ctx.db.insert("messages", {
+    const messageId = await insertMessage(ctx, {
       userId: row.userId,
       role: "assistant",
       channel: "app",
