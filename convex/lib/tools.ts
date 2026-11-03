@@ -375,6 +375,45 @@ export const telehealthTool: ToolDef = {
   },
 };
 
+// Handled in the pipeline: patterns, medication before/after and charts (convex/insights.ts).
+export const insightTools: ToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "find_patterns",
+      description:
+        "Find what goes with the user's worse days, from their own logs over the last 90 days: pain, symptoms, mood, " +
+        "energy, peak flow and seizures against sleep, activity, resting heart rate, HRV, periods, and local weather, " +
+        "air pressure, humidity, air quality and pollen. Also how things changed after they started a medication or " +
+        "changed its dose, and today's and tomorrow's local weather. Use when they ask what triggers something, why " +
+        "they feel worse, whether a medication is working, or what to watch out for. These are associations; say so.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "show_chart",
+      description:
+        "Draw a chart of one of the user's measures, shown under your reply in the app. Use when they ask to see or " +
+        "compare a trend (\"show my pain this month\"). Returns the numbers so you can describe the trend in a sentence; " +
+        "don't list every value.",
+      parameters: {
+        type: "object",
+        properties: {
+          metric: {
+            type: "string",
+            enum: ["pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv", "weightKg", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen"],
+          },
+          symptom: { type: "string", description: "For metric symptom: which one, e.g. 'headache'" },
+          days: { type: "integer", description: "7-180, default 30" },
+        },
+        required: ["metric"],
+      },
+    },
+  },
+];
+
 // Handled in the pipeline: it starts a background CREAO run for this user (convex/creao.ts).
 export const analyzeSymptomsTool: ToolDef = {
   type: "function",

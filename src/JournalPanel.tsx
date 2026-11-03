@@ -9,6 +9,7 @@ import { colors } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
+import { InsightsCard, useHasInsights } from "./InsightsCard";
 
 const PERIODS = [14, 30, 90];
 
@@ -78,7 +79,9 @@ function Chart({ days, points, sleep, periodDays, s }: {
 export function JournalPanel({ s }: { s: Strings }) {
   const [period, setPeriod] = useState(30);
   const days = useMemo(() => lastDays(period), [period]);
-  const data = useQuery(api.journal.view, { since: days[0], today: days[days.length - 1] });
+  const today = days[days.length - 1];
+  const data = useQuery(api.journal.view, { since: days[0], today });
+  const hasInsights = useHasInsights(today);
   const add = useMutation(api.journal.add);
   const remove = useMutation(api.journal.remove);
   const [symptom, setSymptom] = useState("");
@@ -105,6 +108,7 @@ export function JournalPanel({ s }: { s: Strings }) {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <DailyCard s={s} />
+      <InsightsCard today={today} s={s} />
       <Text style={styles.note}>{s.journalIntro}</Text>
       <View style={styles.chips}>
         {PERIODS.map((p) => (
@@ -135,7 +139,7 @@ export function JournalPanel({ s }: { s: Strings }) {
         </View>
       )}
 
-      {!!data?.patterns.length && (
+      {!hasInsights && !!data?.patterns.length && (
         <View style={styles.insights}>
           <Text style={styles.section}>{s.journalPatterns}</Text>
           {data.patterns.map((p) => (

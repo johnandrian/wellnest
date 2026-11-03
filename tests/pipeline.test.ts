@@ -84,6 +84,8 @@ describe("app chat", () => {
       "add_exercise",
       "log_exercise_done",
       "get_symptom_journal",
+      "find_patterns",
+      "show_chart",
     ]);
     expect(cx.every((c) => c.body.max_tokens === undefined && c.body.stream === false)).toBe(true);
   });
@@ -117,6 +119,7 @@ describe("app chat", () => {
       language: "en",
       notifications: { reminders: true, appointments: true },
       checkins: true,
+      weeklySummary: true,
       location: "",
       telegramLinked: false,
     });

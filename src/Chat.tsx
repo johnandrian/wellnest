@@ -26,6 +26,7 @@ import { PulseRing, ThinkingDots } from "./Motion";
 import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { HubPanel, HubTab } from "./HubPanel";
+import { ChartCard, ChartData } from "./ChartCard";
 import { AboutPanel } from "./AboutPanel";
 import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
@@ -140,7 +141,10 @@ export function Chat() {
   const health = useHealthSync();
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
-  const pushToken = usePush(s, (kind) => openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : "care"));
+  // The weekly summary is a chat message, so its notification just opens the chat.
+  const pushToken = usePush(s, (kind) =>
+    kind === "weekly" ? setPanel(null) : openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : "care"),
+  );
 
   // Medication reminders fire at local times, so the backend needs this device's time zone.
   useEffect(() => {
@@ -251,7 +255,8 @@ export function Chat() {
                 styles.bubble,
                 item.role === "user" ? styles.userBubble : styles.botBubble,
                 item.urgent && styles.urgentBubble,
-                (item.kind === "reminder" || item.kind === "checkin" || item.kind === "appointment") && styles.reminderBubble,
+                (item.kind === "reminder" || item.kind === "checkin" || item.kind === "appointment" || item.kind === "summary") && styles.reminderBubble,
+                !!item.charts?.length && styles.chartBubble,
               ]}
             >
               {item.imageUrl && (
@@ -267,6 +272,7 @@ export function Chat() {
               ) : (
                 <Markdown text={item.text} style={styles.botText} />
               )}
+              {item.charts?.map((c: ChartData, i: number) => <ChartCard key={i} chart={c} s={s} />)}
               {item.appointmentId && <AppointmentCard id={item.appointmentId} s={s} />}
               {item.reminder && (
                 <View style={styles.doseRow}>
@@ -422,6 +428,7 @@ function Settings({
     language: string;
     notifications: { reminders: boolean; appointments: boolean };
     checkins: boolean;
+    weeklySummary: boolean;
   };
   s: Strings;
   pushToken: { current: string | null };
@@ -432,6 +439,7 @@ function Settings({
   const setPushPreference = useMutation(api.push.setPreference);
   const unregisterPush = useMutation(api.push.unregister);
   const setCheckins = useMutation(api.checkins.setEnabled);
+  const setWeekly = useMutation(api.weekly.setEnabled);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -493,6 +501,10 @@ function Settings({
       <View style={styles.settingRow}>
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>
         <Switch value={me.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
+      </View>
+      <View style={styles.settingRow}>
+        <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.weeklySummary}</Text>
+        <Switch value={me.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
       </View>
       {pushSupported &&
         (["reminders", "appointments"] as const).map((kind) => (
@@ -568,6 +580,8 @@ const styles = StyleSheet.create({
   botBubble: { backgroundColor: colors.bubbleBot, alignSelf: "flex-start", borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
   urgentBubble: { backgroundColor: colors.urgentBg, borderColor: colors.danger },
   reminderBubble: { backgroundColor: colors.primarySoft, borderColor: colors.mint },
+  // A chart needs the width.
+  chartBubble: { width: "85%" },
   doseRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   doseButton: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
   doseButtonOn: { backgroundColor: colors.primary },

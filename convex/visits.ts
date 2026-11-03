@@ -198,6 +198,8 @@ export const remind = internalMutation({
     const user = await ctx.db.get(row.userId);
     const lang = langOf(user);
     const who = row.clinicianId ? (await ctx.db.get(row.clinicianId))?.name : undefined;
+    // Questions to ask, ready by the time they open the app (convex/questions.ts).
+    if (!row.questions?.length) await ctx.scheduler.runAfter(0, internal.questions.writeForReminder, { id });
     await notify(ctx, row.userId, "appointments", {
       title: t(lang, "visitReminderTitle", row.title),
       body: t(lang, "visitReminderBody", timeText(row.startsAt, user?.timeZone ?? "UTC", lang), [who, row.location].filter(Boolean).join(" · ")),
@@ -234,6 +236,7 @@ export const list = query({
         location: r.location ?? null,
         prep: r.prep ?? null,
         notes: r.notes ?? null,
+        questions: r.questions ?? null,
         joinUrl: null as string | null,
       })),
       ...tele.map((a) => ({
@@ -249,6 +252,7 @@ export const list = query({
         location: a.providerName ?? null,
         prep: null,
         notes: null,
+        questions: null as string[] | null,
         joinUrl: a.joinUrl ?? null,
       })),
     ];

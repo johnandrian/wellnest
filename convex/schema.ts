@@ -10,6 +10,7 @@ import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
 import { asthmaDetails, painDetails, seizureDetails, tracker } from "./lib/trackers";
 import { section } from "./lib/report";
 import { asthmaPlan, contact, planSection } from "./lib/emergency";
+import { chartValidator } from "./lib/insights";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -92,6 +93,9 @@ export default defineSchema({
     language: v.optional(language),
     // Proactive check-ins from Apple Health changes (convex/checkins.ts); on when unset.
     checkins: v.optional(v.boolean()),
+    // The Sunday evening summary of the week (convex/weekly.ts); on when unset. `weeklySentAt` stops a second one.
+    weeklySummary: v.optional(v.boolean()),
+    weeklySentAt: v.optional(v.number()),
     // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
     notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),
     // Set while "Delete everything" runs (convex/me.ts).
@@ -125,7 +129,10 @@ export default defineSchema({
     // Both are shown but never read aloud in voice mode.
     // "checkin": a proactive question about a change in the user's health data (convex/checkins.ts).
     // "appointment": offered video visit times, shown as buttons (convex/telehealth.ts).
-    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"), v.literal("appointment"))),
+    // "summary": the weekly summary (convex/weekly.ts).
+    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"), v.literal("appointment"), v.literal("summary"))),
+    // Charts the model drew with show_chart, shown under the reply (convex/insights.ts).
+    charts: v.optional(v.array(chartValidator)),
     appointmentId: v.optional(v.id("appointments")),
     // On a reminder: which dose, and the user's Taken / Skip.
     reminder: v.optional(
@@ -147,6 +154,19 @@ export default defineSchema({
       dimensions: EMBEDDING_DIMS,
       filterFields: ["userId"],
     }),
+
+  // Local weather, air quality and pollen per day at the user's saved location (convex/weather.ts).
+  weatherDays: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // YYYY-MM-DD, local to the location
+    tempMax: v.optional(v.number()),
+    tempMin: v.optional(v.number()),
+    humidity: v.optional(v.number()),
+    pressure: v.optional(v.number()),
+    precip: v.optional(v.number()),
+    aqi: v.optional(v.number()),
+    pollen: v.optional(v.number()),
+  }).index("by_user_and_date", ["userId", "date"]),
 
   // One summary per user per local calendar day, sent by the phone from Apple Health (convex/health.ts).
   healthDays: defineTable({
@@ -232,6 +252,7 @@ export default defineSchema({
     location: v.optional(v.string()),
     prep: v.optional(v.string()), // questions and things to bring
     notes: v.optional(v.string()), // what was said, written afterwards
+    questions: v.optional(v.array(v.string())), // suggested questions to ask, from what changed (convex/visits.ts)
     status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
     remindJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_user_and_start", ["userId", "startsAt"]),

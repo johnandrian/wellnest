@@ -84,7 +84,7 @@ export const logFromChat = internalMutation({
   },
 });
 
-async function entriesSince(ctx: QueryCtx, userId: Id<"users">, since: string): Promise<Entry[]> {
+export async function entriesSince(ctx: QueryCtx, userId: Id<"users">, since: string): Promise<Entry[]> {
   const rows = await ctx.db
     .query("symptomEntries")
     .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))

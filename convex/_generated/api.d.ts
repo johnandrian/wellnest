@@ -19,6 +19,7 @@ import type * as emergency from "../emergency.js";
 import type * as exercises from "../exercises.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
+import type * as insights from "../insights.js";
 import type * as journal from "../journal.js";
 import type * as lib_cartesia from "../lib/cartesia.js";
 import type * as lib_checkins from "../lib/checkins.js";
@@ -27,6 +28,8 @@ import type * as lib_creao from "../lib/creao.js";
 import type * as lib_emergency from "../lib/emergency.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_health from "../lib/health.js";
+import type * as lib_insights from "../lib/insights.js";
+import type * as lib_insightsText from "../lib/insightsText.js";
 import type * as lib_jev from "../lib/jev.js";
 import type * as lib_jina from "../lib/jina.js";
 import type * as lib_journal from "../lib/journal.js";
@@ -51,10 +54,12 @@ import type * as lib_telehealth from "../lib/telehealth.js";
 import type * as lib_tools from "../lib/tools.js";
 import type * as lib_trackers from "../lib/trackers.js";
 import type * as lib_visit from "../lib/visit.js";
+import type * as lib_weather from "../lib/weather.js";
 import type * as me from "../me.js";
 import type * as medications from "../medications.js";
 import type * as pipeline from "../pipeline.js";
 import type * as push from "../push.js";
+import type * as questions from "../questions.js";
 import type * as reminders from "../reminders.js";
 import type * as reports from "../reports.js";
 import type * as share from "../share.js";
@@ -65,6 +70,8 @@ import type * as trackers from "../trackers.js";
 import type * as visit from "../visit.js";
 import type * as visits from "../visits.js";
 import type * as voice from "../voice.js";
+import type * as weather from "../weather.js";
+import type * as weekly from "../weekly.js";
 
 import type {
   ApiFromModules,
@@ -84,6 +91,7 @@ declare const fullApi: ApiFromModules<{
   exercises: typeof exercises;
   health: typeof health;
   http: typeof http;
+  insights: typeof insights;
   journal: typeof journal;
   "lib/cartesia": typeof lib_cartesia;
   "lib/checkins": typeof lib_checkins;
@@ -92,6 +100,8 @@ declare const fullApi: ApiFromModules<{
   "lib/emergency": typeof lib_emergency;
   "lib/env": typeof lib_env;
   "lib/health": typeof lib_health;
+  "lib/insights": typeof lib_insights;
+  "lib/insightsText": typeof lib_insightsText;
   "lib/jev": typeof lib_jev;
   "lib/jina": typeof lib_jina;
   "lib/journal": typeof lib_journal;
@@ -116,10 +126,12 @@ declare const fullApi: ApiFromModules<{
   "lib/tools": typeof lib_tools;
   "lib/trackers": typeof lib_trackers;
   "lib/visit": typeof lib_visit;
+  "lib/weather": typeof lib_weather;
   me: typeof me;
   medications: typeof medications;
   pipeline: typeof pipeline;
   push: typeof push;
+  questions: typeof questions;
   reminders: typeof reminders;
   reports: typeof reports;
   share: typeof share;
@@ -130,6 +142,8 @@ declare const fullApi: ApiFromModules<{
   visit: typeof visit;
   visits: typeof visits;
   voice: typeof voice;
+  weather: typeof weather;
+  weekly: typeof weekly;
 }>;
 
 /**

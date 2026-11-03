@@ -1,4 +1,5 @@
-// Push notifications for medication reminders and telehealth appointment updates (the user's choice of what pushes).
+// Push notifications for medication reminders, appointment updates (the user's choice of what pushes) and the weekly
+// summary (switched off with the summary itself, convex/weekly.ts).
 // The phone registers its Expo push token here; `notify` sends to every device the user has signed in on.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -9,7 +10,7 @@ import { isPushToken, plain, sendPush } from "./lib/push";
 
 const MAX_DEVICES = 10;
 export const pushKind = v.union(v.literal("reminders"), v.literal("appointments"));
-type PushKind = "reminders" | "appointments";
+type PushKind = "reminders" | "appointments" | "weekly";
 
 export const register = mutation({
   args: { token: v.string(), platform: v.string() },
@@ -60,7 +61,7 @@ export async function notify(
   message: { title: string; body: string; data?: Record<string, string>; categoryId?: string },
 ) {
   const user = await ctx.db.get(userId);
-  if (!user || user.notifications?.[kind] === false) return;
+  if (!user || (kind !== "weekly" && user.notifications?.[kind] === false)) return;
   const devices = await ctx.db.query("pushTokens").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_DEVICES);
   if (!devices.length) return;
   await ctx.scheduler.runAfter(0, internal.push.send, {

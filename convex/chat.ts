@@ -4,6 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { DAILY_LIMIT, enqueueUserMessage } from "./pipeline";
 import { language } from "./lib/language";
+import { refreshSoon } from "./weather";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -93,6 +94,7 @@ export const me = query({
       language: user.language ?? "en",
       notifications: { reminders: user.notifications?.reminders ?? true, appointments: user.notifications?.appointments ?? true },
       checkins: user.checkins ?? true,
+      weeklySummary: user.weeklySummary ?? true,
       location: user.location ?? "",
       telegramLinked: !!user.telegramChatId,
     };
@@ -139,5 +141,6 @@ export const setLocation = mutation({
     if (!userId) throw new Error("Not signed in");
     const trimmed = location.trim().slice(0, 200);
     await ctx.db.patch(userId, { location: trimmed || undefined });
+    if (trimmed) await refreshSoon(ctx, userId);
   },
 });

@@ -8,6 +8,7 @@ import { transcribe } from "./lib/cartesia";
 import { internal } from "./_generated/api";
 import { enqueueUserMessage, limitReply, overDailyLimit } from "./pipeline";
 import { isLang, langOf, t } from "./lib/language";
+import { refreshSoon } from "./weather";
 
 const LINK_TTL_MS = 15 * 60 * 1000;
 const WELCOME =
@@ -284,6 +285,7 @@ export const saveSharedLocation = internalMutation({
   handler: async (ctx, { chatId, name, lat, lon }) => {
     const userId = await findOrCreateTelegramUser(ctx, chatId, name);
     await ctx.db.patch(userId, { location: `${lat.toFixed(4)},${lon.toFixed(4)}` });
+    await refreshSoon(ctx, userId);
     await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, {
       userId,
       text: "Got it, I saved your location for finding nearby care.",

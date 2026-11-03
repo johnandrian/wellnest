@@ -173,6 +173,7 @@ export const exportRest = internalQuery({
       },
       facts: await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS),
       healthDays: await ctx.db.query("healthDays").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
+      weatherDays: await ctx.db.query("weatherDays").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       medications: (await ctx.db.query("medications").withIndex("by_user_and_active", (q) => q.eq("userId", userId)).take(take)).map(
         ({ jobId, scriptImage, ...m }) => ({ ...m, hasScriptPhoto: !!scriptImage }),
       ),
@@ -227,7 +228,7 @@ const category = v.union(
 
 const STEPS = {
   chat: ["messages", "photoUploads", "creaoRuns", "checkins", "appointments"],
-  health: ["healthDays"],
+  health: ["healthDays", "weatherDays"],
   reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
   appointments: ["visits", "careTeam", "emergencyPlans"],
@@ -335,6 +336,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
     case "dailyLogs":
     case "trackerEntries":
     case "exerciseLogs":
+    case "weatherDays":
     case "healthDays": {
       const rows = await ctx.db.query(step).withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) await ctx.db.delete(r._id);

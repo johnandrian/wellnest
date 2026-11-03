@@ -1,8 +1,8 @@
 // Appointments and care team (convex/visits.ts): upcoming and past visits with questions to ask beforehand and
 // notes afterwards, a shortcut to a visit summary for each, and the people in your care with tap-to-call.
 import { useMemo, useState } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useMutation, useQuery } from "convex/react";
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
@@ -39,6 +39,9 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
   const update = useMutation(api.visits.update);
   const setStatus = useMutation(api.visits.setStatus);
   const remove = useMutation(api.visits.remove);
+  const suggest = useAction(api.questions.suggest);
+  const removeQuestion = useMutation(api.questions.remove);
+  const [suggesting, setSuggesting] = useState(false);
   const [open, setOpen] = useState(false);
   const [prep, setPrep] = useState(item.prep ?? "");
   const [notes, setNotes] = useState(item.notes ?? "");
@@ -80,6 +83,34 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
               <Text style={styles.link}>{s.visitsMakeSummary}</Text>
             </Pressable>
           </View>
+          {isVisit && item.status === "upcoming" && (
+            <View style={styles.questions}>
+              <Text style={styles.label}>{s.visitQuestions}</Text>
+              {item.questions?.map((q, i) => (
+                <View key={`${i}-${q}`} style={styles.question}>
+                  <Text style={[styles.questionText, styles.flex]}>• {q}</Text>
+                  <Pressable onPress={() => void run(() => removeQuestion({ id, index: i }))} accessibilityRole="button" accessibilityLabel={s.remove} hitSlop={8}>
+                    <Ionicons name="close" size={16} color={colors.muted} />
+                  </Pressable>
+                </View>
+              ))}
+              {!!item.questions?.length && <Text style={styles.small}>{s.visitQuestionsNote}</Text>}
+              <Pressable
+                style={styles.action}
+                disabled={suggesting}
+                onPress={() => {
+                  setSuggesting(true);
+                  setError(null);
+                  void run(() => suggest({ id })).finally(() => setSuggesting(false));
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ busy: suggesting }}
+              >
+                {suggesting ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
+                <Text style={styles.link}>{item.questions?.length ? s.visitNewQuestions : s.visitSuggestQuestions}</Text>
+              </Pressable>
+            </View>
+          )}
           {isVisit && (
             <>
               <Text style={styles.label}>{s.visitsPrep}</Text>
@@ -310,6 +341,9 @@ const styles = StyleSheet.create({
   tag: { fontSize: 12, fontWeight: "600", color: colors.muted },
   body: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   label: { fontSize: 13, fontWeight: "600", color: colors.text },
+  questions: { gap: 4, backgroundColor: colors.primarySoft, borderRadius: 8, padding: 8 },
+  question: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  questionText: { fontSize: 14, color: colors.text, lineHeight: 20 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, flexWrap: "wrap" },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
   member: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 },

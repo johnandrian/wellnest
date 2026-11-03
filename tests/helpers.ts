@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // Test helpers: a convex-test instance plus a fake for every outside API (Cortex, Jina, Telegram, Cartesia,
-// CREAO, Jev, Open-Meteo).
+// CREAO, Jev, Open-Meteo weather and air quality).
 import { convexTest } from "convex-test";
 import { vi } from "vitest";
 import schema from "../convex/schema";
@@ -73,6 +73,9 @@ export function mockApis(opts: {
   pushDead?: string[]; // Expo push tokens that come back DeviceNotRegistered
   geocode?: { lat: string; lon: string; display_name: string }[]; // Nominatim results (default: one in Berkeley)
   overpass?: any[] | Error; // OpenStreetMap elements Overpass returns
+  // Open-Meteo hourly weather and air quality (weather triggers). Default: no hours; an Error = the service is down.
+  weatherHourly?: Record<string, unknown[]> | Error;
+  airHourly?: Record<string, unknown[]> | Error;
 } = {}) {
   const calls: Call[] = [];
   const core = [...(opts.core ?? [{ content: "Rest and drink water." }])];
@@ -171,8 +174,16 @@ export function mockApis(opts: {
       if (opts.aqi === null) return Response.json({});
       return Response.json({ results: [{ name: "San Francisco", admin1: "California", latitude: 37.77, longitude: -122.42 }] });
     }
+    if (url.startsWith("https://air-quality-api.open-meteo.com/") && url.includes("hourly=")) {
+      if (opts.airHourly instanceof Error) return new Response(opts.airHourly.message, { status: 503 });
+      return Response.json({ hourly: opts.airHourly ?? { time: [] } });
+    }
     if (url.startsWith("https://air-quality-api.open-meteo.com/")) {
       return Response.json({ current: { us_aqi: opts.aqi ?? 42, pm2_5: 8 } });
+    }
+    if (url.startsWith("https://api.open-meteo.com/v1/forecast")) {
+      if (opts.weatherHourly instanceof Error) return new Response(opts.weatherHourly.message, { status: 503 });
+      return Response.json({ hourly: opts.weatherHourly ?? { time: [] } });
     }
     return new Response(`unmocked ${url}`, { status: 404 });
   });
@@ -224,3 +235,4 @@ export function messagesOf(t: ReturnType<typeof setup>, userId: Id<"users">) {
 export const pushSends = (calls: Call[]) => calls.filter((c) => c.url === "https://exp.host/--/api/v2/push/send").flatMap((c) => c.body);
 export const overpassCalls = (calls: Call[]) => calls.filter((c) => c.url === "https://overpass-api.de/api/interpreter");
 export const geocodeCalls = (calls: Call[]) => calls.filter((c) => c.url.startsWith("https://nominatim.openstreetmap.org/"));
+export const weatherCalls = (calls: Call[]) => calls.filter((c) => c.url.startsWith("https://api.open-meteo.com/"));

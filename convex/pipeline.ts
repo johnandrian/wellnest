@@ -6,8 +6,10 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
-import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, journalTools, reminderTools, runTool, saveLocationTool, telehealthTool, toolDefs, visitSummaryTool, visitTools } from "./lib/tools";
+import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, insightTools, journalTools, reminderTools, runTool, saveLocationTool, telehealthTool, toolDefs, visitSummaryTool, visitTools } from "./lib/tools";
 import { careForModel } from "./care";
+import { refreshSoon } from "./weather";
+import { Chart, chartValidator } from "./lib/insights";
 import { localToday } from "./journal";
 import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
@@ -71,6 +73,7 @@ export const respond = internalAction({
 
     let reply: string;
     let links: string | undefined; // the shopper's store links, saved as their own message after the reply
+    const charts: Chart[] = []; // drawn with show_chart, shown under the reply
     let urgent = false;
     try {
       // 1. Recent chat goes to the model as-is.
@@ -316,6 +319,20 @@ export const respond = internalAction({
             days: typeof args.days === "number" ? args.days : undefined,
           });
         },
+        insights: () => ctx.runQuery(internal.insights.forModel, { userId }),
+        chart: async (rawArgs) => {
+          const args = parseArgs(rawArgs);
+          const chart = await ctx.runQuery(internal.insights.chartFor, {
+            userId,
+            metric: String(args.metric ?? ""),
+            symptom: typeof args.symptom === "string" ? args.symptom : undefined,
+            days: typeof args.days === "number" ? args.days : 30,
+          });
+          if ("error" in chart) return `Tool error: ${chart.error}`;
+          if (charts.length >= MAX_CHARTS) return `Tool error: at most ${MAX_CHARTS} charts per reply.`;
+          charts.push(chart);
+          return chartSummary(chart);
+        },
         healthConnected: !!user?.health,
         healthInAnalysis: !!user?.health?.shareWithAnalysis,
         getHealthData: async (days) => healthReport(await healthDays(ctx, userId, days), dateDaysAgo(Date.now(), 0)),
@@ -345,6 +362,7 @@ export const respond = internalAction({
       userId,
       text: reply,
       extra: links,
+      charts: charts.length ? charts : undefined,
       channel: message.channel,
       urgent,
       heard: message.voice && message.channel === "telegram" ? message.text : undefined,
@@ -401,6 +419,8 @@ async function runCore(opts: {
   healthConnected: boolean;
   healthInAnalysis: boolean;
   getHealthData: (days: number) => Promise<string>;
+  insights: () => Promise<string>;
+  chart: (rawArgs: string) => Promise<string>;
   analyzeSymptoms: (rawArgs: string) => Promise<string>;
 }): Promise<string> {
   const { message, memory, history, urgent, analysis, location } = opts;
@@ -444,6 +464,7 @@ ${opts.emergencyPlan}`);
     ...visitTools,
     ...factTools,
     ...journalTools,
+    ...insightTools,
     ...(opts.healthConnected ? [healthDataTool] : []),
     ...(analysis === "run" ? [analyzeSymptomsTool] : []),
   ];
@@ -490,6 +511,10 @@ ${opts.emergencyPlan}`);
         result = await opts.reminder(call.function.name, call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "prepare_visit_summary") {
         result = await opts.prepareVisit(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
+      } else if (call.function.name === "find_patterns") {
+        result = await opts.insights().catch((e) => `Tool error: ${(e as Error).message}`);
+      } else if (call.function.name === "show_chart") {
+        result = await opts.chart(call.function.arguments).catch((e) => `Tool error: ${(e as Error).message}`);
       } else if (call.function.name === "get_health_data") {
         result = !opts.healthConnected
           ? "Tool error: the user hasn't connected their health data."
@@ -508,6 +533,23 @@ ${opts.emergencyPlan}`);
   // Out of tool rounds: ask for a final answer without tools.
   const { content } = await complete({ model, messages });
   return content?.trim() || "Sorry, I couldn't finish researching that.";
+}
+
+const MAX_CHARTS = 3;
+
+// What the model reads back after drawing a chart: enough to describe the trend in a sentence.
+export function chartSummary(c: Chart): string {
+  const vals = c.points.map((p) => p.value);
+  const avg = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+  const lo = c.points.reduce((a, b) => (b.value < a.value ? b : a));
+  const hi = c.points.reduce((a, b) => (b.value > a.value ? b : a));
+  const half = Math.floor(c.points.length / 2);
+  const mean = (xs: number[]) => Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
+  const trend = c.points.length >= 6 ? ` First half average ${mean(vals.slice(0, half))}, second half ${mean(vals.slice(half))}.` : "";
+  return (
+    `Chart shown to the user: ${c.title}${c.unit ? ` (${c.unit})` : ""}, ${c.from} to ${c.to}, ${c.points.length} days with data. ` +
+    `Average ${avg}, lowest ${lo.value} on ${lo.date}, highest ${hi.value} on ${hi.date}.${trend}`
+  );
 }
 
 function parseArgs(rawArgs: string): Record<string, unknown> {
@@ -539,6 +581,7 @@ export const saveLocation = internalMutation({
   args: { userId: v.id("users"), location: v.string() },
   handler: async (ctx, { userId, location }) => {
     await ctx.db.patch(userId, { location });
+    await refreshSoon(ctx, userId);
     return null;
   },
 });
@@ -578,13 +621,14 @@ export const saveReply = internalMutation({
     userId: v.id("users"),
     text: v.string(),
     extra: v.optional(v.string()),
+    charts: v.optional(v.array(chartValidator)),
     channel,
     urgent: v.boolean(),
     heard: v.optional(v.string()), // the transcript, when the user asked by Telegram voice note
   },
-  handler: async (ctx, { extra, heard, ...args }) => {
+  handler: async (ctx, { extra, heard, charts, ...args }) => {
     // Two messages in the app; one Telegram message so they can't arrive out of order.
-    await saveAssistantReply(ctx, args, false);
+    await saveAssistantReply(ctx, { ...args, charts }, false);
     if (extra) await saveAssistantReply(ctx, { ...args, text: extra, urgent: false, kind: "links" }, false);
     if (args.channel === "telegram") {
       await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, {
@@ -607,7 +651,7 @@ export const setFlow = internalMutation({
 // Also used for replies that arrive later, like CREAO analysis reports.
 export async function saveAssistantReply(
   ctx: MutationCtx,
-  args: { userId: Id<"users">; text: string; channel: "app" | "telegram"; urgent: boolean; kind?: "links" },
+  args: { userId: Id<"users">; text: string; channel: "app" | "telegram"; urgent: boolean; kind?: "links" | "summary"; charts?: Chart[] },
   deliver = true,
 ) {
   const messageId = await ctx.db.insert("messages", { ...args, role: "assistant" });
