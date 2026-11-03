@@ -227,7 +227,7 @@ export function AboutPanel({ s }: { s: Strings }) {
 
 const styles = StyleSheet.create({
   loading: { padding: 16 },
-  scroll: { maxHeight: "80%", flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  scroll: { flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
   panel: { padding: 16, gap: 8, maxWidth: 760, width: "100%", alignSelf: "center" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 17, fontWeight: "700", color: colors.text },

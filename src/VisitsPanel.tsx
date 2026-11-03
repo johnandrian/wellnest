@@ -10,6 +10,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
+import { SwapIcon } from "./Motion";
 
 type Kind = "in_person" | "video" | "phone";
 type Item = NonNullable<(typeof api.visits.list)["_returnType"]>["upcoming"][number];
@@ -62,7 +63,9 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
           </Text>
           <Text style={styles.small}>{[whenText(item.startsAt), item.clinician, item.location].filter(Boolean).join(" · ")}</Text>
         </View>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+        <SwapIcon id={open ? "up" : "down"}>
+          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+        </SwapIcon>
       </Tap>
       {open && (
         <View style={styles.body}>

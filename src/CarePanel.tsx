@@ -12,6 +12,7 @@ import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
 import { Icon, IconName } from "./Icon";
+import { SwapIcon } from "./Motion";
 
 type Kind = "er" | "urgent_care" | "pharmacy" | "doctor";
 type Place = { name: string; lat: number; lon: number; km: number; phone?: string; address?: string; hours?: string; open24?: boolean };
@@ -96,7 +97,9 @@ export function CarePanel({ s }: { s: Strings }) {
         accessibilityRole="switch"
         accessibilityState={{ checked: useHere }}
       >
-        <Ionicons name={useHere ? "checkbox" : "square-outline"} size={20} color={colors.primary} />
+        <SwapIcon id={useHere ? "on" : "off"}>
+          <Ionicons name={useHere ? "checkbox" : "square-outline"} size={20} color={colors.primary} />
+        </SwapIcon>
         <Text style={styles.line}>{s.careUseHere}</Text>
       </Tap>
 

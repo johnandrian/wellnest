@@ -22,7 +22,7 @@ import { api } from "../convex/_generated/api";
 import { colors } from "./theme";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
-import { PulseRing, ThinkingDots } from "./Motion";
+import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
 import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { HubPanel, HubTab } from "./HubPanel";
@@ -160,9 +160,9 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   // Health tools take the whole screen; their Chat button comes back here.
   if (panel === "hub") {
     return (
-      <View style={styles.container}>
+      <Enter style={styles.container} from={24}>
         <HubPanel tab={hubTab} onTab={setHubTab} onClose={() => setPanel(null)} s={s} />
-      </View>
+      </Enter>
     );
   }
 
@@ -214,14 +214,20 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             accessibilityRole="button"
             accessibilityLabel={panel === "settings" || panel === "about" ? s.closeSettings : s.settings}
           >
-            <Ionicons name={panel === "settings" || panel === "about" ? "close" : "settings-outline"} size={22} color={colors.text} />
+            <SwapIcon id={panel === "settings" || panel === "about" ? "close" : "settings"}>
+              <Ionicons name={panel === "settings" || panel === "about" ? "close" : "settings-outline"} size={22} color={colors.text} />
+            </SwapIcon>
           </Pressable>
         </View>
       </View>
-      {history && <ChatHistory s={s} onClose={() => setHistory(false)} />}
+      <ChatHistory open={history} s={s} onClose={() => setHistory(false)} />
 
-      {panel === "about" && <AboutPanel s={s} />}
-      {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} onRedoSetup={onRedoSetup} />}
+      <Reveal open={panel === "about"} style={styles.aboutWrap}>
+        <AboutPanel s={s} />
+      </Reveal>
+      <Reveal open={panel === "settings" && !!me} style={styles.settingsWrap}>
+        {me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} onRedoSetup={onRedoSetup} />}
+      </Reveal>
 
       {panel === null && !!messages?.length && <DailyCard s={s} inChat />}
       {messages === undefined ? (
@@ -368,10 +374,10 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           >
             {voice.mic === "asking" || voice.mic === "transcribing" ? (
               <ActivityIndicator color={colors.primary} />
-            ) : voice.mic === "recording" ? (
-              <Ionicons name="stop" size={20} color="#fff" />
             ) : (
-              <Ionicons name="mic" size={22} color={colors.primary} />
+              <SwapIcon id={voice.mic === "recording" ? "stop" : "mic"}>
+                {voice.mic === "recording" ? <Ionicons name="stop" size={20} color="#fff" /> : <Ionicons name="mic" size={22} color={colors.primary} />}
+              </SwapIcon>
             )}
           </Pressable>
         </View>
@@ -563,7 +569,10 @@ const styles = StyleSheet.create({
   // Health tools: the one filled button, so it stands out from the chat's own controls.
   dashButton: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary, marginHorizontal: 4 },
   headerLink: { color: colors.primary, fontSize: 16 },
-  settingsScroll: { maxHeight: "70%", flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Above the chat while it drops open, so it slides over the messages rather than pushing them.
+  settingsWrap: { zIndex: 5, maxHeight: "70%" },
+  aboutWrap: { zIndex: 5, maxHeight: "80%" },
+  settingsScroll: { flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
   settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 16, color: colors.text },

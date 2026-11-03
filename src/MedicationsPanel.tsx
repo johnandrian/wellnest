@@ -11,6 +11,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
+import { SwapIcon } from "./Motion";
 
 type Mode = "daily" | "interval";
 type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
@@ -359,7 +360,9 @@ export function MedicationsPanel({ s }: { s: Strings }) {
                 {m.daysLeft !== null && m.status !== "stopped" ? ` · ${s.medDaysLeft.replace("{n}", String(m.daysLeft))}` : ""}
               </Text>
             </View>
-            <Ionicons name={open === m._id ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+            <SwapIcon id={open === m._id ? "up" : "down"}>
+              <Ionicons name={open === m._id ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+            </SwapIcon>
           </Tap>
           {open === m._id && <Detail id={m._id} s={s} />}
         </View>

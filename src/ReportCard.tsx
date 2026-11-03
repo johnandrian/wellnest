@@ -11,6 +11,7 @@ import { api } from "../convex/_generated/api";
 import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
+import { SwapIcon } from "./Motion";
 
 export const REPORT_SECTIONS = ["facts", "medications", "journal", "trackers", "exercises", "health", "appointments", "emergency"] as const;
 export type ReportSection = (typeof REPORT_SECTIONS)[number];
@@ -29,7 +30,9 @@ export function SectionChips({ value, onChange, s }: { value: ReportSection[]; o
         const on = value.includes(x);
         return (
           <Tap key={x} style={[styles.chip, on && styles.chipOn]} onPress={() => onChange(on ? value.filter((y) => y !== x) : [...value, x])} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
-            <Ionicons name={on ? "checkbox" : "square-outline"} size={14} color={on ? colors.primary : colors.muted} />
+            <SwapIcon id={on ? "on" : "off"}>
+              <Ionicons name={on ? "checkbox" : "square-outline"} size={14} color={on ? colors.primary : colors.muted} />
+            </SwapIcon>
             <Text style={[styles.chipText, on && styles.chipTextOn]}>{s[`rsec_${x}`]}</Text>
           </Tap>
         );

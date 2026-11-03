@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
+import { SwapIcon } from "./Motion";
 
 const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const num = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
@@ -62,7 +63,9 @@ export function ExercisePanel({ s }: { s: Strings }) {
             <View style={styles.head}>
               {e.dueToday && (
                 <Tap onPress={() => void toggle({ id: e._id, date: today, done: !e.doneToday })} accessibilityRole="checkbox" accessibilityState={{ checked: e.doneToday }} accessibilityLabel={e.name}>
-                  <Ionicons name={e.doneToday ? "checkmark-circle" : "ellipse-outline"} size={28} color={e.doneToday ? colors.primary : colors.muted} />
+                  <SwapIcon id={e.doneToday ? "done" : "todo"}>
+                    <Ionicons name={e.doneToday ? "checkmark-circle" : "ellipse-outline"} size={28} color={e.doneToday ? colors.primary : colors.muted} />
+                  </SwapIcon>
                 </Tap>
               )}
               <View style={styles.flex}>

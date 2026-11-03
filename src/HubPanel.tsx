@@ -17,6 +17,7 @@ import { VisitsPanel } from "./VisitsPanel";
 import { VisitPanel } from "./VisitPanel";
 import { CarePanel } from "./CarePanel";
 import { ExercisePanel } from "./ExercisePanel";
+import { Enter, SwapIcon } from "./Motion";
 
 export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "care";
 export type HubTab = "home" | ToolTab;
@@ -47,11 +48,15 @@ export function HubPanel({ tab, onTab, onClose, s }: { tab: HubTab; onTab: (t: H
         <View style={styles.headerRow}>
           {tool ? (
             <Tap style={styles.round} onPress={() => onTab("home")} accessibilityRole="button" accessibilityLabel={s.dashboard}>
-              <Ionicons name="chevron-back" size={22} color={colors.onPrimary} />
+              <SwapIcon id="back">
+                <Ionicons name="chevron-back" size={22} color={colors.onPrimary} />
+              </SwapIcon>
             </Tap>
           ) : (
             <View style={styles.badge}>
-              <Icon name="dashboard" size={20} color={colors.onPrimary} />
+              <SwapIcon id="home">
+                <Icon name="dashboard" size={20} color={colors.onPrimary} />
+              </SwapIcon>
             </View>
           )}
           <View style={styles.titles}>
@@ -89,27 +94,31 @@ export function HubPanel({ tab, onTab, onClose, s }: { tab: HubTab; onTab: (t: H
           </ScrollView>
         )}
       </View>
-      {tab === "home" && <HomePanel s={s} onOpen={onTab} onChat={onClose} />}
-      {tab === "journal" && <JournalPanel s={s} />}
-      {tab === "reminders" && <MedicationsPanel s={s} />}
-      {tab === "exercise" && <ExercisePanel s={s} />}
-      {tab === "visits" && (
-        <VisitsPanel
-          s={s}
-          onPrepare={(reason) => {
-            setSummaryReason(reason);
-            onTab("visit");
-          }}
-        />
-      )}
-      {tab === "visit" && <VisitPanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
-      {tab === "care" && <CarePanel s={s} />}
+      {/* Each tool fades up into place when it opens. */}
+      <Enter key={tab} style={styles.body} from={12}>
+        {tab === "home" && <HomePanel s={s} onOpen={onTab} onChat={onClose} />}
+        {tab === "journal" && <JournalPanel s={s} />}
+        {tab === "reminders" && <MedicationsPanel s={s} />}
+        {tab === "exercise" && <ExercisePanel s={s} />}
+        {tab === "visits" && (
+          <VisitsPanel
+            s={s}
+            onPrepare={(reason) => {
+              setSummaryReason(reason);
+              onTab("visit");
+            }}
+          />
+        )}
+        {tab === "visit" && <VisitPanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
+        {tab === "care" && <CarePanel s={s} />}
+      </Enter>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
+  body: { flex: 1 },
   // The teal band: it carries the greeting on the dashboard and the tool switcher inside a tool.
   header: {
     backgroundColor: colors.primary,
