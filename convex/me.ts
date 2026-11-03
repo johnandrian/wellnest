@@ -19,7 +19,7 @@ async function requireUser(ctx: Parameters<typeof getAuthUserId>[0]) {
   return userId;
 }
 
-async function insertFact(ctx: MutationCtx, userId: Id<"users">, text: string, source: "user" | "assistant") {
+export async function insertFact(ctx: MutationCtx, userId: Id<"users">, text: string, source: "user" | "assistant") {
   const clean = text.replace(/\s+/g, " ").trim().slice(0, MAX_FACT_LENGTH);
   if (!clean) return { error: "The fact is empty." };
   const facts = await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS);

@@ -62,7 +62,13 @@ function confirmClear(s: Strings): Promise<boolean> {
   );
 }
 
-export function Chat() {
+// Suggestions on an empty chat: one per focus they picked in setup, then the general ones.
+function startersFor(focus: string[], s: Strings) {
+  const picked = focus.map((f) => s.startersByFocus[f as keyof Strings["startersByFocus"]]).filter(Boolean);
+  return [...new Set([...picked, ...s.starters])].slice(0, 4);
+}
+
+export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const messages = useQuery(api.chat.list);
   const me = useQuery(api.chat.me);
   const send = useMutation(api.chat.send);
@@ -214,7 +220,7 @@ export function Chat() {
       </View>
 
       {panel === "about" && <AboutPanel s={s} />}
-      {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} />}
+      {panel === "settings" && me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} onRedoSetup={onRedoSetup} />}
 
       {panel === null && !!messages?.length && <DailyCard s={s} inChat />}
       {messages === undefined ? (
@@ -236,7 +242,7 @@ export function Chat() {
                 {s.introVoice} {s.disclaimer}
               </Text>
               <View style={styles.chips}>
-                {s.starters.map((q) => (
+                {startersFor(me?.focus ?? [], s).map((q) => (
                   <Pressable
                     key={q}
                     style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
@@ -420,6 +426,7 @@ function Settings({
   pushToken,
   health,
   onOpenAbout,
+  onRedoSetup,
 }: {
   me: {
     email: string | null;
@@ -434,6 +441,7 @@ function Settings({
   pushToken: { current: string | null };
   health: HealthSync;
   onOpenAbout: () => void;
+  onRedoSetup: () => void;
 }) {
   const setLanguage = useMutation(api.chat.setLanguage);
   const setPushPreference = useMutation(api.push.setPreference);
@@ -497,6 +505,9 @@ function Settings({
       <HealthSettings health={health} s={s} />
       <Pressable style={styles.settingButton} onPress={onOpenAbout} accessibilityRole="button">
         <Text style={styles.settingButtonText}>{s.aboutMe}</Text>
+      </Pressable>
+      <Pressable style={styles.settingButton} onPress={onRedoSetup} accessibilityRole="button">
+        <Text style={styles.settingButtonText}>{s.redoSetup}</Text>
       </Pressable>
       <View style={styles.settingRow}>
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>

@@ -11,6 +11,7 @@ import { asthmaDetails, painDetails, seizureDetails, tracker } from "./lib/track
 import { section } from "./lib/report";
 import { asthmaPlan, contact, planSection } from "./lib/emergency";
 import { chartValidator } from "./lib/insights";
+import { focus, profile } from "./lib/onboarding";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -93,6 +94,10 @@ export default defineSchema({
     language: v.optional(language),
     // Proactive check-ins from Apple Health changes (convex/checkins.ts); on when unset.
     checkins: v.optional(v.boolean()),
+    // Account setup (convex/onboarding.ts): when it was finished, what to call them, and what they use Wellnest for.
+    onboardedAt: v.optional(v.number()),
+    profile: v.optional(profile),
+    focus: v.optional(v.array(focus)),
     // The Sunday evening summary of the week (convex/weekly.ts); on when unset. `weeklySentAt` stops a second one.
     weeklySummary: v.optional(v.boolean()),
     weeklySentAt: v.optional(v.number()),

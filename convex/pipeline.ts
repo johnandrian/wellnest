@@ -10,6 +10,7 @@ import { analyzeSymptomsTool, factTools, findCareTool, healthDataTool, insightTo
 import { careForModel } from "./care";
 import { refreshSoon } from "./weather";
 import { Chart, chartValidator } from "./lib/insights";
+import { aboutUserText } from "./lib/onboarding";
 import { localToday } from "./journal";
 import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
@@ -155,6 +156,7 @@ export const respond = internalAction({
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
         facts,
+        about: aboutUserText(user?.profile, user?.focus),
         care,
         emergencyPlan,
         today: localToday(user),
@@ -406,6 +408,7 @@ async function runCore(opts: {
   saveLocation: (location: string) => Promise<null>;
   medications: string;
   facts: string[];
+  about: string;
   care: { upcoming: string; team: string };
   emergencyPlan: string;
   today: string;
@@ -433,6 +436,7 @@ async function runCore(opts: {
       ? `Saved facts about the user (they can edit these; call forget_fact if one turns out wrong):\n${opts.facts.map((f) => `- ${f}`).join("\n")}`
       : "No saved facts about the user yet. When they mention a lasting health fact (allergy, condition, regular medication), call remember_fact.",
   );
+  if (opts.about) system.push(opts.about);
   system.push(`Today is ${opts.today} (the user's local date).`);
   if (opts.care.upcoming) system.push(`The user's upcoming appointments:\n${opts.care.upcoming}`);
   if (opts.care.team) system.push(`The user's care team:\n${opts.care.team}`);

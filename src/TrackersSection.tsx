@@ -50,8 +50,19 @@ function DayBars({ days, values, max, color }: { days: string[]; values: Map<str
   );
 }
 
+const TRACKERS = ["pain", "asthma", "seizure"] as const;
+const FOCUS_OF: Record<Tracker, string> = { pain: "pain", asthma: "asthma", seizure: "seizures" };
+
+// The trackers someone picked in setup, plus any they've already used; all three when they picked none of them.
+function visibleTrackers(focus: string[], data: Partial<Record<Tracker, unknown[]>> | null | undefined, showAll: boolean): Tracker[] {
+  const picked = TRACKERS.filter((t) => focus.includes(FOCUS_OF[t]) || !!data?.[t]?.length);
+  return showAll || !picked.length ? [...TRACKERS] : picked;
+}
+
 export function TrackersSection({ s, days, since }: { s: Strings; days: string[]; since: string }) {
   const data = useQuery(api.trackers.view, { since });
+  const me = useQuery(api.chat.me);
+  const [showAll, setShowAll] = useState(false);
   const add = useMutation(api.trackers.add);
   const remove = useMutation(api.trackers.remove);
   const setBest = useMutation(api.trackers.setPeakFlowBest);
@@ -163,13 +174,19 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     <View style={styles.wrap}>
       <Text style={styles.section}>{s.trkTitle}</Text>
       <View style={styles.chips}>
-        {(["pain", "asthma", "seizure"] as const).map((t) => (
+        {visibleTrackers(me?.focus ?? [], data, showAll).map((t) => (
           <Tap key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => setTracker(tracker === t ? null : t)} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
             <Ionicons name={t === "pain" ? "flash-outline" : t === "asthma" ? "cloud-outline" : "pulse-outline"} size={16} color={tracker === t ? colors.primary : colors.text} />
             <Text style={[styles.chipText, tracker === t && styles.chipTextOn]}>{s[`trk_${t}`]}</Text>
             {!!data?.[t].length && <Text style={styles.count}>{data[t].length}</Text>}
           </Tap>
         ))}
+        {visibleTrackers(me?.focus ?? [], data, showAll).length < TRACKERS.length && (
+          <Tap style={styles.tbtn} onPress={() => setShowAll(true)} accessibilityRole="button">
+            <Ionicons name="add" size={16} color={colors.primary} />
+            <Text style={[styles.chipText, styles.chipTextOn]}>{s.trkMore}</Text>
+          </Tap>
+        )}
       </View>
 
       {tracker === "pain" && (
@@ -299,7 +316,7 @@ const styles = StyleSheet.create({
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   attackOn: { backgroundColor: colors.urgentBg, borderColor: colors.danger },
   attackText: { color: colors.danger, fontWeight: "700" },
-  tbtn: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+  tbtn: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 5 },
   count: { fontSize: 12, color: colors.muted },
   sev: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   sevText: { fontSize: 13, color: colors.text },
