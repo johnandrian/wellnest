@@ -11,9 +11,10 @@ What it does:
 - **Talk or type**, in English, Spanish or Greek, in the app or on Telegram. Replies to spoken questions are spoken back.
 - **Remembers you:** past chats, saved facts like allergies, your medications and your appointments.
 - **Keeps a journal for you:** symptoms, a daily mood / energy / sleep check-in, pain and CRPS, asthma (peak flow, inhaler use) and seizure trackers, and your exercise routine, logged just by mentioning them in chat.
+- **Finds your patterns:** what goes with your worse days (sleep, activity, your cycle, local weather, air pressure, air quality, pollen), how things changed after a new medication or dose, charts right in the chat, and a summary of your week every Sunday.
 - **Reads your wearables:** Apple Health on iPhone and Health Connect on Android (Samsung, Fitbit, Garmin, Oura, Flo...), with gentle check-ins when your numbers change.
 - **Medications:** reminders with Taken / Skip, doses by time of day, history, side effects, refill warnings and your eScript.
-- **Appointments and care team:** reminders, questions to ask, notes afterwards, one-tap calling.
+- **Appointments and care team:** reminders, suggested questions to ask based on what changed since your last visit, notes afterwards, one-tap calling.
 - **Gets you care:** doctor-ready visit summaries, PDF reports, read-only share links for carers and doctors, an emergency plan, the nearest urgent care / ER / pharmacy, and telehealth video visits booked only when you confirm.
 - **Yours to control:** see everything Wellnest knows, export it, or delete it.
 
@@ -30,7 +31,7 @@ flowchart LR
   subgraph Convex["Convex backend"]
     API["Queries and mutations<br/>(chat, journal, meds, visits...)"]
     PIPE["Message pipeline<br/>(action)"]
-    SCHED["Scheduler and crons<br/>(reminders, check-ins, visits)"]
+    SCHED["Scheduler and crons<br/>(reminders, check-ins, visits,<br/>weather, weekly summary)"]
     HTTP["HTTP routes<br/>/telegram /tts /share /creao"]
     DB[("Database and<br/>file storage")]
   end
@@ -40,6 +41,7 @@ flowchart LR
     CART["Cartesia<br/>(speech)"]
     JEV["Jev<br/>(routing)"]
     MAPS["OpenStreetMap<br/>(care nearby)"]
+    METEO["Open-Meteo<br/>(weather, air, pollen)"]
     PUSH["Expo push"]
     TELE["Telehealth provider"]
     CREAO["CREAO analyzer"]
@@ -53,7 +55,7 @@ flowchart LR
   PIPE --> CORTEX & JINA & JEV
   PIPE --> MAPS & TELE & CREAO
   API & PIPE & SCHED --- DB
-  SCHED --> PUSH
+  SCHED --> PUSH & METEO
   HTTP -- "read-only report" --> Carer["Carer or doctor<br/>(share link)"]
 ```
 
@@ -72,11 +74,11 @@ sequenceDiagram
   C->>M: embed and find related past messages
   C->>AI: system prompt (facts, meds, appointments, language, emergency plan if urgent) + history + tools
   loop up to 5 tool rounds
-    AI-->>C: tool call (log_symptom, add_appointment, find_care, get_health_data, ...)
+    AI-->>C: tool call (log_symptom, find_patterns, show_chart, add_appointment, find_care, ...)
     C-->>AI: tool result
   end
   AI-->>C: reply
-  C-->>U: reply appears live (app), on Telegram, spoken if you asked by voice
+  C-->>U: reply (with any charts) appears live (app), on Telegram, spoken if you asked by voice
 ```
 
 ### Data, grouped by feature
@@ -85,7 +87,7 @@ sequenceDiagram
 flowchart TB
   users(("users"))
   users --- chat["messages · photoUploads · memoryFacts"]
-  users --- health["healthDays · checkins"]
+  users --- health["healthDays · weatherDays · checkins"]
   users --- journal["symptomEntries · dailyLogs · trackerEntries · exercises · exerciseLogs"]
   users --- meds["medications · doseLogs · medicationEvents · sideEffects"]
   users --- care["visits · careTeam · appointments (telehealth) · emergencyPlans"]
@@ -99,7 +101,9 @@ flowchart TB
 flowchart LR
   R["Medication reminder due"] --> RM["chat message + push<br/>(Taken / Skip)"] --> RN["schedule next dose"]
   H["Every hour"] --> CI["9 AM local: compare health data<br/>with your usual → maybe a check-in"]
-  V["2 h before an appointment"] --> VP["push reminder"]
+  V["2 h before an appointment"] --> VP["push reminder +<br/>suggested questions if none yet"]
+  W["Every day"] --> WD["fetch weather, air quality and pollen<br/>for everyone with a saved location"]
+  S["Every hour"] --> SW["Sunday 6 PM local: the week's summary<br/>in the chat + push"]
   T["15 min before a video visit"] --> TP["push with the join link"]
   D["Delete my data"] --> DB["delete in batches of 200,<br/>rescheduling itself"]
 ```
@@ -108,6 +112,7 @@ flowchart LR
 - `App.tsx`, `src/` — the Expo app.
   - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** button's tabs.
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
+  - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
   - `MedicationsPanel.tsx` — medications and reminders; `ExercisePanel.tsx` — exercise routine.
   - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
   - `CarePanel.tsx`, `EmergencyCard.tsx`, `TelehealthCard.tsx` — care nearby, emergency plan, video visits.
@@ -122,6 +127,7 @@ flowchart LR
   - `visits.ts`, `telehealth.ts`, `care.ts`, `emergency.ts` — appointments, video visits, care nearby, emergency plans.
   - `visit.ts`, `reports.ts`, `share.ts` (+ `lib/report.ts`) — visit summaries, PDF reports, share links.
   - `health.ts`, `checkins.ts` — wearable data and check-ins. `push.ts` — notifications. `me.ts` — facts, export, deletion.
+  - `insights.ts`, `weather.ts`, `weekly.ts`, `questions.ts` (+ `lib/insights.ts`, `lib/insightsText.ts`, `lib/weather.ts`) — patterns, charts, medication before/after, weather triggers, the weekly summary, questions for appointments.
   - `creao.ts`, `shop.ts`, `lib/` — CREAO analysis, the supply shopper, and clients for Cortex, Jina, Cartesia, Telegram, Jev, OpenStreetMap.
 - `tests/` — Vitest + convex-test; every outside API is faked.
 - `creao/` — the CREAO agent bundle.
@@ -217,7 +223,7 @@ Wellnest speaks **English, Spanish and Greek**. The user picks one in Settings, 
 - **Also translated:** medication reminder messages (local time format), visit summaries (written in that language), check-ins, telehealth messages and push notifications, the daily-limit and error replies, and the whole app: chat, Settings, every Health tools tab and "What Wellnest knows about me" (`src/i18n.ts`; the typecheck fails if a language is missing a string). Still English: the sign-in screen (the language isn't known yet), microphone error messages, and error text that comes from the server.
 
 ## Push notifications
-iOS and Android get push notifications (Expo push) for **medication reminders** (with Taken / Skip buttons right on the notification) and **telehealth appointment updates**. Each kind can be turned off in Settings.
+iOS and Android get push notifications (Expo push) for **medication reminders** (with Taken / Skip buttons right on the notification), **appointment updates** and the **weekly summary**. Reminders and appointments can each be turned off in Settings; the weekly summary's switch turns off both its message and its push.
 - **Setup:** push needs a development or store build with an EAS project id (`npx eas-cli init` writes it to `app.json`). Optional `EXPO_ACCESS_TOKEN` on the Convex deployment if you turn on Expo's enhanced push security. Web has no push; reminders still show in the chat.
 - **Devices:** each phone registers its token in `pushTokens` (up to 10 per user; a phone that signs in to another account moves to it). Signing out removes it; tokens Expo reports as `DeviceNotRegistered` are dropped.
 
@@ -225,6 +231,18 @@ iOS and Android get push notifications (Expo push) for **medication reminders** 
 When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (pulse icon) opens tabs for the Journal, Medications, Exercise, Visits, Reports and Care; the tab bar scrolls sideways on phones.
 - **Journal tab:** a severity bar chart per symptom for 14, 30 or 90 days, with Apple Health sleep (dark when under 6 h) and period days underneath; per-symptom summaries (days logged, average, latest, getting better or worse); and patterns such as "Headache averaged 7/10 on days with under 6 h of sleep vs 3/10 otherwise", shown only with at least 3 days on each side and a 1.5-point gap, and labelled as associations, not causes. Entries can be added or removed by hand.
 - **Model and summaries:** `get_symptom_journal` gives the model the same summaries, patterns and entries; visit summaries include them. The journal can be deleted from "What Wellnest knows about me".
+
+## Patterns and triggers
+The Journal tab's **What goes with your worse days** card, and the model's `find_patterns` tool, look through the last 90 days of your own logs (`convex/lib/insights.ts`). Each day becomes one number per measure: pain (the highest that day), your three most-rated symptoms, mood, energy and sleep quality, lowest peak flow, reliever puffs, and seizures (counted as 0 on seizure-free days after the first one). Each is compared with possible triggers: sleep hours and quality, the previous day's steps, resting heart rate, HRV, period days, and local weather (daily high, humidity, a drop in air pressure, rain, air quality index, pollen).
+- **How:** split the days at the trigger's median (or yes/no), and keep a pattern only with at least 10 days that have both numbers, 4 on each side, a gap big enough to matter (1 point of pain, half a point of mood) and at least half a standard deviation. The strongest show, two per measure at most, worded like "Pain averaged 6/10 on days with humidity of 65% or more (10 days), vs 2/10 on other days (10)" and labelled as associations, not causes. The older journal patterns (3 days a side) still show until these appear.
+- **Medication before and after:** for each medication started or dose changed in the last four months, every measure's average in the two weeks before vs the days after (at least four), when the change matters: "Pain since starting Amitriptyline on Oct 26: 3/10, vs 7/10 in the 2 weeks before (better)."
+- **Weather** (`convex/weather.ts`, `lib/weather.ts`): Open-Meteo, free and keyless. Saving a location (Settings, chat or a Telegram location) geocodes it and fetches the last two weeks and the next two days; a daily cron refreshes everyone with a location, rewriting the last two weeks so gaps fill in and forecasts become actual readings. Hourly readings become one row per local day in `weatherDays`, kept about a year. Pollen is only reported in Europe. The card shows today's weather, and the model also gets tomorrow's forecast.
+
+## Charts in chat
+"Show my pain this month" makes the model call `show_chart` (pain, a symptom, mood, energy, sleep, steps, heart rate, HRV, weight, peak flow, reliever puffs, seizures, temperature, air quality or pollen; 7-180 days). The chart is saved on the reply (`messages.charts`, up to 3) and drawn under it in the app, one bar per day coloured from good to bad for that measure, with the average, high and low. The model gets the same numbers back so it can describe the trend in a sentence; on Telegram that description is the answer.
+
+## Weekly summary
+Sunday at 6 PM local time (`convex/weekly.ts`, hourly cron), a short recap in the chat with a push notification (and on Telegram when linked): each measure's average this week against last week (better or worse), medication doses taken from the week's reminders, a medication change from the last month whose effect is clear, and the strongest pattern. Only when something was logged that week, at most once every 6 days, in the user's language; Settings has a switch to turn it off.
 
 ## Proactive check-ins
 An hourly cron (`checkins.scan`) looks at each Apple Health user whose local time is 9 AM and compares their last few days with their own previous two weeks. If something changed, Wellnest posts one gentle question in the chat, never a diagnosis, for example: resting heart rate and wrist temperature up together ("your body may be fighting something off"), a temperature or breathing-rate jump, lower blood oxygen (flagged urgent), a heart rate rise, three short nights, an HRV drop, or much less activity. At most one check-in a day, the same kind at most every 3 days, only with at least 5 days of history and data from yesterday or today. Replies go through the normal chat, so symptoms get logged in the journal. Settings has a switch to turn check-ins off; they don't send push notifications.
@@ -254,7 +272,7 @@ Pain / CRPS, asthma and seizures, each with its own fields, in the Journal tab (
 A routine of exercises (sets × reps or minutes, on chosen weekdays) to tick off each day, with a 14-day strip per exercise (green done, amber missed). "Did my stretches" in chat ticks them off (`log_exercise_done`; `add_exercise` adds one). Adherence ("done 9 of 12 scheduled days") goes to the model, visit summaries and reports, and the journal compares symptoms on done vs missed days.
 
 ## Appointments and care team
-The **Visits** tab holds every appointment (in person, video or phone) with **questions to ask** before and **notes** after, a push reminder 2 hours before, and "Make a visit summary" for it. Booked telehealth visits show in the same list. The **care team** keeps your doctors, nurses and therapists with one-tap call and email. "I've got the rheumatologist Thursday at 2 with Dr. Lee" → `add_appointment` (local time; the clinician is added to the care team). The model sees upcoming appointments and the care team, and visit summaries include the questions and notes.
+The **Visits** tab holds every appointment (in person, video or phone) with **questions to ask** before and **notes** after, a push reminder 2 hours before, and "Make a visit summary" for it. **Suggest questions** (`convex/questions.ts`) has the model read what changed since your last visit (symptoms, trackers, check-ins, medication changes and side effects, patterns) and write 3-6 specific questions in your own voice and language, without repeating your own notes; you can remove any. They're written automatically with the 2-hour reminder when there are none yet. Booked telehealth visits show in the same list. The **care team** keeps your doctors, nurses and therapists with one-tap call and email. "I've got the rheumatologist Thursday at 2 with Dr. Lee" → `add_appointment` (local time; the clinician is added to the care team). The model sees upcoming appointments and the care team, and visit summaries include the questions and notes.
 
 ## PDF reports
 The **Reports** tab makes a report for any date range (last 30 / 90 days, last year, or custom dates up to a year) with the sections you tick: key facts, medications (with adherence, changes and side effects), symptoms and daily check-ins, condition trackers, exercise, health data, appointments and care team, and the emergency plan. It's one self-contained HTML page with inline SVG charts and no scripts (`convex/lib/report.ts`), in your language. On iOS/Android it becomes a PDF (`expo-print`) and opens the share sheet; on web it opens the print dialog to save as PDF.
