@@ -1,12 +1,13 @@
 // Telehealth video visits (convex/telehealth.ts). AppointmentCard sits under the chat message that offers times;
 // TelehealthCard is the Care tab's view of the current visit, with a way to ask for one.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 
 type Visit = NonNullable<(typeof api.telehealth.get)["_returnType"]>;
@@ -60,16 +61,16 @@ function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
       {visit.status === "suggested" && (
         <>
           {visit.slots.map((slot) => (
-            <Pressable key={slot.id} style={styles.slot} onPress={() => void pick(slot)} accessibilityRole="button">
+            <Tap key={slot.id} style={styles.slot} onPress={() => void pick(slot)} accessibilityRole="button">
               <Ionicons name="videocam-outline" size={18} color={colors.primary} />
               <Text style={styles.slotText}>
                 {timeOf(slot.startsAt)} · {slot.clinician}
               </Text>
-            </Pressable>
+            </Tap>
           ))}
-          <Pressable onPress={() => void stop()} accessibilityRole="button">
+          <Tap onPress={() => void stop()} accessibilityRole="button">
             <Text style={styles.link}>{s.visitNotNow}</Text>
-          </Pressable>
+          </Tap>
         </>
       )}
       {visit.status === "booked" && (
@@ -79,14 +80,14 @@ function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
           </Text>
           <View style={styles.row}>
             {visit.joinUrl && (
-              <Pressable style={styles.button} onPress={() => void Linking.openURL(visit.joinUrl!)} accessibilityRole="link">
-                <Ionicons name="videocam" size={16} color="#fff" />
+              <Tap style={styles.button} onPress={() => void Linking.openURL(visit.joinUrl!)} accessibilityRole="link">
+                <Ionicons name="videocam" size={16} color={colors.onPrimary} />
                 <Text style={styles.buttonText}>{s.visitJoin}</Text>
-              </Pressable>
+              </Tap>
             )}
-            <Pressable onPress={() => void stop()} accessibilityRole="button">
+            <Tap onPress={() => void stop()} accessibilityRole="button">
               <Text style={[styles.link, styles.danger]}>{s.visitCancelYes}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </>
       )}
@@ -144,20 +145,20 @@ export function TelehealthCard({ s }: { s: Strings }) {
             maxLength={300}
           />
           <View style={styles.row}>
-            <Pressable style={styles.button} onPress={() => void submit()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void submit()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.visitFindTimes}</Text>
-            </Pressable>
-            <Pressable onPress={() => setAsking(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setAsking(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : (
         <>
           <Text style={styles.muted}>{s.visitIntro}</Text>
-          <Pressable onPress={() => setAsking(true)} accessibilityRole="button">
+          <Tap onPress={() => setAsking(true)} accessibilityRole="button">
             <Text style={styles.link}>{s.visitRequest}</Text>
-          </Pressable>
+          </Tap>
         </>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -166,18 +167,18 @@ export function TelehealthCard({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, gap: 8 },
+  card: { ...ui.card, padding: 12, gap: 8 },
   title: { fontSize: 15, fontWeight: "700", color: colors.text },
   body: { gap: 8, marginTop: 6 },
   row: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
   muted: { color: colors.muted, fontSize: 14, lineHeight: 19, flexShrink: 1 },
   line: { color: colors.text, fontSize: 14 },
-  test: { color: "#92400E", backgroundColor: "#FEF3C7", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12, alignSelf: "flex-start" },
-  slot: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: "#fff" },
+  test: { color: colors.warningText, backgroundColor: colors.warningSoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12, alignSelf: "flex-start" },
+  slot: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface },
   slotText: { color: colors.primary, fontWeight: "600", flexShrink: 1 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
-  button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14 },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
   link: { color: colors.primary, fontWeight: "600" },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },

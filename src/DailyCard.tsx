@@ -1,9 +1,10 @@
 // "How's today?": mood, energy and sleep quality in one tap each (convex/daily.ts). In the chat it shows until today
 // is answered or skipped; in the Journal tab it's always there to change today's answers.
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui } from "./theme";
 import type { Strings } from "./i18n";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
@@ -31,7 +32,7 @@ export function DailyCard({ s, inChat = false }: { s: Strings; inChat?: boolean 
           <Text style={styles.label}>{label[k]}</Text>
           <View style={styles.faces}>
             {FACES.map((face, i) => (
-              <Pressable
+              <Tap
                 key={face}
                 style={[styles.face, today[k] === i + 1 && styles.faceOn]}
                 onPress={() => void log({ [k]: i + 1, date })}
@@ -40,15 +41,15 @@ export function DailyCard({ s, inChat = false }: { s: Strings; inChat?: boolean 
                 accessibilityState={{ selected: today[k] === i + 1 }}
               >
                 <Text style={styles.faceText}>{face}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
         </View>
       ))}
       {inChat && (
-        <Pressable onPress={() => void skip()} accessibilityRole="button">
+        <Tap onPress={() => void skip()} accessibilityRole="button">
           <Text style={styles.link}>{s.dailyNotToday}</Text>
-        </Pressable>
+        </Tap>
       )}
     </View>
   );
@@ -68,7 +69,7 @@ export function DailyChart({ days, daily, s }: { days: string[]; daily: { date: 
               const v = byDate.get(d)?.[k];
               return (
                 <View key={d} style={styles.slot}>
-                  {v != null && <View style={[styles.bar, { height: `${v * 20}%`, backgroundColor: v <= 2 ? "#D97706" : colors.primary }]} />}
+                  {v != null && <View style={[styles.bar, { height: `${v * 20}%`, backgroundColor: v <= 2 ? colors.amber : colors.primary }]} />}
                 </View>
               );
             })}
@@ -80,7 +81,7 @@ export function DailyChart({ days, daily, s }: { days: string[]; daily: { date: 
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, gap: 6, backgroundColor: "#fff" },
+  card: { ...ui.card, padding: 12, gap: 6 },
   inChat: { margin: 12, marginBottom: 0, maxWidth: 736, width: "100%", alignSelf: "center" },
   title: { fontSize: 15, fontWeight: "700", color: colors.text },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },

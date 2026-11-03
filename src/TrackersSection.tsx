@@ -1,12 +1,13 @@
 // Condition trackers in the Journal tab (convex/trackers.ts): pain / CRPS, asthma and seizures, each with a quick
 // form, a chart over the chosen days and the recent entries. Most people will log by just telling Wellnest in chat.
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 
 type Tracker = "pain" | "asthma" | "seizure";
@@ -17,15 +18,15 @@ const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence
 const PAIN_FLAGS = ["flare", "swelling", "colourChange", "temperatureChange", "touchSensitive"] as const;
 const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const numOrUndef = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
-const sevColor = (n: number) => (n >= 7 ? colors.danger : n >= 4 ? "#D97706" : colors.mint);
+const sevColor = (n: number) => (n >= 7 ? colors.danger : n >= 4 ? colors.amber : colors.mint);
 
 function Chips<T extends string>({ items, selected, onToggle, label }: { items: readonly T[]; selected: T[]; onToggle: (x: T) => void; label: (x: T) => string }) {
   return (
     <View style={styles.chips}>
       {items.map((x) => (
-        <Pressable key={x} style={[styles.chip, selected.includes(x) && styles.chipOn]} onPress={() => onToggle(x)} accessibilityRole="checkbox" accessibilityState={{ checked: selected.includes(x) }}>
+        <Tap key={x} style={[styles.chip, selected.includes(x) && styles.chipOn]} onPress={() => onToggle(x)} accessibilityRole="checkbox" accessibilityState={{ checked: selected.includes(x) }}>
           <Text style={[styles.chipText, selected.includes(x) && styles.chipTextOn]}>{label(x)}</Text>
-        </Pressable>
+        </Tap>
       ))}
     </View>
   );
@@ -133,9 +134,9 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     <View style={styles.inline}>
       <Text style={styles.label}>{label}</Text>
       {[true, false].map((b) => (
-        <Pressable key={String(b)} style={[styles.chip, value === b && styles.chipOn]} onPress={() => set(value === b ? null : b)} accessibilityRole="radio" accessibilityState={{ selected: value === b }}>
+        <Tap key={String(b)} style={[styles.chip, value === b && styles.chipOn]} onPress={() => set(value === b ? null : b)} accessibilityRole="radio" accessibilityState={{ selected: value === b }}>
           <Text style={[styles.chipText, value === b && styles.chipTextOn]}>{b ? s.yes : s.no}</Text>
-        </Pressable>
+        </Tap>
       ))}
     </View>
   );
@@ -163,11 +164,11 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
       <Text style={styles.section}>{s.trkTitle}</Text>
       <View style={styles.chips}>
         {(["pain", "asthma", "seizure"] as const).map((t) => (
-          <Pressable key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => setTracker(tracker === t ? null : t)} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
+          <Tap key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => setTracker(tracker === t ? null : t)} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
             <Ionicons name={t === "pain" ? "flash-outline" : t === "asthma" ? "cloud-outline" : "pulse-outline"} size={16} color={tracker === t ? colors.primary : colors.text} />
             <Text style={[styles.chipText, tracker === t && styles.chipTextOn]}>{s[`trk_${t}`]}</Text>
             {!!data?.[t].length && <Text style={styles.count}>{data[t].length}</Text>}
-          </Pressable>
+          </Tap>
         ))}
       </View>
 
@@ -177,9 +178,9 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           <Text style={styles.label}>{s.trkPainScore}</Text>
           <View style={styles.chips}>
             {Array.from({ length: 11 }, (_, n) => (
-              <Pressable key={n} style={[styles.sev, severity === n && { backgroundColor: sevColor(n), borderColor: sevColor(n) }]} onPress={() => setSeverity(severity === n ? null : n)} accessibilityRole="radio" accessibilityLabel={`${n}/10`} accessibilityState={{ selected: severity === n }}>
+              <Tap key={n} style={[styles.sev, severity === n && { backgroundColor: sevColor(n), borderColor: sevColor(n) }]} onPress={() => setSeverity(severity === n ? null : n)} accessibilityRole="radio" accessibilityLabel={`${n}/10`} accessibilityState={{ selected: severity === n }}>
                 <Text style={[styles.sevText, severity === n && styles.sevOn]}>{n}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
           <Text style={styles.label}>{s.trkWhere}</Text>
@@ -201,21 +202,21 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           {flowByDay.size > 0 && (
             <>
               <Text style={styles.small}>{s.trkPeakFlowChart}</Text>
-              <DayBars days={days} values={flowByDay} max={bestFlow ?? Math.max(...flowByDay.values())} color={(v) => (!bestFlow ? colors.primary : v / bestFlow >= 0.8 ? colors.mint : v / bestFlow >= 0.5 ? "#D97706" : colors.danger)} />
+              <DayBars days={days} values={flowByDay} max={bestFlow ?? Math.max(...flowByDay.values())} color={(v) => (!bestFlow ? colors.primary : v / bestFlow >= 0.8 ? colors.mint : v / bestFlow >= 0.5 ? colors.amber : colors.danger)} />
             </>
           )}
           {puffsByDay.size > 0 && (
             <>
               <Text style={styles.small}>{s.trkPuffsChart}</Text>
-              <DayBars days={days} values={puffsByDay} max={Math.max(4, ...puffsByDay.values())} color={() => "#6366F1"} />
+              <DayBars days={days} values={puffsByDay} max={Math.max(4, ...puffsByDay.values())} color={() => colors.sleep} />
             </>
           )}
           <View style={styles.inline}>
             <Text style={styles.label}>{s.trkBest}</Text>
             <TextInput style={[styles.input, styles.short]} value={best || (bestFlow ? String(bestFlow) : "")} onChangeText={setBestText} keyboardType="numeric" accessibilityLabel={s.trkBest} />
-            <Pressable onPress={() => void setBest({ value: numOrUndef(best) ?? null }).catch((e) => setError(cleanError(e)))} accessibilityRole="button">
+            <Tap onPress={() => void setBest({ value: numOrUndef(best) ?? null }).catch((e) => setError(cleanError(e)))} accessibilityRole="button">
               <Text style={styles.link}>{s.save}</Text>
-            </Pressable>
+            </Tap>
           </View>
           <View style={styles.inline}>
             <TextInput style={[styles.input, styles.short]} value={peakFlow} onChangeText={setPeakFlow} keyboardType="numeric" placeholder="L/min" placeholderTextColor={colors.muted} accessibilityLabel={s.trkPeakFlow} />
@@ -226,12 +227,12 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           {yesNo(preventer, setPreventer, s.trkPreventer)}
           <Chips items={SYMPTOMS} selected={symptoms as (typeof SYMPTOMS)[number][]} onToggle={(x) => setSymptoms(toggle(symptoms, x))} label={(x) => s[`asym_${x}`]} />
           <View style={styles.chips}>
-            <Pressable style={[styles.chip, night && styles.chipOn]} onPress={() => setNight(!night)} accessibilityRole="checkbox" accessibilityState={{ checked: night }}>
+            <Tap style={[styles.chip, night && styles.chipOn]} onPress={() => setNight(!night)} accessibilityRole="checkbox" accessibilityState={{ checked: night }}>
               <Text style={[styles.chipText, night && styles.chipTextOn]}>{s.trkNight}</Text>
-            </Pressable>
-            <Pressable style={[styles.chip, attack && styles.attackOn]} onPress={() => setAttack(!attack)} accessibilityRole="checkbox" accessibilityState={{ checked: attack }}>
+            </Tap>
+            <Tap style={[styles.chip, attack && styles.attackOn]} onPress={() => setAttack(!attack)} accessibilityRole="checkbox" accessibilityState={{ checked: attack }}>
               <Text style={[styles.chipText, attack && styles.attackText]}>{s.trkAttack}</Text>
-            </Pressable>
+            </Tap>
           </View>
           <TextInput style={styles.input} placeholder={s.trkTriggers} placeholderTextColor={colors.muted} value={triggers} onChangeText={setTriggers} />
           <Text style={styles.small}>{s.trkAsthmaNote}</Text>
@@ -240,7 +241,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
 
       {tracker === "seizure" && (
         <View style={styles.form}>
-          {seizuresByDay.size > 0 && <DayBars days={days} values={seizuresByDay} max={Math.max(3, ...seizuresByDay.values())} color={() => "#7C3AED"} />}
+          {seizuresByDay.size > 0 && <DayBars days={days} values={seizuresByDay} max={Math.max(3, ...seizuresByDay.values())} color={() => colors.seizure} />}
           <Text style={styles.small}>{s.trkSeizureSafety}</Text>
           <Chips items={SEIZURE_TYPES} selected={seizureType ? [seizureType as (typeof SEIZURE_TYPES)[number]] : []} onToggle={(x) => setSeizureType(seizureType === x ? null : x)} label={(x) => s[`stype_${x}`]} />
           <View style={styles.inline}>
@@ -260,9 +261,9 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
         <>
           <TextInput style={styles.input} placeholder={s.trkNote} placeholderTextColor={colors.muted} value={note} onChangeText={setNote} />
           <View style={styles.inline}>
-            <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.journalSave}</Text>
-            </Pressable>
+            </Tap>
             {saved && <Text style={styles.small}>✓ {s.trkSaved}</Text>}
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
@@ -272,9 +273,9 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
                 {new Date(e.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {line(tracker, e)}
                 {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
               </Text>
-              <Pressable onPress={() => void remove({ id: e._id as Id<"trackerEntries"> })} accessibilityRole="button" accessibilityLabel={s.remove}>
+              <Tap onPress={() => void remove({ id: e._id as Id<"trackerEntries"> })} accessibilityRole="button" accessibilityLabel={s.remove}>
                 <Ionicons name="close" size={18} color={colors.muted} />
-              </Pressable>
+              </Tap>
             </View>
           ))}
         </>
@@ -285,33 +286,33 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
 
 const styles = StyleSheet.create({
   wrap: { gap: 8 },
-  section: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 6 },
+  section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   form: { gap: 8 },
   label: { color: colors.text, fontSize: 14 },
   small: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   line: { color: colors.text, fontSize: 14, lineHeight: 20 },
   flex: { flex: 1 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   attackOn: { backgroundColor: colors.urgentBg, borderColor: colors.danger },
   attackText: { color: colors.danger, fontWeight: "700" },
   tbtn: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  count: { fontSize: 11, color: colors.muted },
+  count: { fontSize: 12, color: colors.muted },
   sev: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   sevText: { fontSize: 13, color: colors.text },
-  sevOn: { color: "#fff", fontWeight: "700" },
+  sevOn: { color: colors.onPrimary, fontWeight: "700" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 72, textAlign: "center" },
   multi: { minHeight: 56, textAlignVertical: "top" },
   bars: { height: 56, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 4 },
   slot: { flex: 1, height: "100%", justifyContent: "flex-end" },
   bar: { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16 },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
   link: { color: colors.primary, fontWeight: "600" },
   entry: { flexDirection: "row", alignItems: "center", gap: 8 },
   error: { color: colors.danger, fontSize: 13 },

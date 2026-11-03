@@ -2,12 +2,13 @@
 // details: generic name, form, prescriber, per-time doses, refills, the eScript photo, side effects and history.
 // Reminder messages with Taken / Skip appear in the chat.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
 
@@ -42,9 +43,9 @@ function FormChips({ value, onChange, s }: { value: Form | null; onChange: (f: F
   return (
     <View style={styles.chips}>
       {FORMS.map((f) => (
-        <Pressable key={f} style={[styles.chip, value === f && styles.chipOn]} onPress={() => onChange(value === f ? null : f)} accessibilityRole="radio" accessibilityState={{ selected: value === f }}>
+        <Tap key={f} style={[styles.chip, value === f && styles.chipOn]} onPress={() => onChange(value === f ? null : f)} accessibilityRole="radio" accessibilityState={{ selected: value === f }}>
           <Text style={[styles.chipText, value === f && styles.chipTextOn]}>{s[`form_${f}`]}</Text>
-        </Pressable>
+        </Tap>
       ))}
     </View>
   );
@@ -152,12 +153,12 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
           <TextInput style={styles.input} placeholder={s.medPrescriberPlaceholder} placeholderTextColor={colors.muted} value={draft.prescriber} onChangeText={(prescriber) => setDraft({ ...draft, prescriber })} />
           <TextInput style={styles.input} placeholder={s.medNotesPlaceholder} placeholderTextColor={colors.muted} value={draft.notes} onChangeText={(notes) => setDraft({ ...draft, notes })} multiline />
           <View style={styles.inline}>
-            <Pressable style={styles.button} onPress={() => void saveEdit()} disabled={busy} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void saveEdit()} disabled={busy} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.save}</Text>
-            </Pressable>
-            <Pressable onPress={() => setEditing(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setEditing(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : (
@@ -169,9 +170,9 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
           )}
           {med.timeDoses.length > 0 && <Text style={styles.small}>{med.timeDoses.map((t) => `${t.time}: ${t.dose}`).join(" · ")}</Text>}
           {med.notes && <Text style={styles.small}>{med.notes}</Text>}
-          <Pressable onPress={startEdit} accessibilityRole="button">
+          <Tap onPress={startEdit} accessibilityRole="button">
             <Text style={styles.link}>{s.medEditDetails}</Text>
-          </Pressable>
+          </Tap>
         </>
       )}
 
@@ -182,12 +183,12 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
             {s.medSupplyLine.replace("{left}", String(med.supply.left)).replace("{days}", String(med.daysLeft ?? "?"))}
           </Text>
           <TextInput style={[styles.input, styles.short]} placeholder="+30" placeholderTextColor={colors.muted} value={refillAmount} onChangeText={setRefillAmount} keyboardType="numeric" />
-          <Pressable onPress={() => void run(async () => (await refill({ id, amount: Number(refillAmount) || undefined }), setRefillAmount("")))} accessibilityRole="button">
+          <Tap onPress={() => void run(async () => (await refill({ id, amount: Number(refillAmount) || undefined }), setRefillAmount("")))} accessibilityRole="button">
             <Text style={styles.link}>{s.medRefilled}</Text>
-          </Pressable>
-          <Pressable onPress={() => setSupplyDraft({ left: String(med.supply!.left), perDose: String(med.supply!.perDose), warnDays: String(med.supply!.warnDays) })} accessibilityRole="button">
+          </Tap>
+          <Tap onPress={() => setSupplyDraft({ left: String(med.supply!.left), perDose: String(med.supply!.perDose), warnDays: String(med.supply!.warnDays) })} accessibilityRole="button">
             <Text style={styles.link}>{s.edit}</Text>
-          </Pressable>
+          </Tap>
         </View>
       ) : supplyDraft ? (
         <View style={styles.inline}>
@@ -197,7 +198,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
           <Text style={styles.label}>{s.medPerDose}</Text>
           <TextInput style={[styles.input, styles.short]} value={supplyDraft.warnDays} onChangeText={(warnDays) => setSupplyDraft({ ...supplyDraft, warnDays })} keyboardType="numeric" accessibilityLabel={s.medWarnDays} />
           <Text style={styles.label}>{s.medWarnDays}</Text>
-          <Pressable
+          <Tap
             style={styles.button}
             onPress={() =>
               void run(async () => {
@@ -208,12 +209,12 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
             accessibilityRole="button"
           >
             <Text style={styles.buttonText}>{s.save}</Text>
-          </Pressable>
+          </Tap>
         </View>
       ) : (
-        <Pressable onPress={() => setSupplyDraft({ left: "", perDose: "1", warnDays: "7" })} accessibilityRole="button">
+        <Tap onPress={() => setSupplyDraft({ left: "", perDose: "1", warnDays: "7" })} accessibilityRole="button">
           <Text style={styles.link}>{s.medTrackSupply}</Text>
-        </Pressable>
+        </Tap>
       )}
 
       <Text style={styles.section}>{s.medScript}</Text>
@@ -221,18 +222,18 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
         <View style={styles.inline}>
           <Image source={{ uri: med.scriptUrl }} style={styles.script} accessibilityLabel={s.medScript} />
           <View style={styles.form}>
-            <Pressable onPress={() => void addScript()} accessibilityRole="button">
+            <Tap onPress={() => void addScript()} accessibilityRole="button">
               <Text style={styles.link}>{s.medReplaceScript}</Text>
-            </Pressable>
-            <Pressable onPress={() => void run(() => setScript({ id, storageId: null }))} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => void run(() => setScript({ id, storageId: null }))} accessibilityRole="button">
               <Text style={[styles.link, styles.danger]}>{s.remove}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : (
-        <Pressable onPress={() => void addScript()} accessibilityRole="button">
+        <Tap onPress={() => void addScript()} accessibilityRole="button">
           <Text style={styles.link}>{s.medAddScript}</Text>
-        </Pressable>
+        </Tap>
       )}
 
       <Text style={styles.section}>{s.medSideEffects}</Text>
@@ -242,16 +243,16 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
             {e.date.slice(5)} · {e.effect}
             {e.severity !== null ? ` ${e.severity}/10` : ""}
           </Text>
-          <Pressable onPress={() => void run(() => removeEffect({ id: e._id }))} accessibilityRole="button" accessibilityLabel={s.remove}>
+          <Tap onPress={() => void run(() => removeEffect({ id: e._id }))} accessibilityRole="button" accessibilityLabel={s.remove}>
             <Ionicons name="close" size={18} color={colors.muted} />
-          </Pressable>
+          </Tap>
         </View>
       ))}
       <View style={styles.inline}>
         <TextInput style={[styles.input, styles.flex]} placeholder={s.medSideEffectPlaceholder} placeholderTextColor={colors.muted} value={effect} onChangeText={setEffect} maxLength={200} />
-        <Pressable onPress={() => void run(async () => (await addEffect({ id, effect }), setEffect("")))} disabled={!effect.trim()} accessibilityRole="button" accessibilityLabel={s.medAddSideEffect}>
+        <Tap onPress={() => void run(async () => (await addEffect({ id, effect }), setEffect("")))} disabled={!effect.trim()} accessibilityRole="button" accessibilityLabel={s.medAddSideEffect}>
           <Ionicons name="add-circle" size={26} color={effect.trim() ? colors.primary : colors.border} />
-        </Pressable>
+        </Tap>
       </View>
 
       {med.events.length > 0 && <Text style={styles.section}>{s.medHistory}</Text>}
@@ -265,22 +266,22 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
       {med.status !== "stopped" && (
         <View style={styles.inline}>
           {med.status === "active" ? (
-            <Pressable onPress={() => void run(() => pause({ id }))} accessibilityRole="button">
+            <Tap onPress={() => void run(() => pause({ id }))} accessibilityRole="button">
               <Text style={styles.link}>{s.medPause}</Text>
-            </Pressable>
+            </Tap>
           ) : (
-            <Pressable onPress={() => void run(() => resume({ id }))} accessibilityRole="button">
+            <Tap onPress={() => void run(() => resume({ id }))} accessibilityRole="button">
               <Text style={styles.link}>{s.medResume}</Text>
-            </Pressable>
+            </Tap>
           )}
-          <Pressable
+          <Tap
             onPress={async () => {
               if (await confirm(s.medStopTitle.replace("{name}", med.name), s.medStopBody, s.medStop, s.cancel)) await run(() => stop({ id }));
             }}
             accessibilityRole="button"
           >
             <Text style={[styles.link, styles.danger]}>{s.medStop}</Text>
-          </Pressable>
+          </Tap>
         </View>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -345,7 +346,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       {meds?.length === 0 && !adding && <Text style={styles.empty}>{s.remindersEmpty}</Text>}
       {list.map((m) => (
         <View key={m._id} style={[styles.med, m.status !== "active" && styles.medInactive]}>
-          <Pressable style={styles.medHead} onPress={() => setOpen(open === m._id ? null : m._id)} accessibilityRole="button" accessibilityState={{ expanded: open === m._id }}>
+          <Tap style={styles.medHead} onPress={() => setOpen(open === m._id ? null : m._id)} accessibilityRole="button" accessibilityState={{ expanded: open === m._id }}>
             <View style={styles.flex}>
               <Text style={styles.medName}>
                 {m.name}
@@ -359,14 +360,14 @@ export function MedicationsPanel({ s }: { s: Strings }) {
               </Text>
             </View>
             <Ionicons name={open === m._id ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
-          </Pressable>
+          </Tap>
           {open === m._id && <Detail id={m._id} s={s} />}
         </View>
       ))}
       {stoppedCount > 0 && (
-        <Pressable onPress={() => setShowStopped(!showStopped)} accessibilityRole="button">
+        <Tap onPress={() => setShowStopped(!showStopped)} accessibilityRole="button">
           <Text style={styles.link}>{(showStopped ? s.medHideStopped : s.medShowStopped).replace("{n}", String(stoppedCount))}</Text>
-        </Pressable>
+        </Tap>
       )}
 
       {adding ? (
@@ -375,9 +376,9 @@ export function MedicationsPanel({ s }: { s: Strings }) {
           <TextInput style={styles.input} placeholder={s.dosePlaceholder} placeholderTextColor={colors.muted} value={dose} onChangeText={setDose} />
           <View style={styles.chips}>
             {(["daily", "interval"] as const).map((m) => (
-              <Pressable key={m} style={[styles.chip, mode === m && styles.chipOn]} onPress={() => setMode(m)} accessibilityRole="radio" accessibilityState={{ selected: mode === m }}>
+              <Tap key={m} style={[styles.chip, mode === m && styles.chipOn]} onPress={() => setMode(m)} accessibilityRole="radio" accessibilityState={{ selected: mode === m }}>
                 <Text style={[styles.chipText, mode === m && styles.chipTextOn]}>{m === "daily" ? s.atSetTimes : s.everyFewHours}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
           {mode === "daily" ? (
@@ -412,19 +413,19 @@ export function MedicationsPanel({ s }: { s: Strings }) {
           <FormChips value={form} onChange={setForm} s={s} />
           <TextInput style={styles.input} placeholder={s.medPrescriberPlaceholder} placeholderTextColor={colors.muted} value={prescriber} onChangeText={setPrescriber} />
           <View style={styles.inline}>
-            <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.saveReminder}</Text>
-            </Pressable>
-            <Pressable onPress={() => setAdding(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setAdding(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : (
-        <Pressable style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
+        <Tap style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
           <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.link}>{s.medAdd}</Text>
-        </Pressable>
+        </Tap>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
     </ScrollView>
@@ -432,36 +433,36 @@ export function MedicationsPanel({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
-  empty: { color: colors.muted, fontStyle: "italic" },
+  empty: { ...ui.empty },
   small: { color: colors.muted, fontSize: 13 },
   line: { color: colors.text, fontSize: 14 },
   warn: { color: colors.danger, fontWeight: "600" },
-  section: { fontSize: 14, fontWeight: "700", color: colors.text, marginTop: 6 },
+  section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   flex: { flex: 1 },
-  med: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, gap: 6 },
+  med: { ...ui.card, padding: 10, gap: 6 },
   medInactive: { backgroundColor: colors.bg },
   medHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   medName: { fontSize: 15, fontWeight: "600", color: colors.text },
   dose: { fontWeight: "400", color: colors.muted },
-  status: { fontSize: 12, fontWeight: "600", color: "#92400E" },
+  status: { fontSize: 12, fontWeight: "600", color: colors.warningText },
   detail: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 64, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text, fontSize: 14 },
   chips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   script: { width: 96, height: 96, borderRadius: 8, backgroundColor: colors.border },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14 },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  addRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  addRow: { ...ui.addButton },
   link: { color: colors.primary, fontWeight: "600" },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },

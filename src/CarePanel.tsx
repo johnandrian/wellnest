@@ -1,12 +1,13 @@
 // Care tab: telehealth video visits (./TelehealthCard), and nearby ERs, urgent care, pharmacies and doctors
 // (convex/care.ts, OpenStreetMap) with Call and Directions. In an emergency, call 911.
 import { useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Tap } from "./Tap";
 import { useAction } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
@@ -61,10 +62,10 @@ export function CarePanel({ s }: { s: Strings }) {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
-      <Pressable style={styles.emergency} onPress={() => void Linking.openURL(`tel:${s.emergencyNumber}`)} accessibilityRole="button">
-        <Ionicons name="call" size={18} color="#fff" />
+      <Tap style={styles.emergency} onPress={() => void Linking.openURL(`tel:${s.emergencyNumber}`)} accessibilityRole="button">
+        <Ionicons name="call" size={18} color={colors.onPrimary} />
         <Text style={styles.emergencyText}>{s.careCall911}</Text>
-      </Pressable>
+      </Tap>
 
       <EmergencyCard s={s} />
       <TelehealthCard s={s} />
@@ -72,7 +73,7 @@ export function CarePanel({ s }: { s: Strings }) {
       <Text style={styles.section}>{s.careNearby}</Text>
       <View style={styles.kinds}>
         {KINDS.map((k) => (
-          <Pressable
+          <Tap
             key={k.kind}
             style={[styles.kind, kind === k.kind && styles.kindOn]}
             onPress={() => void run(k.kind)}
@@ -81,10 +82,10 @@ export function CarePanel({ s }: { s: Strings }) {
           >
             <Ionicons name={k.icon} size={16} color={kind === k.kind ? colors.primary : colors.text} />
             <Text style={[styles.kindText, kind === k.kind && styles.kindTextOn]}>{k.label(s)}</Text>
-          </Pressable>
+          </Tap>
         ))}
       </View>
-      <Pressable
+      <Tap
         style={styles.toggle}
         onPress={() => {
           const next = !useHere;
@@ -96,7 +97,7 @@ export function CarePanel({ s }: { s: Strings }) {
       >
         <Ionicons name={useHere ? "checkbox" : "square-outline"} size={20} color={colors.primary} />
         <Text style={styles.line}>{s.careUseHere}</Text>
-      </Pressable>
+      </Tap>
 
       {busy && <ActivityIndicator color={colors.primary} />}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -115,15 +116,15 @@ export function CarePanel({ s }: { s: Strings }) {
               </Text>
               <View style={styles.actions}>
                 {p.phone && (
-                  <Pressable style={styles.action} onPress={() => void Linking.openURL(`tel:${p.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
+                  <Tap style={styles.action} onPress={() => void Linking.openURL(`tel:${p.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
                     <Ionicons name="call-outline" size={16} color={colors.primary} />
                     <Text style={styles.link}>{s.careCall}</Text>
-                  </Pressable>
+                  </Tap>
                 )}
-                <Pressable style={styles.action} onPress={() => void Linking.openURL(directions(p))} accessibilityRole="link">
+                <Tap style={styles.action} onPress={() => void Linking.openURL(directions(p))} accessibilityRole="link">
                   <Ionicons name="navigate-outline" size={16} color={colors.primary} />
                   <Text style={styles.link}>{s.careDirections}</Text>
-                </Pressable>
+                </Tap>
               </View>
             </View>
           ))}
@@ -135,25 +136,25 @@ export function CarePanel({ s }: { s: Strings }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: 10, padding: 11 },
-  emergencyText: { color: "#fff", fontWeight: "700" },
-  section: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 6 },
+  emergencyText: { color: colors.onPrimary, fontWeight: "700" },
+  section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  kind: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+  kind: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 5 },
   kindOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   kindText: { color: colors.text, fontSize: 14 },
   kindTextOn: { color: colors.primary, fontWeight: "600" },
   toggle: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
   line: { color: colors.text, fontSize: 14 },
   small: { color: colors.muted, fontSize: 13 },
-  empty: { color: colors.muted, fontStyle: "italic" },
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, gap: 4 },
+  empty: { ...ui.empty },
+  card: { ...ui.card, padding: 10, gap: 4 },
   name: { fontSize: 15, fontWeight: "600", color: colors.text },
   actions: { flexDirection: "row", gap: 18, marginTop: 2 },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
   link: { color: colors.primary, fontWeight: "600" },
   error: { color: colors.danger, fontSize: 13 },
-  attribution: { color: colors.muted, fontSize: 11, textAlign: Platform.OS === "web" ? "right" : "left" },
+  attribution: { color: colors.muted, fontSize: 12, textAlign: Platform.OS === "web" ? "right" : "left" },
 });

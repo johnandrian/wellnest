@@ -2,9 +2,10 @@
 // It covers the whole screen; the Chat button at the top right goes back to the conversation.
 // The tab bar scrolls sideways on narrow phones.
 import { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Tap } from "./Tap";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "./theme";
+import { colors, radius, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { JournalPanel } from "./JournalPanel";
 import { MedicationsPanel } from "./MedicationsPanel";
@@ -33,7 +34,7 @@ export function HubPanel({ tab, onTab, onClose, s }: { tab: HubTab; onTab: (t: H
         <Text style={styles.title} numberOfLines={1}>
           {s.hubTitle}
         </Text>
-        <Pressable
+        <Tap
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}
           onPress={onClose}
           accessibilityRole="button"
@@ -41,24 +42,26 @@ export function HubPanel({ tab, onTab, onClose, s }: { tab: HubTab; onTab: (t: H
         >
           <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
           <Text style={styles.backText}>{s.backToChat}</Text>
-        </Pressable>
+        </Tap>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
-        {TABS.map((t) => (
-          <Pressable
-            key={t.tab}
-            style={[styles.tab, tab === t.tab && styles.tabOn]}
-            onPress={() => onTab(t.tab)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === t.tab }}
-          >
-            <Ionicons name={t.icon} size={16} color={tab === t.tab ? colors.primary : colors.muted} />
-            <Text style={[styles.tabText, tab === t.tab && styles.tabTextOn]} numberOfLines={1}>
-              {t.label(s)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <View style={styles.tabBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
+          {TABS.map((t) => (
+            <Tap
+              key={t.tab}
+              style={[styles.tab, tab === t.tab && styles.tabOn]}
+              onPress={() => onTab(t.tab)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === t.tab }}
+            >
+              <Ionicons name={t.icon} size={16} color={tab === t.tab ? colors.primary : colors.muted} />
+              <Text style={[styles.tabText, tab === t.tab && styles.tabTextOn]} numberOfLines={1}>
+                {t.label(s)}
+              </Text>
+            </Tap>
+          ))}
+        </ScrollView>
+      </View>
       {tab === "journal" && <JournalPanel s={s} />}
       {tab === "reminders" && <MedicationsPanel s={s} />}
       {tab === "exercise" && <ExercisePanel s={s} />}
@@ -88,16 +91,19 @@ const styles = StyleSheet.create({
     // Room for the status bar / notch on phones, like the chat header.
     paddingTop: Platform.OS === "web" ? 12 : 56,
     paddingBottom: 10,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
   },
   title: { fontSize: 18, fontWeight: "700", color: colors.text, flexShrink: 1 },
-  back: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.primary, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
+  back: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 14 },
   backText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   pressed: { opacity: 0.6 },
-  tabsScroll: { flexGrow: 0, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
-  tabs: { flexDirection: "row", paddingHorizontal: 8, minWidth: "100%" },
-  tab: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, paddingHorizontal: 10, borderBottomWidth: 2, borderBottomColor: "transparent" },
-  tabOn: { borderBottomColor: colors.primary },
-  tabText: { color: colors.muted, fontSize: 13, fontWeight: "600" },
+  tabBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Lined up with the content below it (max 760 wide) on tablets and desktop.
+  tabsScroll: { flexGrow: 0, width: "100%", maxWidth: 792, alignSelf: "center" },
+  // Pill tabs: the selected one is filled, so it doesn't rely on colour alone.
+  tabs: { flexDirection: "row", gap: 6, paddingHorizontal: 12, paddingBottom: 10, minWidth: "100%" },
+  tab: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: TOUCH, paddingHorizontal: 12, borderRadius: radius.pill },
+  tabOn: { backgroundColor: colors.primarySoft },
+  tabText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
   tabTextOn: { color: colors.primary },
 });

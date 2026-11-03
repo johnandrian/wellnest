@@ -1,13 +1,14 @@
 // PDF reports (convex/reports.ts): pick a date range and sections, then save a PDF and share it (iOS/Android, via
 // expo-print and the share sheet) or print / save as PDF (web).
 import { useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useConvex } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 
@@ -27,10 +28,10 @@ export function SectionChips({ value, onChange, s }: { value: ReportSection[]; o
       {REPORT_SECTIONS.map((x) => {
         const on = value.includes(x);
         return (
-          <Pressable key={x} style={[styles.chip, on && styles.chipOn]} onPress={() => onChange(on ? value.filter((y) => y !== x) : [...value, x])} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+          <Tap key={x} style={[styles.chip, on && styles.chipOn]} onPress={() => onChange(on ? value.filter((y) => y !== x) : [...value, x])} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
             <Ionicons name={on ? "checkbox" : "square-outline"} size={14} color={on ? colors.primary : colors.muted} />
             <Text style={[styles.chipText, on && styles.chipTextOn]}>{s[`rsec_${x}`]}</Text>
-          </Pressable>
+          </Tap>
         );
       })}
     </View>
@@ -44,9 +45,9 @@ export function RangePicker({ from, to, onChange, s }: { from: string; to: strin
         {PRESETS.map((n) => {
           const on = from === daysAgo(n - 1) && to === localDate();
           return (
-            <Pressable key={n} style={[styles.chip, on && styles.chipOn]} onPress={() => onChange(daysAgo(n - 1), localDate())} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+            <Tap key={n} style={[styles.chip, on && styles.chipOn]} onPress={() => onChange(daysAgo(n - 1), localDate())} accessibilityRole="radio" accessibilityState={{ selected: on }}>
               <Text style={[styles.chipText, on && styles.chipTextOn]}>{n === 365 ? s.lastYear : s.lastNDays.replace("{n}", String(n))}</Text>
-            </Pressable>
+            </Tap>
           );
         })}
       </View>
@@ -100,31 +101,31 @@ export function ReportCard({ s }: { s: Strings }) {
       <Text style={styles.note}>{s.reportIntro}</Text>
       <RangePicker from={from} to={to} onChange={(f, t) => (setFrom(f), setTo(t))} s={s} />
       <SectionChips value={sections} onChange={setSections} s={s} />
-      <Pressable style={[styles.button, busy && styles.busy]} onPress={() => void make()} disabled={busy || !sections.length} accessibilityRole="button">
-        {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color="#fff" />}
+      <Tap style={[styles.button, busy && styles.busy]} onPress={() => void make()} disabled={busy || !sections.length} accessibilityRole="button">
+        {busy ? <ActivityIndicator color={colors.onPrimary} /> : <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color={colors.onPrimary} />}
         <Text style={styles.buttonText}>{Platform.OS === "web" ? s.reportPrint : s.reportShare}</Text>
-      </Pressable>
+      </Tap>
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, gap: 8, marginTop: 6 },
+  card: { ...ui.card, padding: 12, gap: 8, marginTop: 6 },
   title: { fontSize: 16, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   form: { gap: 8 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
   date: { width: 120 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, padding: 11 },
+  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, padding: 11, minHeight: TOUCH },
   busy: { opacity: 0.7 },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
   error: { color: colors.danger, fontSize: 13 },
 });

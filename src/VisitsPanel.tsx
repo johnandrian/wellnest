@@ -1,12 +1,13 @@
 // Appointments and care team (convex/visits.ts): upcoming and past visits with questions to ask beforehand and
 // notes afterwards, a shortcut to a visit summary for each, and the people in your care with tap-to-call.
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 
@@ -52,7 +53,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
 
   return (
     <View style={[styles.card, item.status === "cancelled" && styles.faded]}>
-      <Pressable style={styles.head} onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+      <Tap style={styles.head} onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
         <Ionicons name={KIND_ICON[item.kind]} size={20} color={colors.primary} />
         <View style={styles.flex}>
           <Text style={styles.title}>
@@ -62,26 +63,26 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
           <Text style={styles.small}>{[whenText(item.startsAt), item.clinician, item.location].filter(Boolean).join(" · ")}</Text>
         </View>
         <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
-      </Pressable>
+      </Tap>
       {open && (
         <View style={styles.body}>
           <View style={styles.row}>
             {item.phone && (
-              <Pressable style={styles.action} onPress={() => void Linking.openURL(`tel:${item.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
+              <Tap style={styles.action} onPress={() => void Linking.openURL(`tel:${item.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
                 <Ionicons name="call-outline" size={16} color={colors.primary} />
                 <Text style={styles.link}>{s.careCall}</Text>
-              </Pressable>
+              </Tap>
             )}
             {item.joinUrl && (
-              <Pressable style={styles.action} onPress={() => void Linking.openURL(item.joinUrl!)} accessibilityRole="link">
+              <Tap style={styles.action} onPress={() => void Linking.openURL(item.joinUrl!)} accessibilityRole="link">
                 <Ionicons name="videocam-outline" size={16} color={colors.primary} />
                 <Text style={styles.link}>{s.visitJoin}</Text>
-              </Pressable>
+              </Tap>
             )}
-            <Pressable style={styles.action} onPress={() => onPrepare(item.title)} accessibilityRole="button">
+            <Tap style={styles.action} onPress={() => onPrepare(item.title)} accessibilityRole="button">
               <Ionicons name="clipboard-outline" size={16} color={colors.primary} />
               <Text style={styles.link}>{s.visitsMakeSummary}</Text>
-            </Pressable>
+            </Tap>
           </View>
           {isVisit && item.status === "upcoming" && (
             <View style={styles.questions}>
@@ -89,13 +90,13 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
               {item.questions?.map((q, i) => (
                 <View key={`${i}-${q}`} style={styles.question}>
                   <Text style={[styles.questionText, styles.flex]}>• {q}</Text>
-                  <Pressable onPress={() => void run(() => removeQuestion({ id, index: i }))} accessibilityRole="button" accessibilityLabel={s.remove} hitSlop={8}>
+                  <Tap onPress={() => void run(() => removeQuestion({ id, index: i }))} accessibilityRole="button" accessibilityLabel={s.remove} hitSlop={8}>
                     <Ionicons name="close" size={16} color={colors.muted} />
-                  </Pressable>
+                  </Tap>
                 </View>
               ))}
               {!!item.questions?.length && <Text style={styles.small}>{s.visitQuestionsNote}</Text>}
-              <Pressable
+              <Tap
                 style={styles.action}
                 disabled={suggesting}
                 onPress={() => {
@@ -108,7 +109,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
               >
                 {suggesting ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
                 <Text style={styles.link}>{item.questions?.length ? s.visitNewQuestions : s.visitSuggestQuestions}</Text>
-              </Pressable>
+              </Tap>
             </View>
           )}
           {isVisit && (
@@ -120,21 +121,21 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
               <View style={styles.row}>
                 {item.status === "upcoming" ? (
                   <>
-                    <Pressable onPress={() => void run(() => setStatus({ id, status: "done" }))} accessibilityRole="button">
+                    <Tap onPress={() => void run(() => setStatus({ id, status: "done" }))} accessibilityRole="button">
                       <Text style={styles.link}>{s.visitsMarkDone}</Text>
-                    </Pressable>
-                    <Pressable onPress={() => void run(() => setStatus({ id, status: "cancelled" }))} accessibilityRole="button">
+                    </Tap>
+                    <Tap onPress={() => void run(() => setStatus({ id, status: "cancelled" }))} accessibilityRole="button">
                       <Text style={styles.link}>{s.visitsMarkCancelled}</Text>
-                    </Pressable>
+                    </Tap>
                   </>
                 ) : (
-                  <Pressable onPress={() => void run(() => setStatus({ id, status: "upcoming" }))} accessibilityRole="button">
+                  <Tap onPress={() => void run(() => setStatus({ id, status: "upcoming" }))} accessibilityRole="button">
                     <Text style={styles.link}>{s.visitsReopen}</Text>
-                  </Pressable>
+                  </Tap>
                 )}
-                <Pressable onPress={async () => (await confirm(s.visitsDeleteConfirm, s.delete, s.cancel)) && void run(() => remove({ id }))} accessibilityRole="button">
+                <Tap onPress={async () => (await confirm(s.visitsDeleteConfirm, s.delete, s.cancel)) && void run(() => remove({ id }))} accessibilityRole="button">
                   <Text style={[styles.link, styles.danger]}>{s.delete}</Text>
-                </Pressable>
+                </Tap>
               </View>
             </>
           )}
@@ -179,21 +180,21 @@ function TeamSection({ s }: { s: Strings }) {
             <Text style={styles.small}>{[m.role, m.clinic, m.phone, m.email].filter(Boolean).join(" · ")}</Text>
           </View>
           {m.phone && (
-            <Pressable onPress={() => void Linking.openURL(`tel:${m.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${m.name}`}>
+            <Tap onPress={() => void Linking.openURL(`tel:${m.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${m.name}`}>
               <Ionicons name="call-outline" size={20} color={colors.primary} />
-            </Pressable>
+            </Tap>
           )}
           {m.email && (
-            <Pressable onPress={() => void Linking.openURL(`mailto:${m.email}`)} accessibilityRole="button" accessibilityLabel={`Email ${m.name}`}>
+            <Tap onPress={() => void Linking.openURL(`mailto:${m.email}`)} accessibilityRole="button" accessibilityLabel={`Email ${m.name}`}>
               <Ionicons name="mail-outline" size={20} color={colors.primary} />
-            </Pressable>
+            </Tap>
           )}
-          <Pressable onPress={() => (setDraft({ id: m._id, name: m.name, role: m.role ?? "", phone: m.phone ?? "", email: m.email ?? "", clinic: m.clinic ?? "" }), setEditing(true))} accessibilityRole="button" accessibilityLabel={`${s.edit} ${m.name}`}>
+          <Tap onPress={() => (setDraft({ id: m._id, name: m.name, role: m.role ?? "", phone: m.phone ?? "", email: m.email ?? "", clinic: m.clinic ?? "" }), setEditing(true))} accessibilityRole="button" accessibilityLabel={`${s.edit} ${m.name}`}>
             <Ionicons name="create-outline" size={19} color={colors.muted} />
-          </Pressable>
-          <Pressable onPress={async () => (await confirm(s.careTeamRemoveConfirm.replace("{name}", m.name), s.remove, s.cancel)) && void remove({ id: m._id })} accessibilityRole="button" accessibilityLabel={`${s.remove} ${m.name}`}>
+          </Tap>
+          <Tap onPress={async () => (await confirm(s.careTeamRemoveConfirm.replace("{name}", m.name), s.remove, s.cancel)) && void remove({ id: m._id })} accessibilityRole="button" accessibilityLabel={`${s.remove} ${m.name}`}>
             <Ionicons name="close" size={20} color={colors.danger} />
-          </Pressable>
+          </Tap>
         </View>
       ))}
       {editing ? (
@@ -211,19 +212,19 @@ function TeamSection({ s }: { s: Strings }) {
             />
           ))}
           <View style={styles.row}>
-            <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.save}</Text>
-            </Pressable>
-            <Pressable onPress={() => (setEditing(false), setDraft(empty))} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => (setEditing(false), setDraft(empty))} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : (
-        <Pressable style={styles.addRow} onPress={() => setEditing(true)} accessibilityRole="button">
+        <Tap style={styles.addRow} onPress={() => setEditing(true)} accessibilityRole="button">
           <Ionicons name="person-add-outline" size={18} color={colors.primary} />
           <Text style={styles.link}>{s.careTeamAdd}</Text>
-        </Pressable>
+        </Tap>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -279,44 +280,44 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
           </View>
           <View style={styles.chips}>
             {(["in_person", "video", "phone"] as const).map((k) => (
-              <Pressable key={k} style={[styles.chip, kind === k && styles.chipOn]} onPress={() => setKind(k)} accessibilityRole="radio" accessibilityState={{ selected: kind === k }}>
+              <Tap key={k} style={[styles.chip, kind === k && styles.chipOn]} onPress={() => setKind(k)} accessibilityRole="radio" accessibilityState={{ selected: kind === k }}>
                 <Ionicons name={KIND_ICON[k]} size={14} color={kind === k ? colors.primary : colors.text} />
                 <Text style={[styles.chipText, kind === k && styles.chipTextOn]}>{s[`visitKind_${k}`]}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
           {!!team?.length && (
             <View style={styles.chips}>
               {team.map((m) => (
-                <Pressable key={m._id} style={[styles.chip, clinicianId === m._id && styles.chipOn]} onPress={() => setClinicianId(clinicianId === m._id ? null : m._id)} accessibilityRole="radio" accessibilityState={{ selected: clinicianId === m._id }}>
+                <Tap key={m._id} style={[styles.chip, clinicianId === m._id && styles.chipOn]} onPress={() => setClinicianId(clinicianId === m._id ? null : m._id)} accessibilityRole="radio" accessibilityState={{ selected: clinicianId === m._id }}>
                   <Text style={[styles.chipText, clinicianId === m._id && styles.chipTextOn]}>{m.name}</Text>
-                </Pressable>
+                </Tap>
               ))}
             </View>
           )}
           <TextInput style={styles.input} placeholder={s.visitsLocationPlaceholder} placeholderTextColor={colors.muted} value={location} onChangeText={setLocation} />
           <TextInput style={[styles.input, styles.multi]} placeholder={s.visitsPrepPlaceholder} placeholderTextColor={colors.muted} value={prep} onChangeText={setPrep} multiline />
           <View style={styles.row}>
-            <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.save}</Text>
-            </Pressable>
-            <Pressable onPress={() => setAdding(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setAdding(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
         </View>
       ) : (
-        <Pressable style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
+        <Tap style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
           <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.link}>{s.visitsAdd}</Text>
-        </Pressable>
+        </Tap>
       )}
 
       {!!data?.past.length && (
-        <Pressable onPress={() => setShowPast(!showPast)} accessibilityRole="button">
+        <Tap onPress={() => setShowPast(!showPast)} accessibilityRole="button">
           <Text style={styles.link}>{(showPast ? s.visitsHidePast : s.visitsShowPast).replace("{n}", String(data.past.length))}</Text>
-        </Pressable>
+        </Tap>
       )}
       {showPast && data?.past.map((item) => <VisitCard key={item._id} item={item} s={s} onPrepare={onPrepare} />)}
 
@@ -326,14 +327,14 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
-  empty: { color: colors.muted, fontStyle: "italic" },
+  empty: { ...ui.empty },
   small: { color: colors.muted, fontSize: 13 },
   section: { gap: 8, marginTop: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 4 },
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, gap: 6 },
+  sectionTitle: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 4 },
+  card: { ...ui.card, padding: 10, gap: 6 },
   faded: { opacity: 0.6 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
   flex: { flex: 1, minWidth: 0 },
@@ -348,18 +349,18 @@ const styles = StyleSheet.create({
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
   member: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   multi: { minHeight: 60, textAlignVertical: "top" },
   date: { width: 130 },
   time: { width: 80 },
   chips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  chip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14 },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  addRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  addRow: { ...ui.addButton },
   link: { color: colors.primary, fontWeight: "600" },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },

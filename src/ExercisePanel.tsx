@@ -1,11 +1,12 @@
 // Exercises and physio (convex/exercises.ts): today's routine to tick off, the last two weeks at a glance, and
 // adding or stopping an exercise. "Did my stretches" in chat ticks it off too.
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 
@@ -60,18 +61,18 @@ export function ExercisePanel({ s }: { s: Strings }) {
           <View style={styles.card}>
             <View style={styles.head}>
               {e.dueToday && (
-                <Pressable onPress={() => void toggle({ id: e._id, date: today, done: !e.doneToday })} accessibilityRole="checkbox" accessibilityState={{ checked: e.doneToday }} accessibilityLabel={e.name}>
+                <Tap onPress={() => void toggle({ id: e._id, date: today, done: !e.doneToday })} accessibilityRole="checkbox" accessibilityState={{ checked: e.doneToday }} accessibilityLabel={e.name}>
                   <Ionicons name={e.doneToday ? "checkmark-circle" : "ellipse-outline"} size={28} color={e.doneToday ? colors.primary : colors.muted} />
-                </Pressable>
+                </Tap>
               )}
               <View style={styles.flex}>
                 <Text style={[styles.title, e.doneToday && styles.done]}>{e.name}</Text>
                 <Text style={styles.small}>{plan(e)}</Text>
                 {e.notes && <Text style={styles.small}>{e.notes}</Text>}
               </View>
-              <Pressable onPress={() => void stop({ id: e._id })} accessibilityRole="button" accessibilityLabel={`${s.exStop} ${e.name}`}>
+              <Tap onPress={() => void stop({ id: e._id })} accessibilityRole="button" accessibilityLabel={`${s.exStop} ${e.name}`}>
                 <Ionicons name="close" size={18} color={colors.muted} />
-              </Pressable>
+              </Tap>
             </View>
             <View style={styles.strip} accessibilityLabel={s.exLast14}>
               {e.last14.map((d) => (
@@ -95,41 +96,41 @@ export function ExercisePanel({ s }: { s: Strings }) {
           </View>
           <View style={styles.chips}>
             {weekdays.map((w, d) => (
-              <Pressable key={w} style={[styles.chip, days.includes(d) && styles.chipOn]} onPress={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])} accessibilityRole="checkbox" accessibilityState={{ checked: days.includes(d) }}>
+              <Tap key={w} style={[styles.chip, days.includes(d) && styles.chipOn]} onPress={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])} accessibilityRole="checkbox" accessibilityState={{ checked: days.includes(d) }}>
                 <Text style={[styles.chipText, days.includes(d) && styles.chipTextOn]}>{w}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
           <Text style={styles.small}>{s.exDaysHint}</Text>
           <TextInput style={styles.input} placeholder={s.exNotesPlaceholder} placeholderTextColor={colors.muted} value={notes} onChangeText={setNotes} />
           <View style={styles.inline}>
-            <Pressable style={styles.button} onPress={() => void save()} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.save}</Text>
-            </Pressable>
-            <Pressable onPress={() => setAdding(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setAdding(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
         </View>
       ) : (
-        <Pressable style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
+        <Tap style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
           <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.link}>{s.exAdd}</Text>
-        </Pressable>
+        </Tap>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#fff" },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
-  empty: { color: colors.muted, fontStyle: "italic" },
-  section: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 4, marginBottom: 6 },
+  empty: { ...ui.empty },
+  section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 4, marginBottom: 6 },
   small: { color: colors.muted, fontSize: 13 },
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, gap: 8 },
+  card: { ...ui.card, padding: 10, gap: 8 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
   flex: { flex: 1, minWidth: 0 },
   title: { fontSize: 15, fontWeight: "600", color: colors.text },
@@ -140,18 +141,18 @@ const styles = StyleSheet.create({
   dotDone: { backgroundColor: colors.primary },
   dotMissed: { backgroundColor: "#F59E0B" },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 56, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   label: { color: colors.text, fontSize: 14 },
   chips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16 },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  addRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  addRow: { ...ui.addButton },
   link: { color: colors.primary, fontWeight: "600" },
   error: { color: colors.danger, fontSize: 13 },
 });

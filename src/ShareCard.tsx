@@ -1,11 +1,12 @@
 // Share links (convex/share.ts): a private, read-only page of the sections you choose for a carer or doctor, with an
 // expiry, open counts, and a switch to turn it off.
 import { useMemo, useState } from "react";
-import { Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, ui, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { ReportSection, SectionChips } from "./ReportCard";
 
@@ -71,10 +72,10 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
       {made && (
         <View style={styles.made}>
           <Text style={styles.url} selectable numberOfLines={2}>{made}</Text>
-          <Pressable style={styles.button} onPress={() => void send(made)} accessibilityRole="button">
-            <Ionicons name={Platform.OS === "web" ? "copy-outline" : "share-outline"} size={16} color="#fff" />
+          <Tap style={styles.button} onPress={() => void send(made)} accessibilityRole="button">
+            <Ionicons name={Platform.OS === "web" ? "copy-outline" : "share-outline"} size={16} color={colors.onPrimary} />
             <Text style={styles.buttonText}>{Platform.OS === "web" ? s.copy : s.share}</Text>
-          </Pressable>
+          </Tap>
         </View>
       )}
       {notice && <Text style={styles.small}>✓ {notice}</Text>}
@@ -86,33 +87,33 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
           <Text style={styles.label}>{s.shareRange}</Text>
           <View style={styles.chips}>
             {RANGES.map((n) => (
-              <Pressable key={n} style={[styles.chip, rangeDays === n && styles.chipOn]} onPress={() => setRangeDays(n)} accessibilityRole="radio" accessibilityState={{ selected: rangeDays === n }}>
+              <Tap key={n} style={[styles.chip, rangeDays === n && styles.chipOn]} onPress={() => setRangeDays(n)} accessibilityRole="radio" accessibilityState={{ selected: rangeDays === n }}>
                 <Text style={[styles.chipText, rangeDays === n && styles.chipTextOn]}>{n === 365 ? s.lastYear : s.lastNDays.replace("{n}", String(n))}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
           <Text style={styles.label}>{s.shareExpires}</Text>
           <View style={styles.chips}>
             {EXPIRIES.map((n) => (
-              <Pressable key={String(n)} style={[styles.chip, expires === n && styles.chipOn]} onPress={() => setExpires(n)} accessibilityRole="radio" accessibilityState={{ selected: expires === n }}>
+              <Tap key={String(n)} style={[styles.chip, expires === n && styles.chipOn]} onPress={() => setExpires(n)} accessibilityRole="radio" accessibilityState={{ selected: expires === n }}>
                 <Text style={[styles.chipText, expires === n && styles.chipTextOn]}>{n === null ? s.shareNoExpiry : n === 1 ? s.share1Day : s.shareNDays.replace("{n}", String(n))}</Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
           <View style={styles.inline}>
-            <Pressable style={styles.button} onPress={() => void make()} disabled={!sections.length} accessibilityRole="button">
+            <Tap style={styles.button} onPress={() => void make()} disabled={!sections.length} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.shareCreate}</Text>
-            </Pressable>
-            <Pressable onPress={() => setMaking(false)} accessibilityRole="button">
+            </Tap>
+            <Tap onPress={() => setMaking(false)} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       ) : (
-        <Pressable style={styles.addRow} onPress={() => (setMaking(true), setMade(null))} accessibilityRole="button">
+        <Tap style={styles.addRow} onPress={() => (setMaking(true), setMade(null))} accessibilityRole="button">
           <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.link}>{s.shareNew}</Text>
-        </Pressable>
+        </Tap>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -125,12 +126,12 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
             </Text>
             <Text style={styles.small}>{l.lastOpenedAt ? s.shareOpened.replace("{n}", String(l.opens)).replace("{when}", ago(l.lastOpenedAt)) : s.shareNotOpened}</Text>
           </View>
-          <Pressable onPress={() => void send(l.url)} accessibilityRole="button" accessibilityLabel={Platform.OS === "web" ? s.copy : s.share}>
+          <Tap onPress={() => void send(l.url)} accessibilityRole="button" accessibilityLabel={Platform.OS === "web" ? s.copy : s.share}>
             <Ionicons name={Platform.OS === "web" ? "copy-outline" : "share-outline"} size={20} color={colors.primary} />
-          </Pressable>
-          <Pressable onPress={() => void revoke({ id: l._id })} accessibilityRole="button" accessibilityLabel={s.shareTurnOff}>
+          </Tap>
+          <Tap onPress={() => void revoke({ id: l._id })} accessibilityRole="button" accessibilityLabel={s.shareTurnOff}>
             <Text style={[styles.link, styles.danger]}>{s.shareTurnOff}</Text>
-          </Pressable>
+          </Tap>
         </View>
       ))}
       {old.map((l) => (
@@ -144,24 +145,24 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, gap: 8, marginTop: 6 },
+  card: { ...ui.card, padding: 12, gap: 8, marginTop: 6 },
   title: { fontSize: 16, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   small: { color: colors.muted, fontSize: 12 },
   label: { color: colors.text, fontSize: 13, fontWeight: "600" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   made: { backgroundColor: colors.primarySoft, borderRadius: 8, padding: 10, gap: 8 },
   url: { color: colors.text, fontSize: 13 },
-  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start" },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  addRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH },
+  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  addRow: { ...ui.addButton },
   link: { color: colors.primary, fontWeight: "600" },
   danger: { color: colors.danger },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 12, borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 8 },
