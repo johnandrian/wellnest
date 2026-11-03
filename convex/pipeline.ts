@@ -112,6 +112,7 @@ export const respond = internalAction({
       }
 
       const medications: string = await ctx.runQuery(internal.reminders.activeText, { userId, now });
+      const records: string = await ctx.runQuery(internal.records.forModel, { userId });
       const facts: string[] = await ctx.runQuery(internal.me.factsFor, { userId });
       const care: { upcoming: string; team: string } = await ctx.runQuery(internal.visits.contextFor, { userId, now });
       const emergencyPlan: string = routed.urgent ? await ctx.runQuery(internal.emergency.textFor, { userId }) : "";
@@ -156,6 +157,7 @@ export const respond = internalAction({
         saveLocation: (location) =>
           ctx.runMutation(internal.pipeline.saveLocation, { userId, location }),
         medications,
+        records,
         facts,
         about: aboutUserText(user?.profile, user?.focus),
         care,
@@ -408,6 +410,7 @@ async function runCore(opts: {
   typing: () => void;
   saveLocation: (location: string) => Promise<null>;
   medications: string;
+  records: string;
   facts: string[];
   about: string;
   care: { upcoming: string; team: string };
@@ -443,6 +446,8 @@ async function runCore(opts: {
   if (opts.care.team) system.push(`The user's care team:\n${opts.care.team}`);
   if (opts.medications) system.push(`Medication reminders the user has set up:
 ${opts.medications}`);
+  if (opts.records) system.push(`${opts.records}
+Explain results in plain words when asked; don't diagnose. The user adds records in Health tools > Records.`);
   if (memory.length) {
     system.push(
       "Relevant past messages:\n" + memory.map((m) => `- [${m.role}] ${m.text}`).join("\n"),

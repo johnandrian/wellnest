@@ -1,13 +1,13 @@
 // Appointments and care team (convex/visits.ts): upcoming and past visits with questions to ask beforehand and
 // notes afterwards, a shortcut to a visit summary for each, and the people in your care with tap-to-call.
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -329,7 +329,7 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
   member: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   multi: { minHeight: 60, textAlignVertical: "top" },
   date: { width: 130 },
   time: { width: 80 },
@@ -362,9 +362,9 @@ const styles = StyleSheet.create({
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   addRow: { ...ui.addButton },
-  link: { color: colors.primary, fontWeight: "600" },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

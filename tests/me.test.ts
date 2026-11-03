@@ -135,6 +135,7 @@ describe("overview, export and deletion", () => {
       summaries: { n: 1, more: false },
       analyses: { n: 1, more: false },
       journal: { n: 0, more: false },
+      records: { n: 0, more: false },
       visits: { n: 0, more: false },
       careTeam: { n: 0, more: false },
     });

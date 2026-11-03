@@ -1,12 +1,12 @@
 // "Prepare for a visit": writes a one-page summary of recent chats, the journal, analyses, medications and health data
 // (convex/visit.ts), then lets the user read, share, copy or print it.
 import { useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
 import type { Strings } from "./i18n";
@@ -145,7 +145,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -153,20 +153,20 @@ const styles = StyleSheet.create({
   note: { color: colors.muted, fontSize: 14, lineHeight: 19, flexShrink: 1 },
   small: { color: colors.muted, fontSize: 12 },
   form: { gap: 10 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 15 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 15 },
   chips: { flexDirection: "row", gap: 8 },
   chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 14 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   generating: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   result: { gap: 8 },
   doc: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 14, backgroundColor: colors.bg },
   docText: { color: colors.text, fontSize: 15, lineHeight: 21 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 18 },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
-  link: { color: colors.primary, fontWeight: "600" },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

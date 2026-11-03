@@ -1,17 +1,17 @@
 // Medications (convex/medications.ts, convex/reminders.ts): the list with status and supply, and each medication's
 // details: generic name, form, prescriber, per-time doses, refills, the eScript photo, side effects and history.
 // Reminder messages with Taken / Skip appear in the chat.
-import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Image, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
-import { SwapIcon } from "./Motion";
+import { Enter, Reveal, SwapIcon } from "./Motion";
 
 type Mode = "daily" | "interval";
 type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
@@ -39,6 +39,69 @@ function confirm(title: string, message: string, ok: string, cancel: string): Pr
 }
 
 const parseTimes = (text: string) => text.split(/[,\s]+/).filter(Boolean);
+// "Twice a day" on a label: reminder times to start from, changed in the form if they don't suit.
+const TIMES_FOR = ["08:00", "08:00, 20:00", "08:00, 14:00, 20:00", "08:00, 12:00, 16:00, 20:00"];
+
+// Possible interactions between the user's medications, from the FDA labels (convex/drugs.ts). Looked up when the
+// tab opens; each pair opens to the label's own sentence.
+function SafetyCard({ s }: { s: Strings }) {
+  const view = useQuery(api.drugs.view);
+  const ensure = useMutation(api.drugs.ensure);
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    void ensure().catch(() => {});
+  }, [ensure]);
+  if (!view || view.total === 0) return null;
+  const items = [
+    ...view.interactions.map((i) => ({
+      key: `${i.a}|${i.b}`,
+      title: s.safetyPair.replace("{a}", i.a).replace("{b}", i.b),
+      body: i.excerpt,
+      hint: s.safetyMentions.replace("{a}", i.a).replace("{term}", i.term),
+    })),
+    ...view.boxed.map((b) => ({ key: `boxed|${b.name}`, title: s.safetyBoxed.replace("{name}", b.name), body: b.text, hint: "" })),
+  ];
+  const warn = items.length > 0;
+  return (
+    <Enter>
+      <View style={[styles.safety, warn && styles.safetyWarn]}>
+        <View style={styles.safetyHead}>
+          <SwapIcon id={view.pending ? "pending" : warn ? "warn" : "ok"}>
+            <Ionicons
+              name={view.pending ? "hourglass-outline" : warn ? "warning-outline" : "shield-checkmark-outline"}
+              size={20}
+              color={warn ? colors.warningText : colors.primary}
+            />
+          </SwapIcon>
+          <Text style={styles.safetyTitle} accessibilityRole="header">
+            {s.safetyTitle}
+          </Text>
+        </View>
+        {view.pending && !warn && <Text style={styles.small}>{s.safetyChecking}</Text>}
+        {!view.pending && !warn && view.checked > 1 && <Text style={styles.line}>{s.safetyNone.replace("{n}", String(view.checked))}</Text>}
+        {items.map((it) => (
+          <View key={it.key} style={styles.safetyItem}>
+            <Tap style={styles.medHead} onPress={() => setOpen(open === it.key ? null : it.key)} accessibilityRole="button" accessibilityState={{ expanded: open === it.key }}>
+              <Text style={[styles.line, styles.flex, styles.bold]}>{it.title}</Text>
+              <SwapIcon id={open === it.key ? "up" : "down"}>
+                <Ionicons name={open === it.key ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+              </SwapIcon>
+            </Tap>
+            <Reveal open={open === it.key}>
+              <View style={styles.form}>
+                {it.hint ? <Text style={styles.small}>{it.hint}</Text> : null}
+                <Text style={styles.quote}>{it.body}</Text>
+              </View>
+            </Reveal>
+          </View>
+        ))}
+        {view.unknown.length > 0 && <Text style={styles.small}>{s.safetyUnknown.replace("{names}", view.unknown.join(", "))}</Text>}
+        {warn && <Text style={styles.small}>{s.safetyAsk}</Text>}
+        <Text style={styles.source}>{s.safetySource}</Text>
+      </View>
+    </Enter>
+  );
+}
 
 function FormChips({ value, onChange, s }: { value: Form | null; onChange: (f: Form | null) => void; s: Strings }) {
   return (
@@ -307,10 +370,49 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   const [hours, setHours] = useState("8");
   const [days, setDays] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [fromLabel, setFromLabel] = useState<string | null>(null);
+  const uploadUrl = useMutation(api.chat.generateUploadUrl);
+  const claim = useMutation(api.chat.claimUpload);
+  const readLabel = useAction(api.medScan.read);
 
   const list = (meds ?? []).filter((m) => showStopped || m.status !== "stopped");
   const stoppedCount = (meds ?? []).filter((m) => m.status === "stopped").length;
   const parsedTimes = parseTimes(times);
+
+  // Fills the add form from a label photo; the user checks it before saving.
+  const scan = async () => {
+    setError(null);
+    try {
+      const photo = await pickPhoto(Platform.OS === "web" ? "library" : "camera");
+      if (!photo) return;
+      setScanning(true);
+      const storageId = await uploadPhoto(photo, () => uploadUrl(), (sid) => claim({ storageId: sid as Id<"_storage"> }));
+      const label = await readLabel({ storageId: storageId as Id<"_storage"> });
+      if (!label) {
+        setError(s.medScanNone);
+        return;
+      }
+      setName(label.name);
+      setDose(label.dose ?? "");
+      setGenericName(label.genericName ?? "");
+      setPrescriber(label.prescriber ?? "");
+      setForm(label.form ?? null);
+      if (label.everyHours) {
+        setMode("interval");
+        setHours(String(label.everyHours));
+      } else if (label.timesPerDay) {
+        setMode("daily");
+        setTimes(TIMES_FOR[Math.min(label.timesPerDay, TIMES_FOR.length) - 1]);
+      }
+      setFromLabel(label.instructions ?? "");
+      setAdding(true);
+    } catch (e) {
+      setError(cleanError(e));
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const save = async () => {
     setError(null);
@@ -336,6 +438,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       setPrescriber("");
       setForm(null);
       setTimeDoses({});
+      setFromLabel(null);
     } catch (e) {
       setError(cleanError(e));
     }
@@ -344,6 +447,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <Text style={styles.note}>{s.medsIntro}</Text>
+      <SafetyCard s={s} />
       {meds?.length === 0 && !adding && <Text style={styles.empty}>{s.remindersEmpty}</Text>}
       {list.map((m) => (
         <View key={m._id} style={[styles.med, m.status !== "active" && styles.medInactive]}>
@@ -374,7 +478,16 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       )}
 
       {adding ? (
-        <View style={styles.form}>
+        <Enter style={styles.form}>
+          {fromLabel !== null && (
+            <View style={styles.scanNote}>
+              <Ionicons name="scan-outline" size={18} color={colors.primary} />
+              <View style={styles.flex}>
+                <Text style={styles.line}>{s.medScanCheck}</Text>
+                {fromLabel ? <Text style={styles.small}>{s.medFromLabel.replace("{text}", fromLabel)}</Text> : null}
+              </View>
+            </View>
+          )}
           <TextInput style={styles.input} placeholder={s.medPlaceholder} placeholderTextColor={colors.muted} value={name} onChangeText={setName} />
           <TextInput style={styles.input} placeholder={s.dosePlaceholder} placeholderTextColor={colors.muted} value={dose} onChangeText={setDose} />
           <View style={styles.chips}>
@@ -419,23 +532,31 @@ export function MedicationsPanel({ s }: { s: Strings }) {
             <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.saveReminder}</Text>
             </Tap>
-            <Tap onPress={() => setAdding(false)} accessibilityRole="button">
+            <Tap onPress={() => (setAdding(false), setFromLabel(null))} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
             </Tap>
           </View>
-        </View>
+        </Enter>
       ) : (
-        <Tap style={styles.addRow} onPress={() => setAdding(true)} accessibilityRole="button">
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.link}>{s.medAdd}</Text>
-        </Tap>
+        <View style={styles.addRows}>
+          <Tap style={[styles.addRow, styles.flex]} onPress={() => setAdding(true)} accessibilityRole="button">
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.link}>{s.medAdd}</Text>
+          </Tap>
+          <Tap style={[styles.addRow, styles.flex]} onPress={() => void scan()} disabled={scanning} accessibilityRole="button" accessibilityState={{ busy: scanning }}>
+            <SwapIcon id={scanning ? "busy" : "scan"}>
+              {scanning ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="scan-outline" size={20} color={colors.primary} />}
+            </SwapIcon>
+            <Text style={styles.link}>{scanning ? s.medScanning : s.medScan}</Text>
+          </Tap>
+        </View>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
@@ -453,7 +574,7 @@ const styles = StyleSheet.create({
   status: { fontSize: 12, fontWeight: "600", color: colors.warningText },
   detail: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 64, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text, fontSize: 14 },
@@ -464,9 +585,19 @@ const styles = StyleSheet.create({
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   script: { width: 96, height: 96, borderRadius: 8, backgroundColor: colors.border },
   button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
-  addRow: { ...ui.addButton },
-  link: { color: colors.primary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
+  addRow: { ...ui.addButton, minWidth: 200 },
+  addRows: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  scanNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: colors.primarySoft, borderRadius: 8, padding: 10 },
+  safety: { ...ui.card, padding: 12, gap: 8 },
+  safetyWarn: { backgroundColor: colors.warningSoft, borderColor: colors.amber },
+  safetyHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  safetyTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  safetyItem: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
+  bold: { fontWeight: "600" },
+  quote: { color: colors.text, fontSize: 14, lineHeight: 20, borderLeftWidth: 3, borderLeftColor: colors.amber, paddingLeft: 10 },
+  source: { color: colors.muted, fontSize: 12 },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

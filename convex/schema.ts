@@ -12,6 +12,8 @@ import { section } from "./lib/report";
 import { asthmaPlan, contact, planSection } from "./lib/emergency";
 import { chartValidator } from "./lib/insights";
 import { focus, profile } from "./lib/onboarding";
+import { appearance } from "./lib/appearance";
+import { labFlag, recordKind } from "./lib/records";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -92,6 +94,8 @@ export default defineSchema({
     chatClearedAt: v.optional(v.number()),
     // The chat new messages go into (convex/chats.ts); unset until they start a second chat.
     chatId: v.optional(v.id("chats")),
+    // Light or dark (or follow the phone) and text size, from Settings → Appearance; the system look at 100% when unset.
+    appearance: v.optional(appearance),
     // Reply and voice language (convex/lib/language.ts); English when unset.
     language: v.optional(language),
     // Proactive check-ins from Apple Health changes (convex/checkins.ts); on when unset.
@@ -367,7 +371,57 @@ export default defineSchema({
     timeDoses: v.optional(v.array(timeDose)), // a different dose at some daily times
     supply: v.optional(supply), // refill tracking
     scriptImage: v.optional(v.id("_storage")), // eScript QR code or prescription label
+    // Medication safety (convex/drugs.ts): interactions already told about in chat ("A|B"), and the last
+    // missed-doses nudge (convex/reminders.ts).
+    interactionAlerts: v.optional(v.array(v.string())),
+    nudgedAt: v.optional(v.number()),
   }).index("by_user_and_active", ["userId", "active"]),
+
+  // Lab reports and clinic letters the user added as a photo or PDF (convex/records.ts). The model reads them into a
+  // plain-language summary and, for labs, one labResults row per test. `file` is the original, kept to view again.
+  records: defineTable({
+    userId: v.id("users"),
+    status: v.union(v.literal("reading"), v.literal("done"), v.literal("failed")),
+    file: v.optional(v.id("_storage")),
+    fileType: v.union(v.literal("image"), v.literal("pdf")),
+    kind: v.optional(recordKind),
+    title: v.optional(v.string()),
+    date: v.optional(v.string()), // YYYY-MM-DD on the record; else the day it was added
+    source: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }).index("by_user", ["userId"]),
+
+  labResults: defineTable({
+    userId: v.id("users"),
+    recordId: v.id("records"),
+    date: v.string(),
+    test: v.string(),
+    key: v.string(), // testKey(test): lines the same test up across reports
+    value: v.optional(v.number()),
+    text: v.optional(v.string()),
+    unit: v.optional(v.string()),
+    low: v.optional(v.number()),
+    high: v.optional(v.number()),
+    flag: v.optional(labFlag),
+    explanation: v.string(),
+  })
+    .index("by_record", ["recordId"])
+    .index("by_user_and_key_and_date", ["userId", "key", "date"])
+    .index("by_user_and_date", ["userId", "date"]),
+
+  // What RxNorm and the FDA label say about a medication name, shared by everyone who takes it (public data).
+  // `found` is false when neither knew the name; `fetchedAt` is when it was looked up (refreshed after 30 days).
+  drugInfo: defineTable({
+    key: v.string(), // convex/lib/drugs.ts drugKey
+    found: v.boolean(),
+    ingredients: v.array(v.string()),
+    brands: v.array(v.string()),
+    classes: v.array(v.string()),
+    interactions: v.string(),
+    boxedWarning: v.optional(v.string()),
+    fetchedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   // A medication's dated history: started, paused, resumed, stopped, dose changes, refills.
   medicationEvents: defineTable({
@@ -405,7 +459,7 @@ export default defineSchema({
     userId: v.id("users"),
     storageId: v.id("_storage"),
     messageId: v.optional(v.id("messages")),
-    usedFor: v.optional(v.literal("script")), // attached to a medication instead of a message
+    usedFor: v.optional(v.union(v.literal("script"), v.literal("record"))), // attached to a medication or a health record instead of a message
   })
     .index("by_storage", ["storageId"])
     .index("by_user", ["userId"]),

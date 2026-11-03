@@ -6,6 +6,7 @@ import { DAILY_LIMIT, enqueueUserMessage } from "./pipeline";
 import { language } from "./lib/language";
 import { refreshSoon } from "./weather";
 import { chatMessages, currentChatKey } from "./lib/chats";
+import { appearance, TEXT_SIZES } from "./lib/appearance";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -91,6 +92,7 @@ export const me = query({
     return {
       email: user.email ?? null,
       language: user.language ?? "en",
+      appearance: user.appearance ?? { theme: "system" as const, textSize: 1 },
       notifications: { reminders: user.notifications?.reminders ?? true, appointments: user.notifications?.appointments ?? true },
       onboarded: !!user.onboardedAt,
       name: user.profile?.name ?? null,
@@ -110,6 +112,16 @@ export const clear = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     await ctx.db.patch(userId, { chatClearedAt: Date.now(), analysisOfferedAt: undefined });
+  },
+});
+
+export const setAppearance = mutation({
+  args: { appearance },
+  handler: async (ctx, { appearance }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    if (!TEXT_SIZES.includes(appearance.textSize)) throw new Error("Pick one of the text sizes.");
+    await ctx.db.patch(userId, { appearance });
   },
 });
 

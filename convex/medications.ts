@@ -8,6 +8,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { daysLeft, medEventKind, medForm, statusOf, timeDose } from "./lib/meds";
 import { nextDue, normalizeTime } from "./lib/reminders";
 import { clampSeverity } from "./lib/journal";
+import { lookupSoon } from "./drugs";
 
 const MAX_SIDE_EFFECTS = 200;
 
@@ -91,6 +92,7 @@ export const update = mutation({
     }
     await ctx.db.patch(id, patch);
     if (dose !== undefined) await changeDose(ctx, med, dose);
+    if ("genericName" in patch && patch.genericName !== med.genericName) await lookupSoon(ctx, { ...med, genericName: patch.genericName }, true);
   },
 });
 

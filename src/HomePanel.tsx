@@ -1,13 +1,13 @@
 // The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, four
 // weeks of charts for what the user tracks, the strongest pattern, and every tool as a tile.
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
-import { colors, radius, tint, ui } from "./theme";
+import { colors, radius, tint, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
 import { TOOLS, type HubTab } from "./HubPanel";
@@ -93,7 +93,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
       <DailyCard s={s} inChat flush />
 
       <View style={styles.sectionRow}>
-        <Text style={ui.section} accessibilityRole="header">
+        <Text style={styles.section} accessibilityRole="header">
           {s.homeTrends}
         </Text>
         <Tap style={styles.seeAll} onPress={() => onOpen("journal")} accessibilityRole="link">
@@ -108,7 +108,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
           ))}
         </View>
       ) : (
-        <Text style={ui.empty}>{s.homeChartsEmpty}</Text>
+        <Text style={styles.empty}>{s.homeChartsEmpty}</Text>
       )}
 
       {!!insights && (!!insights.patterns.length || !!insights.weather) && (
@@ -139,7 +139,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
         </View>
       )}
 
-      <Text style={ui.section} accessibilityRole="header">
+      <Text style={styles.section} accessibilityRole="header">
         {s.homeTools}
       </Text>
       <View style={styles.grid}>
@@ -199,7 +199,8 @@ function Stat(p: {
   );
 }
 
-const BAD = { better: colors.primary, worse: colors.danger, same: colors.muted };
+// Read when drawing, so it follows the theme.
+const bad = () => ({ better: colors.primary, worse: colors.danger, same: colors.muted });
 
 function TrendCard({ chart, s, wide, onPress }: { chart: Chart; s: Strings; wide: boolean; onPress: () => void }) {
   const t = trend(chart);
@@ -223,9 +224,9 @@ function TrendCard({ chart, s, wide, onPress }: { chart: Chart; s: Strings; wide
           {chart.title}
         </Text>
         {t && (
-          <View style={[styles.pill, { borderColor: BAD[t] }]}>
-            <Ionicons name={t === "same" ? "remove" : t === "better" ? "trending-up" : "trending-down"} size={14} color={BAD[t]} />
-            <Text style={[styles.pillText, { color: BAD[t] }]}>{label}</Text>
+          <View style={[styles.pill, { borderColor: bad()[t] }]}>
+            <Ionicons name={t === "same" ? "remove" : t === "better" ? "trending-up" : "trending-down"} size={14} color={bad()[t]} />
+            <Text style={[styles.pillText, { color: bad()[t] }]}>{label}</Text>
           </View>
         )}
       </View>
@@ -257,8 +258,10 @@ function TrendCard({ chart, s, wide, onPress }: { chart: Chart; s: Strings; wide
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   loading: { flex: 1 },
+  section: { ...ui.section },
+  empty: { ...ui.empty },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, maxWidth: 792, width: "100%", alignSelf: "center", paddingBottom: 40 },
   flex: { flex: 1 },
@@ -304,4 +307,4 @@ const styles = StyleSheet.create({
   toolIcon: { width: 46, height: 46, borderRadius: radius.md, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   toolTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
   toolDesc: { fontSize: 13, color: colors.muted, lineHeight: 18 },
-});
+}));

@@ -1,16 +1,16 @@
 // "What Wellnest knows about me" (convex/me.ts): saved facts (editable), everything stored, who sees what,
 // export, and deletion by category or of the whole account.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors } from "./theme";
+import { colors, themed } from "./theme";
 import type { Strings } from "./i18n";
 
-type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "everything";
+type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "records" | "everything";
 
 function confirm(title: string, message: string, action: string, cancel: string): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
@@ -121,6 +121,7 @@ export function AboutPanel({ s }: { s: Strings }) {
       what: s.whatAppointments,
     },
     { label: s.rowSummaries, value: count(counts.summaries), category: counts.summaries.n ? "summaries" : undefined, what: s.whatSummaries },
+    { label: s.rowRecords, value: count(counts.records), category: counts.records.n ? "records" : undefined, what: s.whatRecords },
   ];
 
   return (
@@ -214,7 +215,7 @@ export function AboutPanel({ s }: { s: Strings }) {
 
       <View style={styles.actions}>
         <Pressable style={styles.button} onPress={() => void download()} disabled={!!busy} accessibilityRole="button">
-          {busy === "export" ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{s.exportData}</Text>}
+          {busy === "export" ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>{s.exportData}</Text>}
         </Pressable>
         <Pressable style={[styles.button, styles.dangerButton]} onPress={() => void remove("everything", "")} disabled={!!busy} accessibilityRole="button">
           <Text style={[styles.buttonText, styles.danger]}>{s.deleteEverything}</Text>
@@ -225,29 +226,29 @@ export function AboutPanel({ s }: { s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   loading: { padding: 16 },
-  scroll: { flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  scroll: { flexGrow: 0, flexShrink: 1, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   panel: { padding: 16, gap: 8, maxWidth: 760, width: "100%", alignSelf: "center" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 17, fontWeight: "700", color: colors.text },
   section: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 10 },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
-  empty: { color: colors.muted, fontStyle: "italic" },
+  empty: { color: colors.muted, fontStyle: "italic", fontSize: 14 },
   small: { color: colors.muted, fontSize: 13 },
   line: { color: colors.text, fontSize: 14, lineHeight: 20 },
   bold: { fontWeight: "700" },
   flex: { flex: 1 },
   factRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   fact: { fontSize: 15, color: colors.text },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
   dataRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.bg },
   dataLabel: { width: 120, fontSize: 14, color: colors.text, fontWeight: "600" },
   actions: { flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 8 },
   button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, minWidth: 150, alignItems: "center" },
-  dangerButton: { backgroundColor: "#fff", borderWidth: 1, borderColor: colors.danger },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  link: { color: colors.primary, fontWeight: "600" },
+  dangerButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.danger },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

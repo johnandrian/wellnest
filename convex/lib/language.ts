@@ -107,6 +107,18 @@ const TEXT = {
     el: () => "Η επίσκεψη είναι ακόμη κλεισμένη. Δοκίμασε ξανά ή επικοινώνησε με τον πάροχο.",
     zh: () => "问诊仍处于预约状态。请重试，或联系服务提供方。",
   },
+  interactionAlert: {
+    en: (a: string, term: string, b: string, excerpt: string) => `⚠️ **Possible interaction:** the FDA label for ${a} mentions ${term}, and you also take ${b}:\n\n> ${excerpt}\n\nThis may be fine (your doctor may already know), but please check with your pharmacist or doctor. Don't stop a medication without asking them first.`,
+    es: (a: string, term: string, b: string, excerpt: string) => `⚠️ **Posible interacción:** la ficha de la FDA de ${a} menciona ${term}, y también tomas ${b}:\n\n> ${excerpt}\n\nPuede que no pase nada (tu médico quizá ya lo sepa), pero consúltalo con tu farmacéutico o médico. No dejes ningún medicamento sin preguntarles antes.`,
+    el: (a: string, term: string, b: string, excerpt: string) => `⚠️ **Πιθανή αλληλεπίδραση:** το φύλλο οδηγιών της FDA για το ${a} αναφέρει ${term}, και παίρνεις επίσης ${b}:\n\n> ${excerpt}\n\nΜπορεί να είναι εντάξει (ο γιατρός σου ίσως το ξέρει ήδη), αλλά ρώτα τον φαρμακοποιό ή τον γιατρό σου. Μη σταματήσεις κανένα φάρμακο χωρίς να τους ρωτήσεις.`,
+    zh: (a: string, term: string, b: string, excerpt: string) => `⚠️ **可能的药物相互作用：**FDA 说明书中 ${a} 提到了 ${term}，而你也在服用 ${b}：\n\n> ${excerpt}\n\n这可能没有问题（你的医生也许已经知道），但请向药剂师或医生确认。在询问他们之前不要自行停药。`,
+  },
+  missedDoses: {
+    en: (name: string, n: number) => `💊 You've missed ${n} doses of **${name}** this week. That happens. Would a different reminder time work better? You can change it in the Medications tab, or tell me here. If it's side effects or cost, that's worth raising with your doctor.`,
+    es: (name: string, n: number) => `💊 Esta semana te has saltado ${n} dosis de **${name}**. Pasa. ¿Te vendría mejor otra hora de aviso? Puedes cambiarla en la pestaña Medicamentos o decírmelo aquí. Si son efectos secundarios o el precio, coméntalo con tu médico.`,
+    el: (name: string, n: number) => `💊 Αυτή την εβδομάδα έχασες ${n} δόσεις του **${name}**. Συμβαίνει. Θα σε βόλευε άλλη ώρα υπενθύμισης; Μπορείς να την αλλάξεις στην καρτέλα Φάρμακα ή να μου το πεις εδώ. Αν φταίνε παρενέργειες ή το κόστος, αξίζει να το πεις στον γιατρό σου.`,
+    zh: (name: string, n: number) => `💊 这周你错过了 ${n} 次 **${name}**。这很常见。换个提醒时间会更好吗？你可以在“药物”页面修改，或直接在这里告诉我。如果是因为副作用或费用，值得和医生谈谈。`,
+  },
   lowSupply: {
     en: (name: string, days: number) => `💊 You're running low on **${name}**: about ${days} day${days === 1 ? "" : "s"} left. Time to order a refill.`,
     es: (name: string, days: number) => `💊 Te queda poco **${name}**: unos ${days} día${days === 1 ? "" : "s"}. Es hora de pedir más.`,

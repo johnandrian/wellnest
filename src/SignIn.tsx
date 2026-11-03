@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from "react-native";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { colors } from "./theme";
+import { colors, themed } from "./theme";
 
 export function SignIn() {
   const { signIn } = useAuthActions();
@@ -63,7 +63,7 @@ export function SignIn() {
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={styles.button} onPress={submit} disabled={busy}>
         {busy ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={styles.buttonText}>{flow === "signIn" ? "Sign in" : "Sign up"}</Text>
         )}
@@ -77,14 +77,14 @@ export function SignIn() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: { flex: 1, justifyContent: "center", padding: 24, gap: 12, maxWidth: 420, width: "100%", alignSelf: "center" },
   logo: { width: 200, height: 151, alignSelf: "center" },
   tagline: { fontSize: 15, color: colors.muted, textAlign: "center", marginBottom: 12 },
   subtitle: { fontSize: 16, color: colors.muted, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: "#fff" },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
   button: { backgroundColor: colors.primary, borderRadius: 10, padding: 14, alignItems: "center" },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  link: { color: colors.primary, textAlign: "center", marginTop: 8 },
-  error: { color: colors.danger },
-});
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "600" },
+  link: { color: colors.primary, textAlign: "center", marginTop: 8, fontSize: 14 },
+  error: { color: colors.danger, fontSize: 14 },
+}));

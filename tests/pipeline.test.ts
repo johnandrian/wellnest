@@ -117,6 +117,7 @@ describe("app chat", () => {
     expect(await as.query(api.chat.me)).toEqual({
       email: "a@example.com",
       language: "en",
+      appearance: { theme: "system", textSize: 1 },
       notifications: { reminders: true, appointments: true },
       onboarded: false,
       name: null,
@@ -126,6 +127,15 @@ describe("app chat", () => {
       location: "",
       telegramLinked: false,
     });
+  });
+
+  test("appearance is saved on the account; only the offered text sizes are allowed", async () => {
+    const t = setup();
+    const { as } = await createAppUser(t);
+    await as.mutation(api.chat.setAppearance, { appearance: { theme: "dark", textSize: 1.15 } });
+    expect((await as.query(api.chat.me))!.appearance).toEqual({ theme: "dark", textSize: 1.15 });
+    await expect(as.mutation(api.chat.setAppearance, { appearance: { theme: "light", textSize: 3 } })).rejects.toThrow(/text sizes/);
+    await expect(t.mutation(api.chat.setAppearance, { appearance: { theme: "light", textSize: 1 } })).rejects.toThrow(/Not signed in/);
   });
 
   test("a question asked with the app's mic is marked spoken; the reply goes in the app only", async () => {

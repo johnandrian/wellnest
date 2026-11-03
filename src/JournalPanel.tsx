@@ -1,12 +1,12 @@
 // Symptom journal (convex/journal.ts): a severity chart per symptom with sleep and period days underneath, patterns,
 // and a quick way to log or remove an entry. Most entries come from chat ("my headache's a 6 today").
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
@@ -198,7 +198,7 @@ export function JournalPanel({ s }: { s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
@@ -220,19 +220,19 @@ const styles = StyleSheet.create({
   sleepRow: { height: 22, flexDirection: "row", alignItems: "flex-end", gap: 1, marginTop: 3 },
   sleepBar: { backgroundColor: colors.sleep, borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   periodRow: { height: 8, flexDirection: "row", gap: 1, marginTop: 3 },
-  periodDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#E5484D", alignSelf: "center" },
+  periodDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.period, alignSelf: "center" },
   axis: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   axisText: { color: colors.muted, fontSize: 12 },
   legend: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
   insights: { backgroundColor: colors.primarySoft, borderRadius: 10, padding: 10, gap: 4 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   severityRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   sev: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   sevText: { fontSize: 13, color: colors.text },
   sevTextOn: { color: colors.onPrimary, fontWeight: "700" },
   button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   entry: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

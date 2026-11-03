@@ -1,14 +1,14 @@
-// "Health tools": a dashboard home (./HomePanel) with the journal, medications, exercise, appointments, reports and
-// care one tap away. It covers the whole screen; the Chat button at the top right goes back to the conversation.
+// "Health tools": a dashboard home (./HomePanel) with the journal, medications, exercise, appointments, reports,
+// records and care one tap away. It covers the whole screen; the Chat button at the top right goes back to the conversation.
 // Inside a tool, the back button returns to the dashboard and the row under the header switches tools.
 import { useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName } from "./Icon";
-import { colors, radius, tint, TOUCH } from "./theme";
+import { colors, radius, tint, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { HomePanel } from "./HomePanel";
 import { JournalPanel } from "./JournalPanel";
@@ -17,9 +17,10 @@ import { VisitsPanel } from "./VisitsPanel";
 import { VisitPanel } from "./VisitPanel";
 import { CarePanel } from "./CarePanel";
 import { ExercisePanel } from "./ExercisePanel";
+import { RecordsPanel } from "./RecordsPanel";
 import { Enter, SwapIcon } from "./Motion";
 
-export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "care";
+export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "records" | "care";
 export type HubTab = "home" | ToolTab;
 
 export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; label: (s: Strings) => string; desc: (s: Strings) => string }[] = [
@@ -28,6 +29,7 @@ export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; lab
   { tab: "exercise", icon: "exercise", tint: "exercise", label: (s) => s.tabExercise, desc: (s) => s.toolExerciseDesc },
   { tab: "visits", icon: "appointments", tint: "appointments", label: (s) => s.tabVisits, desc: (s) => s.toolVisitsDesc },
   { tab: "visit", icon: "reports", tint: "reports", label: (s) => s.tabVisit, desc: (s) => s.toolVisitDesc },
+  { tab: "records", icon: "records", tint: "records", label: (s) => s.tabRecords, desc: (s) => s.toolRecordsDesc },
   { tab: "care", icon: "care", tint: "care", label: (s) => s.tabCare, desc: (s) => s.toolCareDesc },
 ];
 
@@ -110,13 +112,14 @@ export function HubPanel({ tab, onTab, onClose, s }: { tab: HubTab; onTab: (t: H
           />
         )}
         {tab === "visit" && <VisitPanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
+        {tab === "records" && <RecordsPanel s={s} />}
         {tab === "care" && <CarePanel s={s} />}
       </Enter>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   wrap: { flex: 1 },
   body: { flex: 1 },
   // The teal band: it carries the greeting on the dashboard and the tool switcher inside a tool.
@@ -129,8 +132,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radius.lg,
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, width: "100%", maxWidth: 792, alignSelf: "center" },
-  round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.16)" },
-  badge: { width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.16)" },
+  round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.onPrimaryFill },
+  badge: { width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.onPrimaryFill },
   titles: { flex: 1, minWidth: 0 },
   kicker: { color: colors.primarySoft, fontSize: 13, fontWeight: "600" },
   title: { color: colors.onPrimary, fontSize: 21, fontWeight: "700", marginTop: 1 },
@@ -139,8 +142,8 @@ const styles = StyleSheet.create({
   tabsScroll: { flexGrow: 0, width: "100%", maxWidth: 792, alignSelf: "center", marginTop: 12 },
   // Pill tabs: the selected one is filled white, so it doesn't rely on colour alone.
   tabs: { flexDirection: "row", gap: 6, paddingHorizontal: 12, minWidth: "100%" },
-  tab: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.12)" },
+  tab: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.onPrimaryFill },
   tabOn: { backgroundColor: colors.surface },
   tabText: { color: colors.onPrimary, fontSize: 14, fontWeight: "600" },
   tabTextOn: { color: colors.primary },
-});
+}));

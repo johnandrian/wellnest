@@ -28,6 +28,13 @@ const ICONS = {
   doctor: ["mci", "stethoscope"],
   insights: ["ion", "analytics-outline"],
   doses: ["ion", "checkmark-done"],
+  records: ["mci", "clipboard-pulse-outline"],
+  recordLab: ["mci", "test-tube"],
+  recordLetter: ["ion", "mail-open-outline"],
+  recordImaging: ["mci", "radiology-box-outline"],
+  recordOther: ["ion", "document-attach-outline"],
+  pdf: ["mci", "file-pdf-box"],
+  photo: ["ion", "camera-outline"],
 } as const;
 
 export type IconName = keyof typeof ICONS;

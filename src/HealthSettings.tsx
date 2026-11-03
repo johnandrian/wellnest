@@ -1,10 +1,10 @@
 // The phone health data part of Settings (Apple Health on iPhone, Health Connect on Android): connect, sync status,
 // sharing with analyses, disconnect. The web app shows the status and can disconnect.
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, Switch, Text, View } from "react-native";
 import { useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, themed } from "./theme";
 import type { HealthSync } from "./useHealthSync";
 import type { Strings } from "./i18n";
 
@@ -45,7 +45,7 @@ export function HealthSettings({ health, s }: { health: HealthSync; s: Strings }
   return (
     <View style={styles.box}>
       <View style={styles.titleRow}>
-        <Ionicons name="heart" size={18} color="#E5484D" />
+        <Ionicons name="heart" size={18} color={colors.heart} />
         <Text style={styles.title}>{health.name}</Text>
         {health.syncing && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
@@ -89,7 +89,7 @@ export function HealthSettings({ health, s }: { health: HealthSync; s: Strings }
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   box: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, gap: 8 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 16, fontWeight: "600", color: colors.text, flex: 1 },
@@ -98,9 +98,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   label: { fontSize: 15, color: colors.text },
   button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   actions: { flexDirection: "row", gap: 20 },
-  link: { color: colors.primary, fontWeight: "600" },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

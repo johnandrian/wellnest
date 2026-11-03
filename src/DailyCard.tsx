@@ -1,10 +1,10 @@
 // "How's today?": mood, energy and sleep quality in one tap each (convex/daily.ts). In the chat it shows until today
 // is answered or skipped; in the Journal tab it's always there to change today's answers.
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, ui } from "./theme";
+import { colors, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
@@ -81,7 +81,7 @@ export function DailyChart({ days, daily, s }: { days: string[]; daily: { date: 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   card: { ...ui.card, padding: 12, gap: 6 },
   inChat: { margin: 12, marginBottom: 0, maxWidth: 736, width: "100%", alignSelf: "center" },
   title: { fontSize: 15, fontWeight: "700", color: colors.text },
@@ -98,4 +98,4 @@ const styles = StyleSheet.create({
   bars: { flex: 1, height: 28, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 3 },
   slot: { flex: 1, height: "100%", justifyContent: "flex-end" },
   bar: { borderTopLeftRadius: 1, borderTopRightRadius: 1 },
-});
+}));

@@ -1,13 +1,13 @@
 // Chat history (convex/chats.ts): a drawer from the left with every chat, newest first. Tap one to continue it;
 // the trash button deletes it after a yes. It slides in over a dimmed chat and slides back out when closed.
-import { Alert, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
-import { colors, radius, TOUCH, ui } from "./theme";
+import { colors, radius, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { usePresence } from "./Motion";
 
@@ -79,7 +79,7 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
         <Text style={styles.newChatText}>{s.newChat}</Text>
       </Tap>
       <ScrollView contentContainerStyle={styles.list}>
-        {chats?.length === 0 && <Text style={ui.empty}>{s.chatsEmpty}</Text>}
+        {chats?.length === 0 && <Text style={styles.empty}>{s.chatsEmpty}</Text>}
         {chats?.map((c) => (
           <View key={c._id ?? "first"} style={[styles.row, c.current && styles.rowOn]}>
             <Tap
@@ -119,10 +119,11 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, flexDirection: "row" },
-  backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(17, 24, 39, 0.35)" },
+  backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.backdrop },
   fill: { flex: 1 },
+  empty: { ...ui.empty },
   drawer: {
     width: "85%",
     maxWidth: WIDTH,
@@ -146,4 +147,4 @@ const styles = StyleSheet.create({
   rowTitleOn: { fontWeight: "700", color: colors.primary },
   rowDate: { fontSize: 12, color: colors.muted, marginTop: 2 },
   trash: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center", borderRadius: TOUCH / 2 },
-});
+}));

@@ -1,13 +1,13 @@
 // Condition trackers in the Journal tab (convex/trackers.ts): pain / CRPS, asthma and seizures, each with a quick
 // form, a chart over the chosen days and the recent entries. Most people will log by just telling Wellnest in chat.
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
 
@@ -302,7 +302,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   wrap: { gap: 8 },
   section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   form: { gap: 8 },
@@ -323,15 +323,15 @@ const styles = StyleSheet.create({
   sevText: { fontSize: 13, color: colors.text },
   sevOn: { color: colors.onPrimary, fontWeight: "700" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 72, textAlign: "center" },
   multi: { minHeight: 56, textAlignVertical: "top" },
   bars: { height: 56, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 4 },
   slot: { flex: 1, height: "100%", justifyContent: "flex-end" },
   bar: { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
-  link: { color: colors.primary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   entry: { flexDirection: "row", alignItems: "center", gap: 8 },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

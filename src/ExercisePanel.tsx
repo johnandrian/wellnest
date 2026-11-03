@@ -1,12 +1,12 @@
 // Exercises and physio (convex/exercises.ts): today's routine to tick off, the last two weeks at a glance, and
 // adding or stopping an exercise. "Did my stretches" in chat ticks it off too.
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -126,7 +126,7 @@ export function ExercisePanel({ s }: { s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
@@ -142,9 +142,9 @@ const styles = StyleSheet.create({
   dot: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.border },
   dotOff: { backgroundColor: colors.bg },
   dotDone: { backgroundColor: colors.primary },
-  dotMissed: { backgroundColor: "#F59E0B" },
+  dotMissed: { backgroundColor: colors.amber },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 56, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   label: { color: colors.text, fontSize: 14 },
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   addRow: { ...ui.addButton },
-  link: { color: colors.primary, fontWeight: "600" },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

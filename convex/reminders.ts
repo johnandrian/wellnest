@@ -11,6 +11,7 @@ import { notify } from "./push";
 import { daysLeft, doseAt, medForm, timeDose } from "./lib/meds";
 import { logEvent } from "./medications";
 import { insertMessage } from "./lib/chats";
+import { interactionsText, lookupSoon } from "./drugs";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A dose due within a minute of a course's end counts as past it ("every 12 hours for 1 day" is 2 reminders).
@@ -67,6 +68,7 @@ async function addMedication(ctx: MutationCtx, userId: Id<"users">, args: AddArg
   });
   const med = (await ctx.db.get(id))!;
   await logEvent(ctx, med, "started");
+  await lookupSoon(ctx, med, true);
   const at = nextDue(checked.schedule, now, timeZone, utcOffsetMin);
   await schedule_(ctx, id, at);
   return { id, nextAt: at, timeZone, schedule: checked.schedule };
@@ -168,6 +170,20 @@ async function useSupply(ctx: MutationCtx, medicationId: Id<"medications">) {
   await notify(ctx, med.userId, "reminders", { title: `💊 ${med.name}`, body: text, data: {} });
 }
 
+// Doses skipped or never answered (2 hours on) this past week. Three or more: a kind nudge in chat, at most weekly.
+const NUDGE_AFTER = 3;
+async function nudgeIfMissing(ctx: MutationCtx, med: Doc<"medications">, user: Doc<"users">, now: number) {
+  if (med.nudgedAt && med.nudgedAt > now - 7 * DAY_MS) return;
+  const recent = await ctx.db
+    .query("messages")
+    .withIndex("by_user", (q) => q.eq("userId", med.userId).gte("_creationTime", now - 7 * DAY_MS))
+    .take(1000);
+  const missed = recent.filter((m) => m.reminder?.medicationId === med._id && m.reminder.status !== "taken" && m.reminder.dueAt < now - 2 * 60 * 60 * 1000).length;
+  if (missed < NUDGE_AFTER) return;
+  await insertMessage(ctx, { userId: med.userId, role: "assistant", channel: "app", text: t(langOf(user), "missedDoses", med.name, missed), urgent: false });
+  await ctx.db.patch(med._id, { nudgedAt: now });
+}
+
 // A dose is due: post the reminder and schedule the next one. Ignores stale jobs (stopped, or rescheduled).
 export const fire = internalMutation({
   args: { id: v.id("medications"), dueAt: v.number() },
@@ -176,6 +192,7 @@ export const fire = internalMutation({
     if (!med?.active || med.nextAt !== dueAt) return;
     const user = await ctx.db.get(med.userId);
     if (user) {
+      await nudgeIfMissing(ctx, med, user, Date.now());
       const local = new Date(dueAt + zoneOffsetMin(dueAt, med.timeZone, med.utcOffsetMin) * 60_000).toISOString().slice(11, 16);
       const dose = doseAt(local, med.dose, med.timeDoses) ?? "";
       const text = t(langOf(user), "reminder", med.name, dose, timeText(dueAt, med.timeZone, langOf(user)));
@@ -268,7 +285,8 @@ export async function medicationsText(ctx: QueryCtx, userId: Id<"users">, now: n
     if (effects.length) line += `; side effects: ${effects.map((e) => `${e.date} ${e.effect}${e.severity !== undefined ? ` ${e.severity}/10` : ""}`).join(", ")}`;
     lines.push(line);
   }
-  return lines.join("\n");
+  const interactions = await interactionsText(ctx, userId);
+  return [...lines, ...(interactions ? [interactions] : [])].join("\n");
 }
 
 export const activeText = internalQuery({

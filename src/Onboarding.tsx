@@ -2,11 +2,11 @@
 // once). Every step can be skipped, "Finish later" keeps what's done, and Settings can run it again. Answers already
 // on the account (language, city, facts, medications, the emergency contact) start filled in.
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, radius, TOUCH, ui } from "./theme";
+import { colors, radius, TOUCH, ui, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, strings } from "./i18n";
 import { Tap } from "./Tap";
 import { useHealthSync } from "./useHealthSync";
@@ -340,7 +340,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   screen: { flex: 1, backgroundColor: colors.bg },
   top: { paddingTop: Platform.OS === "web" ? 16 : 56, paddingHorizontal: 20, paddingBottom: 12, gap: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", maxWidth: 560, width: "100%", alignSelf: "center" },
@@ -381,4 +381,4 @@ const styles = StyleSheet.create({
   skipText: { color: colors.muted, fontSize: 16, fontWeight: "600" },
   next: { flex: 1 },
   nextText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
-});
+}));

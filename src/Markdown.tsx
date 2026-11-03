@@ -1,6 +1,6 @@
 // Minimal Markdown for chat bubbles: headings, bullets, **bold**, *italic*, `code`, [links](url).
-import { Linking, StyleSheet, Text, TextStyle, View } from "react-native";
-import { colors } from "./theme";
+import { Linking, Text, TextStyle, View } from "react-native";
+import { colors, themed } from "./theme";
 
 export function Markdown({ text, style }: { text: string; style: TextStyle }) {
   return (
@@ -35,7 +35,7 @@ function inline(text: string, style: TextStyle) {
     const link = part.match(/^\[([^\]]+)\]\((.+)\)$/);
     if (link) {
       return (
-        <Text key={i} style={[styles.link, { color: style.color === "#fff" ? "#fff" : colors.primary }]} onPress={() => Linking.openURL(link[2])}>
+        <Text key={i} style={[styles.link, { color: style.color === colors.onPrimary ? colors.onPrimary : colors.primary }]} onPress={() => Linking.openURL(link[2])}>
           {link[1]}
         </Text>
       );
@@ -44,7 +44,7 @@ function inline(text: string, style: TextStyle) {
   });
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   block: { gap: 2 },
   row: { flexDirection: "row", gap: 6 },
   marker: { minWidth: 12 },
@@ -52,6 +52,6 @@ const styles = StyleSheet.create({
   gap: { height: 6 },
   bold: { fontWeight: "700" },
   italic: { fontStyle: "italic" },
-  code: { fontFamily: "Courier", backgroundColor: "#F3F4F6" },
+  code: { fontFamily: "Courier", backgroundColor: colors.codeBg },
   link: { textDecorationLine: "underline" },
-});
+}));

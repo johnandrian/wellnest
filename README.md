@@ -13,10 +13,11 @@ What it does:
 - **Keeps a journal for you:** symptoms, a daily mood / energy / sleep check-in, pain and CRPS, asthma (peak flow, inhaler use) and seizure trackers, and your exercise routine, logged just by mentioning them in chat.
 - **Finds your patterns:** what goes with your worse days (sleep, activity, your cycle, local weather, air pressure, air quality, pollen), how things changed after a new medication or dose, charts right in the chat, and a summary of your week every Sunday.
 - **Reads your wearables:** Apple Health on iPhone and Health Connect on Android (Samsung, Fitbit, Garmin, Oura, Flo...), with gentle check-ins when your numbers change.
-- **Medications:** reminders with Taken / Skip, doses by time of day, history, side effects, refill warnings and your eScript.
+- **Medications:** reminders with Taken / Skip, doses by time of day, history, side effects, refill warnings and your eScript. Scan a label to add one, see possible interactions from the FDA labels, and get a kind nudge when doses are being missed.
+- **Health records:** add a lab report or clinic letter as a photo or PDF; it's explained in plain words in your language and each test is followed over time.
 - **Appointments and care team:** reminders, suggested questions to ask based on what changed since your last visit, notes afterwards, one-tap calling.
 - **Gets you care:** doctor-ready visit summaries, PDF reports, read-only share links for carers and doctors, an emergency plan, the nearest urgent care / ER / pharmacy, and telehealth video visits booked only when you confirm.
-- **Yours to control:** see everything Wellnest knows, export it, or delete it.
+- **Yours to control:** see everything Wellnest knows, export it, or delete it. Light or dark appearance and four text sizes.
 
 ## Architecture
 The app (Expo / React Native for web, iOS and Android) and the Telegram bot talk to one [Convex](https://convex.dev) backend: database, server functions, scheduler, file storage and HTTP routes. AI and outside services are called from Convex actions, never from the app with secret keys.
@@ -90,6 +91,8 @@ flowchart TB
   users --- health["healthDays · weatherDays · checkins"]
   users --- journal["symptomEntries · dailyLogs · trackerEntries · exercises · exerciseLogs"]
   users --- meds["medications · doseLogs · medicationEvents · sideEffects"]
+  users --- records["records · labResults"]
+  meds -.- drugInfo["drugInfo (shared)"]
   users --- care["visits · careTeam · appointments (telehealth) · emergencyPlans"]
   users --- out["visitSummaries · shareLinks · creaoRuns"]
   users --- devices["pushTokens · authSessions"]
@@ -113,17 +116,19 @@ flowchart LR
   - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** screen (dashboard home in `HomePanel.tsx`, then one screen per tool); `ChatHistory.tsx` — the chat history drawer; `Icon.tsx` — one icon per idea.
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
-  - `MedicationsPanel.tsx` — medications and reminders; `ExercisePanel.tsx` — exercise routine.
+  - `MedicationsPanel.tsx` — medications, reminders, label scan and the safety card; `ExercisePanel.tsx` — exercise routine; `RecordsPanel.tsx` — health records.
+  - `theme.ts` — light and dark palettes, text size and `themed()` style sheets; `Motion.tsx` — the shared animations.
   - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
   - `CarePanel.tsx`, `EmergencyCard.tsx`, `TelehealthCard.tsx` — care nearby, emergency plan, video visits.
   - `health.ios.ts` / `health.android.ts` / `health.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health / Health Connect sync.
-  - `AboutPanel.tsx` — "What Wellnest knows about me". `push.ts` — notifications. `photo.ts` — photos. `i18n.ts` — English, Spanish, Greek.
+  - `AboutPanel.tsx` — "What Wellnest knows about me". `push.ts` — notifications. `photo.ts` — photos. `i18n.ts` — English, Spanish, Greek, Simplified Chinese.
   - `useVoice.ts`, `speaker.web.ts` / `speaker.ts` — the mic and spoken replies (see Voice below).
 - `convex/` — the backend. `schema.ts` has every table.
   - `pipeline.ts` — the message pipeline and the model's tools; `lib/tools.ts` — tool definitions.
   - `chat.ts`, `telegram.ts`, `http.ts`, `voice.ts` — app API, Telegram, HTTP routes, voice.
   - `journal.ts`, `daily.ts`, `trackers.ts`, `exercises.ts` (+ `lib/journal.ts`, `lib/trackers.ts`) — the journal and trackers.
-  - `reminders.ts`, `medications.ts` (+ `lib/reminders.ts`, `lib/meds.ts`) — medications.
+  - `reminders.ts`, `medications.ts` (+ `lib/reminders.ts`, `lib/meds.ts`) — medications; `drugs.ts`, `medScan.ts` (+ `lib/drugs.ts`) — interactions and label scans.
+  - `records.ts`, `recordsPdf.ts` (+ `lib/records.ts`) — health records.
   - `visits.ts`, `telehealth.ts`, `care.ts`, `emergency.ts` — appointments, video visits, care nearby, emergency plans.
   - `visit.ts`, `reports.ts`, `share.ts` (+ `lib/report.ts`) — visit summaries, PDF reports, share links.
   - `health.ts`, `checkins.ts` — wearable data and check-ins. `push.ts` — notifications. `me.ts` — facts, export, deletion.
@@ -199,12 +204,30 @@ The **Medications** tab lists every medication: active, paused and stopped (kept
 - **eScript:** a photo of the QR code or prescription label, uploaded like a chat photo and kept with the medication.
 - **Chat:** "the new pills make me dizzy", "I stopped my ibuprofen", "my sertraline went up to 100 mg" → `update_medication`. The model sees each medication's details, adherence, dose changes and side effects.
 
+### Medication safety
+- **Scan a label:** **Scan a label** next to **Add a medication** reads a photo of a pharmacy bottle, box or inhaler with the vision model (`medScan.read`) and fills in the add form: name, generic name, strength, form, prescriber and how often (twice a day becomes 08:00 and 20:00). The directions line is shown above the form, nothing is saved until **Save**, and the photo is deleted once it's read.
+- **Possible interactions:** each medication name is looked up once and shared (`drugInfo`, refreshed after 30 days): RxNorm turns brand names and misspellings into ingredients and brands, and openFDA gives the label's drug interactions, warnings, "ask a doctor or pharmacist" and boxed warning text, with the drug classes. When one medication's label names another one you take (by ingredient, brand or class, such as "NSAIDs"), the **Medication safety** card on the Medications tab shows the pair with the label's own sentence, and a chat message says it once per pair in your language. A brand and its generic aren't counted, and names neither service knows are listed so you can ask a pharmacist. The model sees the same list and is told it's label wording, not a judgement. This isn't a full interaction check, and the app says so.
+- **Missed doses:** when a reminder fires and three or more doses of that medication in the last week were skipped or left unanswered for 2 hours, a kind note in chat asks whether a different time would work better, at most once a week per medication.
+- **Adherence:** visit summaries and PDF reports already list Taken / Skip for each medication.
+
 ### Reminders
 Each due dose posts a reminder message in the app chat ("💊 Time for your **Ibuprofen** (400 mg). Due 8:00 PM.") with **Taken** / **Skip** buttons; answers go to `doseLogs` and can be changed. Reminders aren't embedded for memory and aren't read aloud. They're in-app only, not sent on Telegram.
 - **Schedules:** daily at set local times (up to 8), or every N hours (1-72) from the first dose; optionally for a course of N days (a dose due at the very end isn't sent). Up to 20 active reminders.
 - **Time zones:** the app reports the device's IANA zone (`chat.setTimeZone`) on start; daily times follow it across daylight saving. Until the app has been opened, times are UTC (the model says so). A fixed UTC offset is the fallback if the runtime can't resolve the zone.
 - **Scheduling:** one scheduled function per reminder (`fire`), which posts the message and schedules the next dose. Stopping cancels it; stale jobs are ignored.
 - **Chat:** "remind me to take ibuprofen 400 mg every 6 hours for 3 days" → `set_medication_reminder`; "stop my ibuprofen reminders" → `cancel_medication_reminder`. Visit summaries and reports get each medication with the last 30 days of Taken / Skip.
+
+## Health records
+The **Records** tool (`convex/records.ts`, `src/RecordsPanel.tsx`) keeps lab reports, discharge and clinic letters and imaging reports.
+- **Adding one:** a photo (the camera on phones, the library on web) or a PDF, up to 15 MB, uploaded and claimed like a chat photo. It's read in the background: photos go to the vision model; PDFs have their text pulled out first (`recordsPdf.ts`, unpdf in a Node action), and a scanned PDF with no text asks for a photo instead. Up to 3 are read at a time.
+- **What comes back:** a title, the date on the record, the lab or clinic, a 2-4 sentence plain-language summary in the user's language, and for labs one `labResults` row per test with the value and unit as printed, the reference range, the report's flag (low, high, abnormal or in range) and one plain sentence on what the test means. Test names are kept in standard English so the same test lines up across reports.
+- **Over time:** **Your tests over time** shows a small bar trend for every test seen more than once or out of range, with the usual range as a band and out-of-range values in amber.
+- **The model:** sees the latest value of each test (out-of-range first) and the newest letters' summaries, and is told to explain in plain words without diagnosing.
+- **Your data:** the original file can be opened again or removed with its results; records have their own row in "What Wellnest knows about me" and are in the export. A note under the list says explanations are AI-written and to check values against the original.
+- **Later:** importing from a patient portal (SMART on FHIR).
+
+## Appearance
+Settings has **Appearance** (system, light or dark) and **Text size** (four sizes), saved on the account (`chat.setAppearance`). `src/theme.ts` keeps a light and a dark palette checked for WCAG AA contrast; `applyTheme` swaps them in place at the app root, and every style sheet is made with `themed()`, which rebuilds it after a change with font sizes and line heights scaled. On web the page background and `color-scheme` follow it.
 
 ## Photos
 Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a wound.
@@ -218,7 +241,7 @@ Settings → **What Wellnest knows about me** shows, in one place:
 - **Profile and what's stored:** email, location, time zone, voice and Telegram status, and counts of messages (with the date of the first), photos, symptom analyses, Apple Health days, reminders and Taken / Skip answers, and visit summaries. Counts above 200 show as "200+".
 - **Who sees what:** which outside services get which data (Snowflake Cortex, Jina, Cartesia, Jev, CREAO, Telegram).
 - **Export:** everything as JSON (messages without embeddings; photos listed by storage id). Web downloads a file; iOS/Android open the share sheet.
-- **Delete:** per category (messages with their photos, analyses, check-ins and video visits; health data; medications with their history; the journal with check-ins, trackers and exercises; appointments, care team and emergency plan; visit summaries; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
+- **Delete:** per category (messages with their photos, analyses, check-ins and video visits; health data; medications with their history; the journal with check-ins, trackers and exercises; appointments, care team and emergency plan; visit summaries; health records with their files; saved facts) or **everything**, which also deletes the auth sessions, accounts and the user, then signs out. Rows are deleted in batches of 200 by a self-rescheduling mutation. Clear chat still only hides messages; this is where they're actually deleted.
 
 ## Languages
 Wellnest speaks **English, Spanish, Greek and Simplified Chinese**. The user picks one in Settings or during account setup, or on Telegram with `/language en|es|el|zh`; a new Telegram user starts in their Telegram app's language if it's one of these.
@@ -232,7 +255,7 @@ iOS and Android get push notifications (Expo push) for **medication reminders** 
 - **Devices:** each phone registers its token in `pushTokens` (up to 10 per user; a phone that signs in to another account moves to it). Signing out removes it; tokens Expo reports as `DeviceNotRegistered` are dropped.
 
 ## Symptom journal
-When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (the filled grid icon) opens a dashboard: the next dose and appointment, days logged and doses taken this week, today's check-in, four weeks of charts for what the user tracks (picked by their setup focus, each compared with last week), the strongest pattern and today's weather (`convex/dashboard.ts`). Tiles under it open the Journal, Medications, Exercise, Visits, Reports and Care; inside a tool, the back button returns to the dashboard and the row under the header switches tools.
+When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (the filled grid icon) opens a dashboard: the next dose and appointment, days logged and doses taken this week, today's check-in, four weeks of charts for what the user tracks (picked by their setup focus, each compared with last week), the strongest pattern and today's weather (`convex/dashboard.ts`). Tiles under it open the Journal, Medications, Exercise, Visits, Reports, Records and Care; inside a tool, the back button returns to the dashboard and the row under the header switches tools.
 - **Journal tab:** a severity bar chart per symptom for 14, 30 or 90 days, with Apple Health sleep (dark when under 6 h) and period days underneath; per-symptom summaries (days logged, average, latest, getting better or worse); and patterns such as "Headache averaged 7/10 on days with under 6 h of sleep vs 3/10 otherwise", shown only with at least 3 days on each side and a 1.5-point gap, and labelled as associations, not causes. Entries can be added or removed by hand.
 - **Model and summaries:** `get_symptom_journal` gives the model the same summaries, patterns and entries; visit summaries include them. The journal can be deleted from "What Wellnest knows about me".
 

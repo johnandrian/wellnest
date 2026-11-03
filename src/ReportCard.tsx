@@ -1,14 +1,14 @@
 // PDF reports (convex/reports.ts): pick a date range and sections, then save a PDF and share it (iOS/Android, via
 // expo-print and the share sheet) or print / save as PDF (web).
 import { useState } from "react";
-import { ActivityIndicator, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useConvex } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -113,14 +113,14 @@ export function ReportCard({ s }: { s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   card: { ...ui.card, padding: 12, gap: 8, marginTop: 6 },
   title: { fontSize: 16, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   form: { gap: 8 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
   date: { width: 120 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
@@ -129,6 +129,6 @@ const styles = StyleSheet.create({
   chipTextOn: { color: colors.primary, fontWeight: "600" },
   button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, padding: 11, minHeight: TOUCH },
   busy: { opacity: 0.7 },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

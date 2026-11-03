@@ -9,7 +9,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -19,7 +18,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
-import { colors } from "./theme";
+import { colors, TEXT_SIZES, themed, themeVersion } from "./theme";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
@@ -236,6 +235,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
         <FlatList
           ref={listRef}
           data={messages}
+          extraData={themeVersion()}
           keyExtractor={(m) => m._id}
           contentContainerStyle={styles.list}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
@@ -302,7 +302,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
                         <Ionicons
                           name={status === "taken" ? "checkmark" : "close"}
                           size={15}
-                          color={on ? "#fff" : colors.primary}
+                          color={on ? colors.onPrimary : colors.primary}
                         />
                         <Text style={[styles.doseText, on && styles.doseTextOn]}>{status === "taken" ? s.taken : s.skip}</Text>
                       </Pressable>
@@ -376,7 +376,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
               <ActivityIndicator color={colors.primary} />
             ) : (
               <SwapIcon id={voice.mic === "recording" ? "stop" : "mic"}>
-                {voice.mic === "recording" ? <Ionicons name="stop" size={20} color="#fff" /> : <Ionicons name="mic" size={22} color={colors.primary} />}
+                {voice.mic === "recording" ? <Ionicons name="stop" size={20} color={colors.onDanger} /> : <Ionicons name="mic" size={22} color={colors.primary} />}
               </SwapIcon>
             )}
           </Pressable>
@@ -397,7 +397,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           accessibilityRole="button"
           accessibilityLabel={s.sendMessage}
         >
-          <Ionicons name="arrow-up" size={22} color="#fff" />
+          <Ionicons name="arrow-up" size={22} color={!text.trim() && !photo ? colors.muted : colors.onPrimary} />
         </Pressable>
       </View>
       {notice && <Text style={styles.error}>{notice}</Text>}
@@ -440,6 +440,7 @@ function Settings({
     telegramLinked: boolean;
     location: string;
     language: string;
+    appearance: { theme: "system" | "light" | "dark"; textSize: number };
     notifications: { reminders: boolean; appointments: boolean };
     checkins: boolean;
     weeklySummary: boolean;
@@ -451,6 +452,7 @@ function Settings({
   onRedoSetup: () => void;
 }) {
   const setLanguage = useMutation(api.chat.setLanguage);
+  const setAppearance = useMutation(api.chat.setAppearance);
   const setPushPreference = useMutation(api.push.setPreference);
   const unregisterPush = useMutation(api.push.unregister);
   const setCheckins = useMutation(api.checkins.setEnabled);
@@ -489,6 +491,57 @@ function Settings({
               <Text style={[styles.langChipText, me.language === code && styles.langChipTextOn]}>{LANGUAGE_NAMES[code]}</Text>
             </Pressable>
           ))}
+        </View>
+      </View>
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>{s.appearanceLabel}</Text>
+        <View style={styles.langChips} accessibilityRole="radiogroup">
+          {(
+            [
+              ["system", "phone-portrait-outline", s.themeSystem],
+              ["light", "sunny-outline", s.themeLight],
+              ["dark", "moon-outline", s.themeDark],
+            ] as const
+          ).map(([theme, icon, label]) => {
+            const on = me.appearance.theme === theme;
+            return (
+              <Pressable
+                key={theme}
+                style={[styles.langChip, styles.iconChip, on && styles.langChipOn]}
+                onPress={() => void setAppearance({ appearance: { ...me.appearance, theme } })}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: on }}
+              >
+                <SwapIcon id={on ? "on" : "off"}>
+                  <Ionicons name={on ? (icon.replace("-outline", "") as typeof icon) : icon} size={14} color={on ? colors.primary : colors.muted} />
+                </SwapIcon>
+                <Text style={[styles.langChipText, on && styles.langChipTextOn]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>{s.textSizeLabel}</Text>
+        <View style={styles.langChips} accessibilityRole="radiogroup">
+          {TEXT_SIZES.map((size, i) => {
+            const on = me.appearance.textSize === size;
+            return (
+              <Pressable
+                key={size}
+                style={[styles.langChip, styles.sizeChip, on && styles.langChipOn]}
+                onPress={() => void setAppearance({ appearance: { ...me.appearance, textSize: size } })}
+                accessibilityRole="radio"
+                accessibilityLabel={s.textSizeNames[i]}
+                accessibilityState={{ selected: on }}
+              >
+                {/* The sample letter is drawn at that size, unscaled, so the choices compare honestly. */}
+                <Text style={[styles.sizeSample, { fontSize: Math.round(15 * size) }, on && styles.langChipTextOn]} allowFontScaling={false}>
+                  A
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
       <View style={styles.settingRow}>
@@ -544,7 +597,7 @@ function Settings({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: "row",
@@ -556,7 +609,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
   headerSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
@@ -572,27 +625,30 @@ const styles = StyleSheet.create({
   // Above the chat while it drops open, so it slides over the messages rather than pushing them.
   settingsWrap: { zIndex: 5, maxHeight: "70%" },
   aboutWrap: { zIndex: 5, maxHeight: "80%" },
-  settingsScroll: { flexGrow: 0, flexShrink: 1, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: colors.border },
+  settingsScroll: { flexGrow: 0, flexShrink: 1, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 16, color: colors.text },
   settingLabelWrap: { flex: 1, marginRight: 12 },
-  locationInput: { flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
+  locationInput: { color: colors.text, flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
   langChips: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, marginLeft: 16 },
   langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  iconChip: { flexDirection: "row", alignItems: "center", gap: 4 },
+  sizeChip: { minWidth: 40, minHeight: 36, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  sizeSample: { color: colors.text, fontWeight: "700", lineHeight: 24 },
   langChipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   langChipText: { color: colors.text, fontSize: 14 },
   langChipTextOn: { color: colors.primary, fontWeight: "600" },
   settingButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: 10, padding: 12, alignItems: "center" },
-  settingButtonText: { color: colors.primary, fontWeight: "600" },
-  muted: { color: colors.muted },
+  settingButtonText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
+  muted: { color: colors.muted, fontSize: 14 },
   list: { padding: 16, gap: 8, maxWidth: 760, width: "100%", alignSelf: "center" },
-  empty: { color: colors.muted, textAlign: "center", lineHeight: 20, maxWidth: 340 },
+  empty: { color: colors.muted, textAlign: "center", lineHeight: 20, maxWidth: 340, fontSize: 14 },
   welcome: { alignItems: "center", marginTop: 32, gap: 10, paddingHorizontal: 8 },
   welcomeIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
   welcomeTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
   chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 8, maxWidth: 560 },
-  chip: { borderWidth: 1, borderColor: colors.border, backgroundColor: "#fff", borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
+  chip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
   chipText: { color: colors.text, fontSize: 14 },
   speaking: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   speakingText: { fontSize: 12, color: colors.primary, fontWeight: "600" },
@@ -609,12 +665,12 @@ const styles = StyleSheet.create({
   doseButton: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
   doseButtonOn: { backgroundColor: colors.primary },
   doseText: { color: colors.primary, fontWeight: "600", fontSize: 13 },
-  doseTextOn: { color: "#fff" },
-  userText: { color: "#fff", fontSize: 16 },
+  doseTextOn: { color: colors.onPrimary },
+  userText: { color: colors.onPrimary, fontSize: 16 },
   photo: { width: 220, height: 220, borderRadius: 10, marginBottom: 6, backgroundColor: colors.border },
-  attachment: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: colors.border },
+  attachment: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
   attachmentThumb: { width: 44, height: 44, borderRadius: 8 },
-  attachmentText: { flex: 1, color: colors.muted },
+  attachmentText: { flex: 1, color: colors.muted, fontSize: 14 },
   photoButton: { backgroundColor: colors.primarySoft },
   botText: { color: colors.text, fontSize: 16, lineHeight: 22 },
   channel: { fontSize: 11, color: colors.muted, marginTop: 4 },
@@ -624,11 +680,12 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     paddingBottom: 28,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   input: {
+    color: colors.text,
     minWidth: 0, // web inputs otherwise keep their default width and push the send button off small screens
     flex: 1,
     minHeight: 44,
@@ -646,9 +703,9 @@ const styles = StyleSheet.create({
   sendIdle: { backgroundColor: colors.border },
   mic: { backgroundColor: colors.primarySoft },
   micActive: { backgroundColor: colors.danger },
-  error: { color: colors.danger, paddingHorizontal: 16, paddingBottom: 8 },
+  error: { color: colors.danger, paddingHorizontal: 16, paddingBottom: 8, fontSize: 14 },
   noteRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingRight: 16 },
   noteText: { flex: 1 },
-  errorAction: { color: colors.primary, fontWeight: "600", paddingBottom: 8 },
-  voiceStatus: { color: colors.muted, paddingHorizontal: 16, paddingBottom: 8 },
-});
+  errorAction: { color: colors.primary, fontWeight: "600", paddingBottom: 8, fontSize: 14 },
+  voiceStatus: { color: colors.muted, paddingHorizontal: 16, paddingBottom: 8, fontSize: 14 },
+}));

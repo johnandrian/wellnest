@@ -1,13 +1,13 @@
 // Care tab: telehealth video visits (./TelehealthCard), and nearby ERs, urgent care, pharmacies and doctors
 // (convex/care.ts, OpenStreetMap) with Call and Directions. In an emergency, call 911.
 import { useState } from "react";
-import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, ScrollView, Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useAction } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
-import { colors, ui } from "./theme";
+import { colors, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
@@ -139,11 +139,11 @@ export function CarePanel({ s }: { s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: 10, padding: 11 },
-  emergencyText: { color: colors.onPrimary, fontWeight: "700" },
+  emergencyText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   kind: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 5 },
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: "600", color: colors.text },
   actions: { flexDirection: "row", gap: 18, marginTop: 2 },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
-  link: { color: colors.primary, fontWeight: "600" },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   error: { color: colors.danger, fontSize: 13 },
   attribution: { color: colors.muted, fontSize: 12, textAlign: Platform.OS === "web" ? "right" : "left" },
-});
+}));

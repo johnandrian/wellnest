@@ -3,7 +3,7 @@
 // Everything is instant when the phone or browser asks for reduced motion.
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import { colors } from "./theme";
+import { colors, themed } from "./theme";
 
 const native = Platform.OS !== "web";
 
@@ -156,7 +156,7 @@ export function SwapIcon({ id, children }: { id: string; children: ReactNode }) 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   dots: { flexDirection: "row", gap: 5, paddingVertical: 4, paddingHorizontal: 2 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted },
-});
+}));

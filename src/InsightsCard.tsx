@@ -1,10 +1,10 @@
 // The Journal tab's insights (convex/insights.ts): what goes with the user's worse days (sleep, activity, cycle,
 // weather, air quality, pollen), how things changed after medication changes, and today's local weather.
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui } from "./theme";
+import { colors, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 export function InsightsCard({ today, s }: { today: string; s: Strings }) {
@@ -53,7 +53,7 @@ export function useHasInsights(today: string) {
   return !!data?.patterns.length;
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   card: { ...ui.card, padding: 12, gap: 6, backgroundColor: colors.primarySoft },
   header: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 15, fontWeight: "700", color: colors.text, flexShrink: 1 },
@@ -62,4 +62,4 @@ const styles = StyleSheet.create({
   muted: { fontSize: 14, color: colors.muted, lineHeight: 19 },
   weather: { fontSize: 13, color: colors.muted, marginTop: 2 },
   small: { fontSize: 12, color: colors.muted, lineHeight: 16 },
-});
+}));

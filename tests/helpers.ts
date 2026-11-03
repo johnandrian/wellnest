@@ -55,6 +55,8 @@ export const FAKE_MP3 = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 1, 2, 3, 4]);
 // A Telegram voice note as downloaded: an Ogg page header and a few bytes.
 export const FAKE_OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 9, 9]);
 
+export type FakeDrug = { ingredient: string; brands?: string[]; classes?: string[]; label: string; boxed?: string };
+
 export function mockApis(opts: {
   core?: CortexReply[];
   jinaEmbedFail?: boolean;
@@ -76,6 +78,8 @@ export function mockApis(opts: {
   // Open-Meteo hourly weather and air quality (weather triggers). Default: no hours; an Error = the service is down.
   weatherHourly?: Record<string, unknown[]> | Error;
   airHourly?: Record<string, unknown[]> | Error;
+  // RxNorm and openFDA by lowercase name: its ingredient, brands, classes and label text. Unlisted names aren't found.
+  drugs?: Record<string, FakeDrug>;
 } = {}) {
   const calls: Call[] = [];
   const core = [...(opts.core ?? [{ content: "Rest and drink water." }])];
@@ -91,7 +95,7 @@ export function mockApis(opts: {
     calls.push({ url, init, body });
 
     if (url.includes("snowflakecomputing.com")) {
-      if (body.messages[0].content.startsWith("You read requests to restock")) {
+      if (typeof body.messages[0].content === "string" && body.messages[0].content.startsWith("You read requests to restock")) {
         if (opts.shopperModel instanceof Error) return new Response(opts.shopperModel.message, { status: 500 });
         const m = opts.shopperModel;
         const content = (typeof m === "function" ? m(body.messages[1].content) : m) ?? "no idea";
@@ -184,6 +188,25 @@ export function mockApis(opts: {
     if (url.startsWith("https://api.open-meteo.com/v1/forecast")) {
       if (opts.weatherHourly instanceof Error) return new Response(opts.weatherHourly.message, { status: 503 });
       return Response.json({ hourly: opts.weatherHourly ?? { time: [] } });
+    }
+    if (url.startsWith("https://rxnav.nlm.nih.gov/REST/")) {
+      const drugs = opts.drugs ?? {};
+      if (url.includes("/approximateTerm.json")) {
+        const term = new URL(url).searchParams.get("term")!;
+        return Response.json({ approximateGroup: { candidate: drugs[term] ? [{ rxcui: term }] : [] } });
+      }
+      const name = decodeURIComponent(url.split("/rxcui/")[1].split("/")[0]);
+      const d = drugs[name];
+      if (url.includes("/properties.json")) return Response.json({ properties: { tty: "IN", name: d.ingredient } });
+      return Response.json({ relatedGroup: { conceptGroup: [{ tty: "BN", conceptProperties: (d.brands ?? []).map((b) => ({ name: b })) }] } });
+    }
+    if (url.startsWith("https://api.fda.gov/drug/label.json")) {
+      const q = decodeURIComponent(new URL(url).searchParams.get("search")!).match(/"(.*)"/)![1];
+      const d = Object.values(opts.drugs ?? {}).find((x) => x.ingredient === q);
+      if (!d) return Response.json({ error: { code: "NOT_FOUND" } }, { status: 404 });
+      return Response.json({
+        results: [{ drug_interactions: [d.label], ...(d.boxed && { boxed_warning: [d.boxed] }), openfda: { generic_name: [d.ingredient.toUpperCase()], brand_name: d.brands ?? [], pharm_class_epc: d.classes ?? [] } }],
+      });
     }
     return new Response(`unmocked ${url}`, { status: 404 });
   });

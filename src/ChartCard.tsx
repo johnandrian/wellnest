@@ -1,7 +1,7 @@
 // A chart the model drew with show_chart (convex/insights.ts), under its reply: one bar per day with data, coloured
 // by how good or bad the value is for that measure, with the average, high and low underneath.
-import { StyleSheet, Text, View } from "react-native";
-import { colors } from "./theme";
+import { Text, View } from "react-native";
+import { colors, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 export type ChartData = {
@@ -28,7 +28,7 @@ function barColor(value: number, max: number, worse: ChartData["worse"]) {
   if (worse === "none") return colors.primary;
   const share = max ? value / max : 0;
   const bad = worse === "high" ? share : 1 - share;
-  return bad >= 0.7 ? colors.danger : bad >= 0.4 ? "#D97706" : colors.mint;
+  return bad >= 0.7 ? colors.danger : bad >= 0.4 ? colors.amber : colors.mint;
 }
 
 const fmt = (n: number) => (Math.round(n * 10) / 10).toLocaleString();
@@ -74,8 +74,8 @@ export function ChartCard({ chart, s }: { chart: ChartData; s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: colors.border, gap: 4 },
+const styles = themed(() => ({
+  card: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
   title: { fontSize: 14, fontWeight: "700", color: colors.text },
   unit: { fontWeight: "400", color: colors.muted },
   bars: { flexDirection: "row", alignItems: "flex-end", height: 90, gap: 1 },
@@ -83,4 +83,4 @@ const styles = StyleSheet.create({
   bar: { width: "100%", borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   axis: { flexDirection: "row", justifyContent: "space-between" },
   small: { fontSize: 12, color: colors.muted },
-});
+}));

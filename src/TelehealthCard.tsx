@@ -1,13 +1,13 @@
 // Telehealth video visits (convex/telehealth.ts). AppointmentCard sits under the chat message that offers times;
 // TelehealthCard is the Care tab's view of the current visit, with a way to ask for one.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 type Visit = NonNullable<(typeof api.telehealth.get)["_returnType"]>;
@@ -166,7 +166,7 @@ export function TelehealthCard({ s }: { s: Strings }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   card: { ...ui.card, padding: 12, gap: 8 },
   title: { fontSize: 15, fontWeight: "700", color: colors.text },
   body: { gap: 8, marginTop: 6 },
@@ -176,10 +176,10 @@ const styles = StyleSheet.create({
   test: { color: colors.warningText, backgroundColor: colors.warningSoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12, alignSelf: "flex-start" },
   slot: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface },
   slotText: { color: colors.primary, fontWeight: "600", flexShrink: 1 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
-  link: { color: colors.primary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));

@@ -31,15 +31,21 @@ async function shrink(p: Picked): Promise<Picked> {
   return { uri: saved.uri, width: saved.width, height: saved.height };
 }
 
-export async function uploadPhoto(
-  photo: Picked,
+export function uploadPhoto(photo: Picked, uploadUrl: () => Promise<string>, claim: (storageId: string) => Promise<unknown>): Promise<string> {
+  return uploadFile(photo.uri, "image/jpeg", uploadUrl, claim);
+}
+
+// Any picked file (a photo, or a PDF from expo-document-picker); `type` when the file doesn't say.
+export async function uploadFile(
+  uri: string,
+  type: string,
   uploadUrl: () => Promise<string>,
   claim: (storageId: string) => Promise<unknown>,
 ): Promise<string> {
-  const blob = await (await fetch(photo.uri)).blob();
+  const blob = await (await fetch(uri)).blob();
   const res = await fetch(await uploadUrl(), {
     method: "POST",
-    headers: { "Content-Type": blob.type || "image/jpeg" },
+    headers: { "Content-Type": blob.type || type },
     body: blob,
   });
   if (!res.ok) throw new Error("The photo didn't upload. Please try again.");

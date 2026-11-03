@@ -1,12 +1,12 @@
 // Share links (convex/share.ts): a private, read-only page of the sections you choose for a carer or doctor, with an
 // expiry, open counts, and a switch to turn it off.
 import { useMemo, useState } from "react";
-import { Platform, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Share, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH } from "./theme";
+import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { ReportSection, SectionChips } from "./ReportCard";
 
@@ -144,7 +144,7 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => ({
   card: { ...ui.card, padding: 12, gap: 8, marginTop: 6 },
   title: { fontSize: 16, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   label: { color: colors.text, fontSize: 13, fontWeight: "600" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
@@ -161,12 +161,12 @@ const styles = StyleSheet.create({
   made: { backgroundColor: colors.primarySoft, borderRadius: 8, padding: 10, gap: 8 },
   url: { color: colors.text, fontSize: 13 },
   button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH },
-  buttonText: { color: colors.onPrimary, fontWeight: "600" },
+  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   addRow: { ...ui.addButton },
-  link: { color: colors.primary, fontWeight: "600" },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 12, borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 8 },
   linkTitle: { fontSize: 14, fontWeight: "600", color: colors.text },
   flex: { flex: 1, minWidth: 0 },
   error: { color: colors.danger, fontSize: 13 },
-});
+}));
