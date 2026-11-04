@@ -124,6 +124,7 @@ describe("app chat", () => {
       focus: [],
       checkins: true,
       weeklySummary: true,
+      flareForecast: true,
       location: "",
       telegramLinked: false,
     });

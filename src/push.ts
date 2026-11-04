@@ -1,5 +1,5 @@
 // iOS/Android push notifications (convex/push.ts sends them): medication reminders with Taken / Skip buttons,
-// appointment updates and the weekly summary. Needs a development or store build with an EAS project id; web uses ./push.web.ts.
+// appointment updates, the weekly summary, the flare forecast and care circle alerts. Needs a development or store build with an EAS project id; web uses ./push.web.ts.
 import { useEffect, useRef } from "react";
 import { Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
@@ -21,6 +21,8 @@ async function setUp(s: Strings) {
     await Notifications.setNotificationChannelAsync("reminders", { name: s.channelReminders, importance: Notifications.AndroidImportance.HIGH });
     await Notifications.setNotificationChannelAsync("appointments", { name: s.channelAppointments, importance: Notifications.AndroidImportance.HIGH });
     await Notifications.setNotificationChannelAsync("weekly", { name: s.channelWeekly, importance: Notifications.AndroidImportance.DEFAULT });
+    await Notifications.setNotificationChannelAsync("forecast", { name: s.channelForecast, importance: Notifications.AndroidImportance.DEFAULT });
+    await Notifications.setNotificationChannelAsync("circle", { name: s.channelCircle, importance: Notifications.AndroidImportance.HIGH });
   }
   // Answering from the notification doesn't open the app.
   await Notifications.setNotificationCategoryAsync("reminder", [

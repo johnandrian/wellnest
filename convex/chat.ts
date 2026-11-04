@@ -99,6 +99,7 @@ export const me = query({
       focus: user.focus ?? [],
       checkins: user.checkins ?? true,
       weeklySummary: user.weeklySummary ?? true,
+      flareForecast: user.flareForecast ?? true,
       location: user.location ?? "",
       telegramLinked: !!user.telegramChatId,
     };

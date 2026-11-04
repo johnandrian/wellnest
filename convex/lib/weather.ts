@@ -60,9 +60,10 @@ export function toDays(weather: { hourly?: Hourly } | null, air: { hourly?: Hour
   });
 }
 
-// The last two weeks and the next two days at a place, in its own time zone.
+// The last two weeks and the next three days at a place, in its own time zone. Three, so the evening flare forecast
+// has tomorrow even where the once-a-day fetch (11:20 UTC) lands late in the local day.
 export async function fetchWeather(lat: number, lon: number): Promise<WeatherDay[]> {
-  const common = `latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&past_days=${PAST_DAYS}&forecast_days=2&timezone=auto`;
+  const common = `latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&past_days=${PAST_DAYS}&forecast_days=3&timezone=auto`;
   const get = async (url: string) => {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);

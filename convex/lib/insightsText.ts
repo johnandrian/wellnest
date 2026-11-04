@@ -1,7 +1,7 @@
 // Wording for insights (./insights.ts) in the user's language: patterns, medication before/after, today's weather,
 // chart titles and the weekly summary. The model reads the English; the app and the summary use the user's language.
 import type { Lang } from "./language";
-import type { ChartMetric, FactorKey, MedEffect, OutcomeKey, Pattern, WeekStat } from "./insights";
+import type { ChartMetric, FactorKey, ForecastMatch, MedEffect, OutcomeKey, Pattern, WEATHER_FACTORS, WeekStat } from "./insights";
 import { aqiBand, pollenBand, type WeatherDay } from "./weather";
 
 const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-ES", el: "el-GR", zh: "zh-CN" };
@@ -214,14 +214,86 @@ export function weeklyText(opts: {
     zh: { title: "你的一周", last: "上周", better: "好转", worse: "变差", doses: "药物：已服用 {a}/{b} 剂", pattern: "值得留意", med: "药物", footer: "可以随时问我其中任何一项，或打开健康工具查看图表。" },
   }[lang];
   const lines = [`📅 **${L.title}** (${shortDate(opts.from, lang)} – ${shortDate(opts.to, lang)})`, ""];
-  for (const s of opts.stats) {
-    const now = outcomeValue(s.outcome, s.thisWeek, lang);
-    const was = s.lastWeek === undefined ? "" : ` (${L.last} ${outcomeValue(s.outcome, s.lastWeek, lang)}${s.better === undefined ? "" : `, ${s.better ? L.better : L.worse}`})`;
-    lines.push(`• ${cap(outcomeName(s.outcome, lang))}: ${now}${was}`);
-  }
+  for (const s of opts.stats) lines.push(`• ${weekStatLine(s, lang)}`);
   if (opts.doses?.total) lines.push(`• ${L.doses.replace("{a}", String(opts.doses.taken)).replace("{b}", String(opts.doses.total))}`);
   if (opts.medEffect) lines.push("", `💊 ${L.med}: ${medEffectText(opts.medEffect, lang)}`);
   if (opts.pattern) lines.push("", `🔎 ${L.pattern}: ${patternText(opts.pattern, lang)}`);
   lines.push("", L.footer);
   return lines.join("\n");
+}
+
+// "Mood: 4/5 (last week 2/5, better)": one line of the weekly summary, also shown to a care circle.
+export function weekStatLine(s: WeekStat, lang: Lang): string {
+  const L = {
+    en: { last: "last week", better: "better", worse: "worse" },
+    es: { last: "la semana pasada", better: "mejor", worse: "peor" },
+    el: { last: "την προηγούμενη εβδομάδα", better: "καλύτερα", worse: "χειρότερα" },
+    zh: { last: "上周", better: "好转", worse: "变差" },
+  }[lang];
+  const now = outcomeValue(s.outcome, s.thisWeek, lang);
+  const was = s.lastWeek === undefined ? "" : ` (${L.last} ${outcomeValue(s.outcome, s.lastWeek, lang)}${s.better === undefined ? "" : `, ${s.better ? L.better : L.worse}`})`;
+  return `${cap(outcomeName(s.outcome, lang))}: ${now}${was}`;
+}
+
+// ---------- Flare forecast ----------
+
+const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; footer: string; footerFor: string } & Record<ForecastFactor, string>> = {
+  en: {
+    title: "Heads-up for tomorrow",
+    titleFor: "Heads-up for {name} tomorrow",
+    prefix: "Forecast",
+    footer: "This is a pattern in your own logs, not a prediction. If you can, plan an easier day and keep what helps close by.",
+    footerFor: "This is a pattern in {name}'s own logs, not a prediction. A quick check-in might be welcome.",
+    tempMax: "a high of {v}°C", humidity: "humidity around {v}%", pressureDrop: "a drop in air pressure", rain: "rain", aqi: "an air quality index of {v}", pollen: "pollen around {v} grains/m³",
+  },
+  es: {
+    title: "Aviso para mañana",
+    titleFor: "Aviso para mañana sobre {name}",
+    prefix: "Pronóstico",
+    footer: "Es un patrón en tus propios registros, no una predicción. Si puedes, planea un día más tranquilo y ten a mano lo que te ayuda.",
+    footerFor: "Es un patrón en los registros de {name}, no una predicción. Quizá agradezca que le preguntes cómo está.",
+    tempMax: "una máxima de {v} °C", humidity: "humedad de alrededor del {v} %", pressureDrop: "una bajada de la presión atmosférica", rain: "lluvia", aqi: "un índice de calidad del aire de {v}", pollen: "polen de unos {v} granos/m³",
+  },
+  el: {
+    title: "Προειδοποίηση για αύριο",
+    titleFor: "Προειδοποίηση για αύριο: {name}",
+    prefix: "Πρόγνωση",
+    footer: "Είναι ένα μοτίβο στις δικές σου καταγραφές, όχι πρόβλεψη. Αν μπορείς, κανόνισε μια πιο ήρεμη μέρα και κράτα κοντά ό,τι σε βοηθά.",
+    footerFor: "Είναι ένα μοτίβο στις καταγραφές ({name}), όχι πρόβλεψη. Ένα μήνυμα για να δεις τι κάνει ίσως βοηθήσει.",
+    tempMax: "μέγιστη {v}°C", humidity: "υγρασία γύρω στο {v}%", pressureDrop: "πτώση της ατμοσφαιρικής πίεσης", rain: "βροχή", aqi: "δείκτης ποιότητας αέρα {v}", pollen: "γύρη περίπου {v} κόκκοι/m³",
+  },
+  zh: {
+    title: "明日提醒",
+    titleFor: "{name} 的明日提醒",
+    prefix: "预报",
+    footer: "这是你自己记录中的规律，不是预测。如果可以，明天安排得轻松一些，把对你有帮助的东西放在手边。",
+    footerFor: "这是 {name} 自己记录中的规律，不是预测。也许可以问候一下。",
+    tempMax: "最高气温 {v}°C", humidity: "湿度约 {v}%", pressureDrop: "气压下降", rain: "有雨", aqi: "空气质量指数 {v}", pollen: "花粉约 {v} 粒/立方米",
+  },
+};
+type ForecastFactor = (typeof WEATHER_FACTORS)[number];
+
+// "Forecast: a drop in air pressure", and the pattern it falls on.
+function forecastParts(m: ForecastMatch, lang: Lang) {
+  const L = FORECAST[lang];
+  const what = L[m.pattern.factor as ForecastFactor].replace("{v}", num(Math.round(m.value), lang));
+  return { head: `${L.prefix}: ${what}`, body: patternText(m.pattern, lang) };
+}
+
+// "Forecast: a drop in air pressure. Pain averaged 6/10 on days with a drop in air pressure (8 days), vs 3/10 …"
+export function forecastLine(m: ForecastMatch, lang: Lang): string {
+  const { head, body } = forecastParts(m, lang);
+  return `${head}${lang === "zh" ? "。" : "."} ${body}`;
+}
+
+// The evening message. With `name`, it's the copy a care circle member gets about that person.
+export function forecastText(matches: ForecastMatch[], lang: Lang, name?: string): { text: string; title: string } {
+  const L = FORECAST[lang];
+  const title = name ? L.titleFor.replace("{name}", name) : L.title;
+  const lines = matches.map((m) => {
+    const { head, body } = forecastParts(m, lang);
+    return `• **${head}${lang === "zh" ? "。" : "."}** ${body}`;
+  });
+  const footer = name ? L.footerFor.replace("{name}", name) : L.footer;
+  return { title, text: [`🌦️ **${title}**`, "", ...lines, "", footer].join("\n") };
 }

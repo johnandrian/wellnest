@@ -1,5 +1,5 @@
 // The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, four
-// weeks of charts for what the user tracks, the strongest pattern, and every tool as a tile.
+// weeks of charts for what the user tracks, tomorrow's flare forecast, the strongest pattern, and every tool as a tile.
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -111,8 +111,23 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
         <Text style={styles.empty}>{s.homeChartsEmpty}</Text>
       )}
 
-      {!!insights && (!!insights.patterns.length || !!insights.weather) && (
+      {!!insights && (!!insights.patterns.length || !!insights.weather || !!insights.tomorrow.length) && (
         <View style={styles.insight}>
+          {!!insights.tomorrow.length && (
+            <View style={styles.insightRow}>
+              <View style={[styles.iconDot, { backgroundColor: colors.surface }]}>
+                <Icon name="forecast" size={18} color={colors.warningText} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.insightLabel}>{s.homeTomorrow}</Text>
+                {insights.tomorrow.map((line) => (
+                  <Text key={line} style={styles.insightText}>
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          )}
           {!!insights.patterns.length && (
             <View style={styles.insightRow}>
               <View style={[styles.iconDot, { backgroundColor: colors.surface }]}>

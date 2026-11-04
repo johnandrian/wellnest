@@ -196,6 +196,10 @@ export const exportRest = internalQuery({
       emergencyPlan: await ctx.db.query("emergencyPlans").withIndex("by_user", (q) => q.eq("userId", userId)).take(1),
       healthRecords: (await ctx.db.query("records").withIndex("by_user", (q) => q.eq("userId", userId)).take(take)).map(({ file, ...r }) => ({ ...r, hasFile: !!file })),
       labResults: await ctx.db.query("labResults").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
+      careCircle: {
+        members: (await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(take)).map(({ label, alerts, _creationTime }) => ({ label, alerts, since: _creationTime })),
+        caringFor: (await ctx.db.query("circleMembers").withIndex("by_member", (q) => q.eq("memberId", userId)).take(take)).map(({ ownerId, alerts, _creationTime }) => ({ ownerId, alerts, since: _creationTime })),
+      },
     };
   },
 });
@@ -244,7 +248,7 @@ const STEPS = {
   journal: ["symptomEntries", "dailyLogs", "trackerEntries", "exerciseLogs", "exercises"],
 } as const;
 // Only "everything" also removes the account's devices and sign-in records.
-const ACCOUNT_STEPS = ["pushTokens", "shareLinks", "auth"] as const;
+const ACCOUNT_STEPS = ["pushTokens", "shareLinks", "circle", "auth"] as const;
 type Step = (typeof STEPS)[keyof typeof STEPS][number] | (typeof ACCOUNT_STEPS)[number];
 
 export const deleteData = mutation({
@@ -349,6 +353,15 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       const rows = await ctx.db.query(step).withIndex("by_user", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) await ctx.db.delete(r._id);
       return rows.length;
+    }
+    case "circle": {
+      // Both sides: the people in their care circle, the circles they're in, and their invites.
+      const own = await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(BATCH);
+      const joined = await ctx.db.query("circleMembers").withIndex("by_member", (q) => q.eq("memberId", userId)).take(BATCH);
+      const invites = await ctx.db.query("circleInvites").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(BATCH);
+      for (const r of [...own, ...joined]) await ctx.db.delete(r._id);
+      for (const r of invites) await ctx.db.delete(r._id);
+      return Math.max(own.length, joined.length, invites.length);
     }
     case "chats": {
       const rows = await ctx.db.query("chats").withIndex("by_user_and_last", (q) => q.eq("userId", userId)).take(BATCH);

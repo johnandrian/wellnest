@@ -656,7 +656,7 @@ export const setFlow = internalMutation({
 // Also used for replies that arrive later, like CREAO analysis reports.
 export async function saveAssistantReply(
   ctx: MutationCtx,
-  args: { userId: Id<"users">; text: string; channel: "app" | "telegram"; urgent: boolean; kind?: "links" | "summary"; charts?: Chart[] },
+  args: { userId: Id<"users">; text: string; channel: "app" | "telegram"; urgent: boolean; kind?: "links" | "summary" | "forecast" | "circle"; charts?: Chart[] },
   deliver = true,
 ) {
   const messageId = await insertMessage(ctx, { ...args, role: "assistant" });

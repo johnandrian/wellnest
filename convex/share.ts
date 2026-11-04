@@ -9,17 +9,12 @@ import { buildReport, page, section } from "./lib/report";
 import { gather } from "./reports";
 import { dateDaysAgo } from "./lib/health";
 import { langOf } from "./lib/language";
+import { appUrl, newToken } from "./lib/links";
 
 const DAY_MS = 86_400_000;
 export const MAX_ACTIVE = 20;
 
-function newToken() {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-const urlFor = (token: string) => `${(process.env.CONVEX_SITE_URL ?? "").replace(/\/$/, "")}/share/${token}`;
+const urlFor = (token: string) => `${appUrl()}/share/${token}`;
 
 export const create = mutation({
   args: {

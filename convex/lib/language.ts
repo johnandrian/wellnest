@@ -137,6 +137,25 @@ const TEXT = {
     el: (time: string, where: string) => `Στις ${time}${where ? ` · ${where}` : ""}. Οι ερωτήσεις σου είναι στην καρτέλα Ραντεβού.`,
     zh: (time: string, where: string) => `${time}${where ? ` · ${where}` : ""}。你的问题在“就诊”页面中。`,
   },
+  // Care circle (convex/circle.ts): to a member about the person, and to the person when someone joins.
+  circleMissedDoses: {
+    en: (who: string, med: string, n: number) => `💊 **${who}** has missed ${n} doses of ${med} this week. A gentle check-in might help.`,
+    es: (who: string, med: string, n: number) => `💊 **${who}** se ha saltado ${n} dosis de ${med} esta semana. Quizá ayude preguntarle con cariño cómo va.`,
+    el: (who: string, med: string, n: number) => `💊 **${who}**: ${n} δόσεις του ${med} χάθηκαν αυτή την εβδομάδα. Ίσως βοηθήσει μια ήπια ερώτηση για το πώς πάει.`,
+    zh: (who: string, med: string, n: number) => `💊 **${who}** 本周错过了 ${n} 次 ${med}。温和地问候一下也许会有帮助。`,
+  },
+  circleMissedDosesTitle: {
+    en: (who: string) => `${who} missed some doses`,
+    es: (who: string) => `${who} se saltó algunas dosis`,
+    el: (who: string) => `${who}: χαμένες δόσεις`,
+    zh: (who: string) => `${who} 错过了几次服药`,
+  },
+  circleJoined: {
+    en: (who: string) => `👥 **${who}** joined your care circle. You can change what they're alerted about, or remove them, under Health tools → Care circle.`,
+    es: (who: string) => `👥 **${who}** se unió a tu círculo de cuidado. Puedes cambiar sus avisos o quitarle en Herramientas de salud → Círculo de cuidado.`,
+    el: (who: string) => `👥 **${who}**: μπήκε στον κύκλο φροντίδας σου. Μπορείς να αλλάξεις τις ειδοποιήσεις ή να το αφαιρέσεις από Εργαλεία υγείας → Κύκλος φροντίδας.`,
+    zh: (who: string) => `👥 **${who}** 加入了你的照护圈。你可以在“健康工具 → 照护圈”中修改其提醒，或将其移除。`,
+  },
   languageSet: {
     en: () => "Okay, I'll reply in English.",
     es: () => "De acuerdo, te responderé en español.",

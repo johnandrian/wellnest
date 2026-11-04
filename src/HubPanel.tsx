@@ -1,5 +1,5 @@
 // "Health tools": a dashboard home (./HomePanel) with the journal, medications, exercise, appointments, reports,
-// records and care one tap away. It covers the whole screen; the Chat button at the top right goes back to the conversation.
+// records, care and the care circle one tap away. It covers the whole screen; the Chat button at the top right goes back to the conversation.
 // Inside a tool, the back button returns to the dashboard and the row under the header switches tools.
 import { useState } from "react";
 import { Platform, ScrollView, Text, View } from "react-native";
@@ -18,9 +18,10 @@ import { VisitPanel } from "./VisitPanel";
 import { CarePanel } from "./CarePanel";
 import { ExercisePanel } from "./ExercisePanel";
 import { RecordsPanel } from "./RecordsPanel";
+import { CirclePanel } from "./CirclePanel";
 import { Enter, SwapIcon } from "./Motion";
 
-export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "records" | "care";
+export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "records" | "care" | "circle";
 export type HubTab = "home" | ToolTab;
 
 export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; label: (s: Strings) => string; desc: (s: Strings) => string }[] = [
@@ -31,6 +32,7 @@ export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; lab
   { tab: "visit", icon: "reports", tint: "reports", label: (s) => s.tabVisit, desc: (s) => s.toolVisitDesc },
   { tab: "records", icon: "records", tint: "records", label: (s) => s.tabRecords, desc: (s) => s.toolRecordsDesc },
   { tab: "care", icon: "care", tint: "care", label: (s) => s.tabCare, desc: (s) => s.toolCareDesc },
+  { tab: "circle", icon: "circle", tint: "circle", label: (s) => s.tabCircle, desc: (s) => s.toolCircleDesc },
 ];
 
 function greeting(s: Strings, name: string | null) {
@@ -114,6 +116,7 @@ export function HubPanel({ tab, onTab, onClose, s }: { tab: HubTab; onTab: (t: H
         {tab === "visit" && <VisitPanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
         {tab === "records" && <RecordsPanel s={s} />}
         {tab === "care" && <CarePanel s={s} />}
+        {tab === "circle" && <CirclePanel s={s} />}
       </Enter>
     </View>
   );

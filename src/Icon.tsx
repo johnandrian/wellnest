@@ -35,6 +35,9 @@ const ICONS = {
   recordOther: ["ion", "document-attach-outline"],
   pdf: ["mci", "file-pdf-box"],
   photo: ["ion", "camera-outline"],
+  forecast: ["ion", "rainy-outline"],
+  circle: ["ion", "people-outline"],
+  invite: ["ion", "person-add-outline"],
 } as const;
 
 export type IconName = keyof typeof ICONS;

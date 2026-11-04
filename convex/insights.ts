@@ -6,8 +6,8 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalQuery, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { CHART_METRICS, ChartMetric, chartSeries, Chart, dateList, findPatterns, Inputs, MedChange, medEffects, shiftDate, sliceInputs } from "./lib/insights";
-import { chartName, medEffectText, patternText, weatherLine } from "./lib/insightsText";
+import { CHART_METRICS, ChartMetric, chartSeries, Chart, dateList, findPatterns, forecastMatches, ForecastMatch, Inputs, MedChange, medEffects, shiftDate, sliceInputs, WEATHER_FACTORS } from "./lib/insights";
+import { chartName, forecastLine, medEffectText, patternText, weatherLine } from "./lib/insightsText";
 import { isDate } from "./lib/health";
 import { Lang, langOf } from "./lib/language";
 import { zoneOffsetMin } from "./lib/reminders";
@@ -60,6 +60,15 @@ export async function medChanges(ctx: QueryCtx, userId: Id<"users">, from: strin
   return out.filter((c) => c.date >= from);
 }
 
+// The flare forecast: tomorrow's weather against the user's own weather patterns (none without a saved location).
+export async function tomorrowMatches(ctx: QueryCtx, userId: Id<"users">, today: string): Promise<ForecastMatch[]> {
+  const tomorrow = shiftDate(today, 1);
+  const from = shiftDate(today, -(LOOKBACK_DAYS - 1));
+  const input = await gatherInputs(ctx, userId, from, tomorrow);
+  if (!input.weather.some((w) => w.date === tomorrow)) return [];
+  return forecastMatches(findPatterns(input, dateList(from, today), 50, WEATHER_FACTORS), input.weather, tomorrow);
+}
+
 async function computed(ctx: QueryCtx, userId: Id<"users">, today: string) {
   const from = shiftDate(today, -(LOOKBACK_DAYS - 1));
   const dates = dateList(from, today);
@@ -86,6 +95,8 @@ export const view = query({
       patterns: patterns.map((p) => patternText(p, lang)),
       medEffects: effects.map((e) => medEffectText(e, lang)),
       weather: weatherToday ? weatherLine(weatherToday, lang) : null,
+      // The flare forecast: tomorrow's weather on the worse side of one of their weather patterns.
+      tomorrow: (await tomorrowMatches(ctx, userId, today)).map((m) => forecastLine(m, lang)),
       hasLocation: !!user?.location?.trim(),
     };
   },
@@ -98,6 +109,7 @@ export const forModel = internalQuery({
     const today = localToday(await ctx.db.get(userId));
     const { patterns, effects, weatherToday } = await computed(ctx, userId, today);
     const tomorrow = (await weatherSince(ctx, userId, shiftDate(today, 1), shiftDate(today, 1)))[0];
+    const flare = await tomorrowMatches(ctx, userId, today);
     return [
       patterns.length
         ? `Patterns over the last ${LOOKBACK_DAYS} days (associations in their own logs, not proof of cause):\n${patterns.map((p) => `- ${patternText(p, "en")}`).join("\n")}`
@@ -107,6 +119,9 @@ export const forModel = internalQuery({
         : "",
       weatherToday ? `Today's local weather: ${weatherLine(weatherToday, "en")}` : "No local weather (no saved location).",
       tomorrow ? `Tomorrow's forecast: ${weatherLine(tomorrow, "en")}` : "",
+      flare.length
+        ? `Flare forecast (tomorrow's weather matches their own patterns; a heads-up, not a prediction):\n${flare.map((m) => `- ${forecastLine(m, "en")}`).join("\n")}`
+        : "",
     ]
       .filter(Boolean)
       .join("\n\n");

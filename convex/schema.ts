@@ -14,6 +14,7 @@ import { chartValidator } from "./lib/insights";
 import { focus, profile } from "./lib/onboarding";
 import { appearance } from "./lib/appearance";
 import { labFlag, recordKind } from "./lib/records";
+import { circleAlerts } from "./lib/circle";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -107,6 +108,9 @@ export default defineSchema({
     // The Sunday evening summary of the week (convex/weekly.ts); on when unset. `weeklySentAt` stops a second one.
     weeklySummary: v.optional(v.boolean()),
     weeklySentAt: v.optional(v.number()),
+    // The evening flare forecast (convex/forecast.ts); on when unset. `forecastSentAt` stops a second one that day.
+    flareForecast: v.optional(v.boolean()),
+    forecastSentAt: v.optional(v.number()),
     // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
     notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),
     // Set while "Delete everything" runs (convex/me.ts).
@@ -152,7 +156,7 @@ export default defineSchema({
     // "checkin": a proactive question about a change in the user's health data (convex/checkins.ts).
     // "appointment": offered video visit times, shown as buttons (convex/telehealth.ts).
     // "summary": the weekly summary (convex/weekly.ts).
-    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"), v.literal("appointment"), v.literal("summary"))),
+    kind: v.optional(v.union(v.literal("links"), v.literal("reminder"), v.literal("checkin"), v.literal("appointment"), v.literal("summary"), v.literal("forecast"), v.literal("circle"))),
     // Charts the model drew with show_chart, shown under the reply (convex/insights.ts).
     charts: v.optional(v.array(chartValidator)),
     appointmentId: v.optional(v.id("appointments")),
@@ -303,6 +307,31 @@ export default defineSchema({
   })
     .index("by_token", ["token"])
     .index("by_user", ["userId"]),
+
+  // Care circle (convex/circle.ts): people who see someone's health summary (read only) and get the alerts the
+  // person picked for them. `ownerId` is the person being cared for; `label` is what they call the member.
+  circleMembers: defineTable({
+    ownerId: v.id("users"),
+    memberId: v.id("users"),
+    label: v.optional(v.string()),
+    alerts: circleAlerts,
+  })
+    .index("by_owner", ["ownerId"])
+    .index("by_member", ["memberId"])
+    .index("by_owner_and_member", ["ownerId", "memberId"]),
+
+  // One-time invite links into someone's care circle. The member row takes the label and alerts when it's used.
+  circleInvites: defineTable({
+    ownerId: v.id("users"),
+    token: v.string(), // 24 random bytes, base64url
+    label: v.optional(v.string()),
+    alerts: circleAlerts,
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_token", ["token"])
+    .index("by_owner", ["ownerId"]),
 
   // Condition tracker entries: pain / CRPS, asthma, seizures (convex/trackers.ts). Several a day are fine.
   trackerEntries: defineTable({

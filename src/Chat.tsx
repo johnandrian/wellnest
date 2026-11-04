@@ -34,6 +34,7 @@ import { pushSupported, usePush } from "./push";
 import { AppointmentCard } from "./TelehealthCard";
 import { DailyCard } from "./DailyCard";
 import { ChatHistory } from "./ChatHistory";
+import { JoinPrompt } from "./JoinPrompt";
 import { Icon } from "./Icon";
 
 // The panels that open under the header.
@@ -138,9 +139,12 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const health = useHealthSync();
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
-  // The weekly summary is a chat message, so its notification just opens the chat.
+  // The weekly summary and the flare forecast are chat messages, so their notifications just open the chat;
+  // a care circle alert opens the care circle.
   const pushToken = usePush(s, (kind) =>
-    kind === "weekly" ? setPanel(null) : openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : "care"),
+    kind === "weekly" || kind === "forecast"
+      ? setPanel(null)
+      : openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : kind === "circle" ? "circle" : "care"),
   );
 
   // Medication reminders fire at local times, so the backend needs this device's time zone.
@@ -220,6 +224,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
         </View>
       </View>
       <ChatHistory open={history} s={s} onClose={() => setHistory(false)} />
+      <JoinPrompt s={s} onOpenCircle={() => openHub("circle")} />
 
       <Reveal open={panel === "about"} style={styles.aboutWrap}>
         <AboutPanel s={s} />
@@ -268,7 +273,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
                 styles.bubble,
                 item.role === "user" ? styles.userBubble : styles.botBubble,
                 item.urgent && styles.urgentBubble,
-                (item.kind === "reminder" || item.kind === "checkin" || item.kind === "appointment" || item.kind === "summary") && styles.reminderBubble,
+                (item.kind === "reminder" || item.kind === "checkin" || item.kind === "appointment" || item.kind === "summary" || item.kind === "forecast" || item.kind === "circle") && styles.reminderBubble,
                 !!item.charts?.length && styles.chartBubble,
               ]}
             >
@@ -444,6 +449,7 @@ function Settings({
     notifications: { reminders: boolean; appointments: boolean };
     checkins: boolean;
     weeklySummary: boolean;
+    flareForecast: boolean;
   };
   s: Strings;
   pushToken: { current: string | null };
@@ -457,6 +463,7 @@ function Settings({
   const unregisterPush = useMutation(api.push.unregister);
   const setCheckins = useMutation(api.checkins.setEnabled);
   const setWeekly = useMutation(api.weekly.setEnabled);
+  const setForecast = useMutation(api.forecast.setEnabled);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -577,6 +584,13 @@ function Settings({
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.weeklySummary}</Text>
         <Switch value={me.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
       </View>
+      <View style={styles.settingRow}>
+        <View style={styles.settingLabelWrap}>
+          <Text style={styles.settingLabel}>{s.flareForecast}</Text>
+          <Text style={styles.settingHint}>{s.flareForecastHint}</Text>
+        </View>
+        <Switch value={me.flareForecast} onValueChange={(enabled) => void setForecast({ enabled })} />
+      </View>
       {pushSupported &&
         (["reminders", "appointments"] as const).map((kind) => (
           <View key={kind} style={styles.settingRow}>
@@ -630,6 +644,7 @@ const styles = themed(() => ({
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   settingLabel: { fontSize: 16, color: colors.text },
   settingLabelWrap: { flex: 1, marginRight: 12 },
+  settingHint: { fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 2 },
   locationInput: { color: colors.text, flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
   langChips: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, marginLeft: 16 },
   langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },

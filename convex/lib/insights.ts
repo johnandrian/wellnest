@@ -203,14 +203,33 @@ function compare(o: Outcome, f: Factor): Pattern | null {
 }
 
 // The strongest patterns, at most two per outcome. Associations, not causes; the wording says so.
-export function findPatterns(input: Inputs, dates: string[], limit = 6): Pattern[] {
-  const fs = factors(input);
+// `only`: look at just these factors (the flare forecast wants every weather pattern, not the top two overall).
+export function findPatterns(input: Inputs, dates: string[], limit = 6, only?: readonly FactorKey[]): Pattern[] {
+  const fs = factors(input).filter((f) => !only || only.includes(f.key));
   const found: Pattern[] = [];
   for (const o of outcomes(input, dates)) {
     // Sleep quality is both an outcome and a factor; never compare it with itself.
     found.push(...fs.filter((f) => f.key !== o.key).flatMap((f) => compare(o, f) ?? []).sort((a, b) => b.effect - a.effect).slice(0, 2));
   }
   return found.sort((a, b) => b.effect - a.effect).slice(0, limit);
+}
+
+// ---------- Flare forecast: tomorrow's weather against the user's own weather patterns ----------
+
+export const WEATHER_FACTORS = ["tempMax", "humidity", "pressureDrop", "rain", "aqi", "pollen"] as const satisfies readonly FactorKey[];
+export type ForecastMatch = { pattern: Pattern; value: number }; // `value`: the factor on `date` (1 or 0 for yes/no)
+
+// The weather patterns `date`'s forecast falls on the worse side of, the strongest per outcome, at most `limit`.
+export function forecastMatches(patterns: Pattern[], weather: WeatherDay[], date: string, limit = 2): ForecastMatch[] {
+  const values = new Map(factors({ entries: [], trackers: [], daily: [], health: [], weather }).map((f) => [f.key, f.values.get(date)]));
+  const out: ForecastMatch[] = [];
+  for (const p of [...patterns].sort((a, b) => b.effect - a.effect)) {
+    const value = values.get(p.factor);
+    if (value === undefined || out.some((m) => m.pattern.outcome === p.outcome)) continue;
+    const hit = p.side === "yes" ? value === 1 : p.side === "atLeast" ? value >= p.threshold! : value < p.threshold!;
+    if (hit) out.push({ pattern: p, value });
+  }
+  return out.slice(0, limit);
 }
 
 // ---------- Medications: before and after ----------

@@ -12,6 +12,7 @@ import { daysLeft, doseAt, medForm, timeDose } from "./lib/meds";
 import { logEvent } from "./medications";
 import { insertMessage } from "./lib/chats";
 import { interactionsText, lookupSoon } from "./drugs";
+import { alertCircle } from "./circle";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A dose due within a minute of a course's end counts as past it ("every 12 hours for 1 day" is 2 reminders).
@@ -170,7 +171,8 @@ async function useSupply(ctx: MutationCtx, medicationId: Id<"medications">) {
   await notify(ctx, med.userId, "reminders", { title: `💊 ${med.name}`, body: text, data: {} });
 }
 
-// Doses skipped or never answered (2 hours on) this past week. Three or more: a kind nudge in chat, at most weekly.
+// Doses skipped or never answered (2 hours on) this past week. Three or more: a kind nudge in chat, at most weekly,
+// and an alert to the care circle members who get missed-dose alerts.
 const NUDGE_AFTER = 3;
 async function nudgeIfMissing(ctx: MutationCtx, med: Doc<"medications">, user: Doc<"users">, now: number) {
   if (med.nudgedAt && med.nudgedAt > now - 7 * DAY_MS) return;
@@ -182,6 +184,8 @@ async function nudgeIfMissing(ctx: MutationCtx, med: Doc<"medications">, user: D
   if (missed < NUDGE_AFTER) return;
   await insertMessage(ctx, { userId: med.userId, role: "assistant", channel: "app", text: t(langOf(user), "missedDoses", med.name, missed), urgent: false });
   await ctx.db.patch(med._id, { nudgedAt: now });
+  // Care circle members the user picked for this hear about it too.
+  await alertCircle(ctx, med.userId, "missedDoses", (lang, who) => ({ text: t(lang, "circleMissedDoses", who, med.name, missed), title: t(lang, "circleMissedDosesTitle", who) }));
 }
 
 // A dose is due: post the reminder and schedule the next one. Ignores stale jobs (stopped, or rescheduled).

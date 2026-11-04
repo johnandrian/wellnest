@@ -5,10 +5,17 @@ import { ConvexReactClient, Authenticated, AuthLoading, Unauthenticated, useQuer
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import * as SecureStore from "expo-secure-store";
 import { Chat } from "./src/Chat";
-import { SignIn } from "./src/SignIn";
+import { Welcome, deviceLang } from "./src/Welcome";
+import { Privacy } from "./src/Privacy";
 import { Onboarding } from "./src/Onboarding";
 import { api } from "./convex/_generated/api";
 import { applyTheme, colors, themed } from "./src/theme";
+import { strings } from "./src/i18n";
+import { takeInviteFromUrl } from "./src/invite";
+import { usePath } from "./src/route";
+
+// A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
+takeInviteFromUrl();
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,
@@ -37,6 +44,7 @@ export default function App() {
 function Themed() {
   const system = useColorScheme();
   const me = useQuery(api.chat.me);
+  const [path, go] = usePath();
   const pref = me?.appearance;
   const scheme = pref && pref.theme !== "system" ? pref.theme : system === "dark" ? "dark" : "light";
   applyTheme(scheme, pref?.textSize ?? 1);
@@ -49,15 +57,22 @@ function Themed() {
   }, [scheme]);
   return (
     <View style={styles.root}>
-      <AuthLoading>
-        <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />
-      </AuthLoading>
-      <Unauthenticated>
-        <SignIn />
-      </Unauthenticated>
-      <Authenticated>
-        <Home />
-      </Authenticated>
+      {path === "/privacy" ? (
+        // Open to everyone, signed in or not.
+        <Privacy s={strings(me?.language ?? deviceLang())} onBack={() => go("/")} />
+      ) : (
+        <>
+          <AuthLoading>
+            <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />
+          </AuthLoading>
+          <Unauthenticated>
+            <Welcome onPrivacy={() => go("/privacy")} />
+          </Unauthenticated>
+          <Authenticated>
+            <Home />
+          </Authenticated>
+        </>
+      )}
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
     </View>
   );

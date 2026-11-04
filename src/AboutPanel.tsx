@@ -1,7 +1,7 @@
 // "What Wellnest knows about me" (convex/me.ts): saved facts (editable), everything stored, who sees what,
 // export, and deletion by category or of the whole account.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -222,6 +222,12 @@ export function AboutPanel({ s }: { s: Strings }) {
         </Pressable>
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
+      <Pressable
+        onPress={() => void Linking.openURL(Platform.OS === "web" ? "/privacy" : "https://talktothebeak.health/privacy")}
+        accessibilityRole="link"
+      >
+        <Text style={styles.link}>{s.landPrivacy}</Text>
+      </Pressable>
     </ScrollView>
   );
 }

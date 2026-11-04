@@ -11,11 +11,12 @@ What it does:
 - **Talk or type**, in English, Spanish, Greek or Simplified Chinese, in the app or on Telegram. Replies to spoken questions are spoken back.
 - **Remembers you:** past chats, saved facts like allergies, your medications and your appointments.
 - **Keeps a journal for you:** symptoms, a daily mood / energy / sleep check-in, pain and CRPS, asthma (peak flow, inhaler use) and seizure trackers, and your exercise routine, logged just by mentioning them in chat.
-- **Finds your patterns:** what goes with your worse days (sleep, activity, your cycle, local weather, air pressure, air quality, pollen), how things changed after a new medication or dose, charts right in the chat, and a summary of your week every Sunday.
+- **Finds your patterns:** what goes with your worse days (sleep, activity, your cycle, local weather, air pressure, air quality, pollen), how things changed after a new medication or dose, charts right in the chat, a summary of your week every Sunday, and an evening **flare forecast** when tomorrow's weather has gone with your worse days.
 - **Reads your wearables:** Apple Health on iPhone and Health Connect on Android (Samsung, Fitbit, Garmin, Oura, Flo...), with gentle check-ins when your numbers change.
 - **Medications:** reminders with Taken / Skip, doses by time of day, history, side effects, refill warnings and your eScript. Scan a label to add one, see possible interactions from the FDA labels, and get a kind nudge when doses are being missed.
 - **Health records:** add a lab report or clinic letter as a photo or PDF; it's explained in plain words in your language and each test is followed over time.
 - **Appointments and care team:** reminders, suggested questions to ask based on what changed since your last visit, notes afterwards, one-tap calling.
+- **Care circle:** invite family or carers with a one-time link; they see how you're doing (read only) and get the alerts you pick for them.
 - **Gets you care:** doctor-ready visit summaries, PDF reports, read-only share links for carers and doctors, an emergency plan, the nearest urgent care / ER / pharmacy, and telehealth video visits booked only when you confirm.
 - **Yours to control:** see everything Wellnest knows, export it, or delete it. Light or dark appearance and four text sizes.
 
@@ -95,6 +96,7 @@ flowchart TB
   meds -.- drugInfo["drugInfo (shared)"]
   users --- care["visits · careTeam · appointments (telehealth) · emergencyPlans"]
   users --- out["visitSummaries · shareLinks · creaoRuns"]
+  users --- circle["circleMembers · circleInvites"]
   users --- devices["pushTokens · authSessions"]
 ```
 
@@ -107,12 +109,14 @@ flowchart LR
   V["2 h before an appointment"] --> VP["push reminder +<br/>suggested questions if none yet"]
   W["Every day"] --> WD["fetch weather, air quality and pollen<br/>for everyone with a saved location"]
   S["Every hour"] --> SW["Sunday 6 PM local: the week's summary<br/>in the chat + push"]
+  F["Every hour"] --> FF["7 PM local: tomorrow's weather vs your patterns<br/>→ maybe a flare forecast (you + care circle)"]
   T["15 min before a video visit"] --> TP["push with the join link"]
   D["Delete my data"] --> DB["delete in batches of 200,<br/>rescheduling itself"]
 ```
 
 ## Layout
 - `App.tsx`, `src/` — the Expo app.
+  - `Welcome.tsx` — the welcome page before sign-in; `SignIn.tsx`; `Privacy.tsx` — the privacy page (`/privacy`); `route.ts` — that address.
   - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** screen (dashboard home in `HomePanel.tsx`, then one screen per tool); `ChatHistory.tsx` — the chat history drawer; `Icon.tsx` — one icon per idea.
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
@@ -120,6 +124,7 @@ flowchart LR
   - `theme.ts` — light and dark palettes, text size and `themed()` style sheets; `Motion.tsx` — the shared animations.
   - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
   - `CarePanel.tsx`, `EmergencyCard.tsx`, `TelehealthCard.tsx` — care nearby, emergency plan, video visits.
+  - `CirclePanel.tsx`, `JoinPrompt.tsx`, `invite.ts` — the care circle, joining from an invite link.
   - `health.ios.ts` / `health.android.ts` / `health.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health / Health Connect sync.
   - `AboutPanel.tsx` — "What Wellnest knows about me". `push.ts` — notifications. `photo.ts` — photos. `i18n.ts` — English, Spanish, Greek, Simplified Chinese.
   - `useVoice.ts`, `speaker.web.ts` / `speaker.ts` — the mic and spoken replies (see Voice below).
@@ -132,7 +137,8 @@ flowchart LR
   - `visits.ts`, `telehealth.ts`, `care.ts`, `emergency.ts` — appointments, video visits, care nearby, emergency plans.
   - `visit.ts`, `reports.ts`, `share.ts` (+ `lib/report.ts`) — visit summaries, PDF reports, share links.
   - `health.ts`, `checkins.ts` — wearable data and check-ins. `push.ts` — notifications. `me.ts` — facts, export, deletion.
-  - `insights.ts`, `weather.ts`, `weekly.ts`, `questions.ts` (+ `lib/insights.ts`, `lib/insightsText.ts`, `lib/weather.ts`) — patterns, charts, medication before/after, weather triggers, the weekly summary, questions for appointments.
+  - `insights.ts`, `weather.ts`, `weekly.ts`, `forecast.ts`, `questions.ts` (+ `lib/insights.ts`, `lib/insightsText.ts`, `lib/weather.ts`) — patterns, charts, medication before/after, weather triggers, the weekly summary, the flare forecast, questions for appointments.
+  - `circle.ts` (+ `lib/circle.ts`, `lib/links.ts`) — the care circle; links on the app's domain.
   - `creao.ts`, `shop.ts`, `lib/` — CREAO analysis, the supply shopper, and clients for Cortex, Jina, Cartesia, Telegram, Jev, OpenStreetMap.
 - `tests/` — Vitest + convex-test; every outside API is faked.
 - `creao/` — the CREAO agent bundle.
@@ -173,6 +179,7 @@ npx tsc --noEmit -p convex   # backend typecheck
 | `CORTEX_SHOPPER_MODEL` | optional; the Snowflake model that reads shopping requests (default: the triage model) |
 | `TELEHEALTH_PROVIDER` | `test` (default: made-up times, nothing real booked) or `http` with `TELEHEALTH_API_URL`, `TELEHEALTH_API_KEY` and optional `TELEHEALTH_PROVIDER_NAME` |
 | `EXPO_ACCESS_TOKEN` | optional; only if Expo's enhanced push security is on |
+| `APP_URL` | the public address used in share links and care circle invites (`https://talktothebeak.health`); without it, the deployment's `.convex.site` URL |
 
 ## Apple Health
 The iPhone app reads **daily summaries** from HealthKit and syncs them to `healthDays` (one row per user per local day): steps, active energy, resting heart rate, HRV (SDNN), sleep (asleep time, overlapping watch/phone logs merged), breathing rate, SpO2, sleeping wrist temperature, weight, and menstrual flow. Raw samples never leave the phone. Cycle apps like Flo, Clue and the Health app itself write flow logs to Apple Health, so period data comes along without a Flo integration; Garmin, Oura and Whoop also copy much of their data there.
@@ -266,7 +273,19 @@ The menu button at the top left opens every chat, newest first, named after its 
 The Journal tab's **What goes with your worse days** card, and the model's `find_patterns` tool, look through the last 90 days of your own logs (`convex/lib/insights.ts`). Each day becomes one number per measure: pain (the highest that day), your three most-rated symptoms, mood, energy and sleep quality, lowest peak flow, reliever puffs, and seizures (counted as 0 on seizure-free days after the first one). Each is compared with possible triggers: sleep hours and quality, the previous day's steps, resting heart rate, HRV, period days, and local weather (daily high, humidity, a drop in air pressure, rain, air quality index, pollen).
 - **How:** split the days at the trigger's median (or yes/no), and keep a pattern only with at least 10 days that have both numbers, 4 on each side, a gap big enough to matter (1 point of pain, half a point of mood) and at least half a standard deviation. The strongest show, two per measure at most, worded like "Pain averaged 6/10 on days with humidity of 65% or more (10 days), vs 2/10 on other days (10)" and labelled as associations, not causes. The older journal patterns (3 days a side) still show until these appear.
 - **Medication before and after:** for each medication started or dose changed in the last four months, every measure's average in the two weeks before vs the days after (at least four), when the change matters: "Pain since starting Amitriptyline on Oct 26: 3/10, vs 7/10 in the 2 weeks before (better)."
-- **Weather** (`convex/weather.ts`, `lib/weather.ts`): Open-Meteo, free and keyless. Saving a location (Settings, chat or a Telegram location) geocodes it and fetches the last two weeks and the next two days; a daily cron refreshes everyone with a location, rewriting the last two weeks so gaps fill in and forecasts become actual readings. Hourly readings become one row per local day in `weatherDays`, kept about a year. Pollen is only reported in Europe. The card shows today's weather, and the model also gets tomorrow's forecast.
+- **Weather** (`convex/weather.ts`, `lib/weather.ts`): Open-Meteo, free and keyless. Saving a location (Settings, chat or a Telegram location) geocodes it and fetches the last two weeks and the next three days; a daily cron refreshes everyone with a location, rewriting the last two weeks so gaps fill in and forecasts become actual readings. Hourly readings become one row per local day in `weatherDays`, kept about a year. Pollen is only reported in Europe. The card shows today's weather, and the model also gets tomorrow's forecast.
+
+## Flare forecast
+At 7 PM local time (`convex/forecast.ts`, hourly cron), Wellnest compares **tomorrow's forecast** with the user's own weather patterns (`findPatterns` limited to heat, humidity, a pressure drop, rain, air quality and pollen; `forecastMatches` in `lib/insights.ts`). When the forecast falls on the worse side of one, it posts a short heads-up in the chat with a push (and on Telegram when linked): "**Forecast: a drop in air pressure.** Pain averaged 6/10 on days with a drop in air pressure (9 days), vs 3/10 on other days (20)", labelled a pattern in their own logs, not a prediction. At most one a day, only with a saved location, at most one line per measure; nothing on days with no match. Care circle members who chose it get their own copy. The dashboard's insight card shows the same "Tomorrow's heads-up", and the model's `find_patterns` result includes it. Settings → **Evening flare forecast** turns it off. Weather is fetched three days ahead so tomorrow is there even in time zones where the daily fetch lands late.
+
+## Care circle
+**Health tools → Care circle** (`convex/circle.ts`, `src/CirclePanel.tsx`). The person invites family or carers: a one-time link (`APP_URL/?join=<token>`, 7 days, up to 10 people counting open invites) with a label ("Mom") and the alerts that person gets: **missed doses** (with the person's own missed-dose nudge in `reminders.ts`) and the **flare forecast**. Opening the link before signing in shows whose circle it is on the welcome page; after sign-in and account setup a prompt explains what joining means (`src/JoinPrompt.tsx`). The person sees each member, can change their alerts or remove them, and gets a chat message when someone joins.
+- **What members see (read only):** today's doses (taken, skipped, missed after 2 hours, due), active medications, this week against last week for each measure, when something was last logged, tomorrow's flare forecast, emergency contacts with Call buttons, and a full 30-day report (the same page as PDF reports). Members can leave at any time.
+- **Alerts** go to the member's own chat (and Telegram when linked) with a push, in the member's language.
+- **Deleting** the account removes both sides: the person's members and invites, and the circles they were in. Export includes the circle.
+
+## Welcome page and privacy
+Signed out, `src/Welcome.tsx` shows what Wellnest does, how it works and how data stays the user's, in the browser's or phone's language (with a switch), then sign-in or a new account. `/privacy` (`src/Privacy.tsx`) lists what's kept, the services that process it and the choices people have; it's open signed in or not and linked from "What Wellnest knows about me". `public/index.html` adds the description and link-preview tags for the site and invites.
 
 ## Charts in chat
 "Show my pain this month" makes the model call `show_chart` (pain, a symptom, mood, energy, sleep, steps, heart rate, HRV, weight, peak flow, reliever puffs, seizures, temperature, air quality or pollen; 7-180 days). The chart is saved on the reply (`messages.charts`, up to 3) and drawn under it in the app, one bar per day coloured from good to bad for that measure, with the average, high and low. The model gets the same numbers back so it can describe the trend in a sentence; on Telegram that description is the answer.

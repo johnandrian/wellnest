@@ -157,7 +157,7 @@ describe("insights in the app and for the model", () => {
     expect(view.patterns).toEqual(["Dolor: media de 6/10 los días con humedad del 65 % o más (10 días), frente a 2/10 el resto (10)."]);
     expect(view.weather).toBe("11–20°C · humedad 40% · calidad del aire 30 (buena)");
     expect(view.hasLocation).toBe(true);
-    expect(await other.as.query(api.insights.view, { today: TODAY })).toEqual({ patterns: [], medEffects: [], weather: null, hasLocation: false });
+    expect(await other.as.query(api.insights.view, { today: TODAY })).toEqual({ patterns: [], medEffects: [], weather: null, tomorrow: [], hasLocation: false });
   });
 
   test("find_patterns gives the model the patterns in English with a caution", async () => {
