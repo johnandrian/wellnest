@@ -1,16 +1,17 @@
 // Symptom journal (convex/journal.ts): a severity chart per symptom with sleep and period days underneath, patterns,
-// and a quick way to log or remove an entry. Most entries come from chat ("my headache's a 6 today").
+// and, near the top, the form to log a symptom with recent entries (./SymptomLog.tsx). Most entries come from chat
+// ("my headache's a 6 today").
 import { useMemo, useState } from "react";
-import { ScrollView, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { Tap } from "./Tap";
-import { useMutation, useQuery } from "convex/react";
-import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, severityColor, ui, TOUCH, themed } from "./theme";
+import { colors, severityColor, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
 import { InsightsCard, useHasInsights } from "./InsightsCard";
+import { SymptomLog } from "./SymptomLog";
 
 const PERIODS = [14, 30, 90];
 
@@ -82,25 +83,6 @@ export function JournalPanel({ s }: { s: Strings }) {
   const today = days[days.length - 1];
   const data = useQuery(api.journal.view, { since: days[0], today });
   const hasInsights = useHasInsights(today);
-  const add = useMutation(api.journal.add);
-  const remove = useMutation(api.journal.remove);
-  const [symptom, setSymptom] = useState("");
-  const [severity, setSeverity] = useState<number | null>(null);
-  const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const save = async () => {
-    setError(null);
-    if (!symptom.trim()) return;
-    try {
-      await add({ symptom, severity: severity ?? undefined, note: note || undefined });
-      setSymptom("");
-      setSeverity(null);
-      setNote("");
-    } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
-    }
-  };
 
   const sleep = new Map((data?.sleep ?? []).map((x) => [x.date, x.hours]));
   const periodDays = new Set(data?.periodDays ?? []);
@@ -108,6 +90,7 @@ export function JournalPanel({ s }: { s: Strings }) {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <DailyCard s={s} />
+      <SymptomLog s={s} mine={(data?.symptoms ?? []).map((x) => x.name)} recent={data?.recent ?? []} />
       <InsightsCard today={today} s={s} />
       <Text style={styles.note}>{s.journalIntro}</Text>
       <View style={styles.chips}>
@@ -158,41 +141,6 @@ export function JournalPanel({ s }: { s: Strings }) {
 
       <TrackersSection s={s} days={days} since={days[0]} />
 
-      <Text style={styles.section}>{s.journalAdd}</Text>
-      <TextInput style={styles.input} placeholder={s.journalSymptomPlaceholder} placeholderTextColor={colors.muted} value={symptom} onChangeText={setSymptom} maxLength={60} />
-      <View style={styles.severityRow}>
-        {Array.from({ length: 11 }, (_, n) => (
-          <Tap
-            key={n}
-            style={[styles.sev, severity === n && { backgroundColor: severityColor(n), borderColor: severityColor(n) }]}
-            onPress={() => setSeverity(severity === n ? null : n)}
-            accessibilityRole="radio"
-            accessibilityLabel={`${n}/10`}
-            accessibilityState={{ selected: severity === n }}
-          >
-            <Text style={[styles.sevText, severity === n && styles.sevTextOn]}>{n}</Text>
-          </Tap>
-        ))}
-      </View>
-      <TextInput style={styles.input} placeholder={s.journalNotePlaceholder} placeholderTextColor={colors.muted} value={note} onChangeText={setNote} maxLength={300} />
-      <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
-        <Text style={styles.buttonText}>{s.journalSave}</Text>
-      </Tap>
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      {!!data?.recent.length && <Text style={styles.section}>{s.journalRecent}</Text>}
-      {data?.recent.map((e) => (
-        <View key={e._id} style={styles.entry}>
-          <Text style={[styles.line, styles.flex]}>
-            {e.date.slice(5)} · {e.symptom}
-            {e.severity !== null ? ` ${e.severity}/10` : ""}
-            {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
-          </Text>
-          <Tap onPress={() => void remove({ id: e._id })} accessibilityRole="button" accessibilityLabel={s.remove}>
-            <Ionicons name="close" size={18} color={colors.muted} />
-          </Tap>
-        </View>
-      ))}
     </ScrollView>
   );
 }
@@ -225,13 +173,4 @@ const styles = themed(() => ({
   legend: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
   insights: { backgroundColor: colors.primarySoft, borderRadius: 10, padding: 10, gap: 4 },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
-  severityRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
-  sev: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
-  sevText: { fontSize: 13, color: colors.text },
-  sevTextOn: { color: colors.onPrimary, fontWeight: "700" },
-  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
-  buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
-  entry: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
-  error: { color: colors.danger, fontSize: 13 },
 }));
