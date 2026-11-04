@@ -38,6 +38,7 @@ import { ChatHistory } from "./ChatHistory";
 import { JoinPrompt } from "./JoinPrompt";
 import { Icon } from "./Icon";
 import { Tour, TourStop } from "./Tour";
+import { SideSheet, SIDE_SHEET_MIN_WIDTH } from "./SideSheet";
 
 // The two screens: the dashboard (Health tools, where the app opens) and the chat. Moving between them slides
 // sideways, the dashboard from the left and the chat from the right.
@@ -80,7 +81,10 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const [panel, setPanel] = useState<Panel | null>(null);
   const [hubTab, setHubTab] = useState<HubTab>("home");
   const [history, setHistory] = useState(false);
-  const narrow = useWindowDimensions().width < 440;
+  const { width } = useWindowDimensions();
+  const narrow = width < 440;
+  // In a wide browser window Settings opens over the right half; on phones it drops down full width under the header.
+  const side = Platform.OS === "web" && width >= SIDE_SHEET_MIN_WIDTH;
   const openHub = (tab: HubTab) => {
     setHubTab(tab);
     setScreen("hub");
@@ -191,27 +195,28 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
     await newChat();
   };
 
-  // Settings and "What Wellnest knows about me", under whichever screen's header.
-  const panels = (
+  const settings = me && (
+    <Settings
+      me={me}
+      s={s}
+      pushToken={pushToken}
+      health={health}
+      onOpenAbout={() => setPanel("about")}
+      onRedoSetup={onRedoSetup}
+      onTour={() => {
+        setPanel(null);
+        startTour();
+      }}
+    />
+  );
+  // Settings and "What Wellnest knows about me": under whichever screen's header, or in the side sheet.
+  const panels = side ? null : (
     <>
       <Reveal open={panel === "about"} style={styles.aboutWrap}>
         <AboutPanel s={s} />
       </Reveal>
       <Reveal open={panel === "settings" && !!me} style={styles.settingsWrap}>
-        {me && (
-          <Settings
-            me={me}
-            s={s}
-            pushToken={pushToken}
-            health={health}
-            onOpenAbout={() => setPanel("about")}
-            onRedoSetup={onRedoSetup}
-            onTour={() => {
-              setPanel(null);
-              startTour();
-            }}
-          />
-        )}
+        {settings}
       </Reveal>
     </>
   );
@@ -485,6 +490,11 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
         <Enter key="chat" style={styles.container} fromX={28}>
           {chat}
         </Enter>
+      )}
+      {side && (
+        <SideSheet open={panel !== null && !!me} title={panel === "about" ? s.aboutMe : s.settings} closeLabel={s.closeSettings} onClose={() => setPanel(null)}>
+          {panel === "about" ? <AboutPanel s={s} /> : settings}
+        </SideSheet>
       )}
       <JoinPrompt s={s} onOpenCircle={() => openHub("circle")} />
       <Tour open={touring} step={tourStep} s={s} onStep={setTourStep} onShow={showStop} onEnd={endTour} />

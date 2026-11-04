@@ -18,14 +18,14 @@ async function find(ctx: ActionCtx, userId: Id<"users">, kind: CareKind, coords?
   if (!point) {
     const hit = await geocode(location);
     if (!hit) return { error: `Couldn't find "${location}" on the map. Try a city and zip.` };
-    point = { lat: hit.lat, lon: hit.lon, for: location };
+    point = { lat: hit.lat, lon: hit.lon, for: location, place: hit.place ?? "" };
     await ctx.runMutation(internal.care.savePoint, { userId, point });
   }
   return { places: await nearby(kind, point.lat, point.lon), near: location };
 }
 
 export const savePoint = internalMutation({
-  args: { userId: v.id("users"), point: v.object({ lat: v.number(), lon: v.number(), for: v.string() }) },
+  args: { userId: v.id("users"), point: v.object({ lat: v.number(), lon: v.number(), for: v.string(), place: v.optional(v.string()) }) },
   handler: (ctx, { userId, point }) => ctx.db.patch(userId, { locationPoint: point }),
 });
 

@@ -73,7 +73,7 @@ export function mockApis(opts: {
   cartesiaStt?: string | Error; // what Cartesia STT hears (default "I have a headache")
   telegramFileGone?: boolean; // getFile fails (e.g. a file over 20 MB)
   pushDead?: string[]; // Expo push tokens that come back DeviceNotRegistered
-  geocode?: { lat: string; lon: string; display_name: string }[]; // Nominatim results (default: one in Berkeley)
+  geocode?: { lat: string; lon: string; display_name: string; address?: Record<string, string> }[]; // Nominatim results (default: one in Berkeley)
   overpass?: any[] | Error; // OpenStreetMap elements Overpass returns
   // Open-Meteo hourly weather and air quality (weather triggers). Default: no hours; an Error = the service is down.
   weatherHourly?: Record<string, unknown[]> | Error;

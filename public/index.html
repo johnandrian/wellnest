@@ -32,6 +32,35 @@
         flex: 1;
       }
     </style>
+    <!-- Slim rounded scroll bars in the app's mint and teal; App.tsx sets the colours for light or dark. -->
+    <style id="scrollbars">
+      ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar, #81c9aa);
+        border: 3px solid transparent;
+        border-radius: 999px;
+        background-clip: content-box;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--scrollbar-hover, #0b5d57);
+      }
+      ::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+      /* Firefox has no ::-webkit-scrollbar; it takes a thin bar in the same colour. */
+      @supports (-moz-appearance: none) {
+        * {
+          scrollbar-width: thin;
+          scrollbar-color: var(--scrollbar, #81c9aa) transparent;
+        }
+      }
+    </style>
   </head>
 
   <body>

@@ -49,11 +49,15 @@ export const refresh = internalAction({
     const location = user?.location?.trim();
     if (!user || !location || user.deleting) return;
     try {
-      let point = user.locationPoint?.for === location ? user.locationPoint : null;
+      // Points saved before place names were kept are looked up once more to get one (typed coordinates never are).
+      const saved = user.locationPoint;
+      let point: Doc<"users">["locationPoint"] | null = saved?.for === location && (saved.place !== undefined || parseCoords(location)) ? saved : null;
       if (!point) {
-        const hit = parseCoords(location) ?? (await geocode(location));
+        const coords = parseCoords(location);
+        const hit = coords ?? (await geocode(location));
         if (!hit) return;
-        point = { lat: hit.lat, lon: hit.lon, for: location };
+        // "" when the map has no name for it, so it isn't looked up again every day.
+        point = { lat: hit.lat, lon: hit.lon, for: location, ...(!coords && { place: (hit as { place?: string }).place ?? "" }) };
         await ctx.runMutation(internal.care.savePoint, { userId, point });
       }
       const days = await fetchWeather(point.lat, point.lon);

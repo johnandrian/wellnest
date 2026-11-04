@@ -154,7 +154,10 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
               <View style={[styles.iconDot, { backgroundColor: colors.surface }]}>
                 <Icon name="weather" size={18} color={colors.primary} />
               </View>
-              <Text style={[styles.insightText, styles.flex]}>{insights.weather}</Text>
+              <View style={styles.flex}>
+                <Text style={styles.insightLabel}>{insights.weatherPlace ? s.weatherIn.replace("{place}", insights.weatherPlace) : s.insightsWeather}</Text>
+                <Text style={styles.insightText}>{insights.weather}</Text>
+              </View>
             </View>
           )}
           <Tap style={styles.ask} onPress={onChat} accessibilityRole="button">

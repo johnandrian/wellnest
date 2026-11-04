@@ -5,7 +5,7 @@
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalQuery, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { CHART_METRICS, ChartMetric, chartSeries, Chart, dateList, findPatterns, forecastMatches, ForecastMatch, Inputs, MedChange, medEffects, shiftDate, sliceInputs, WEATHER_FACTORS } from "./lib/insights";
 import { chartName, forecastLine, medEffectText, patternText, weatherLine } from "./lib/insightsText";
 import { isDate } from "./lib/health";
@@ -15,6 +15,7 @@ import { normalizeSymptom } from "./lib/journal";
 import { dailySince, entriesSince, localToday } from "./journal";
 import { trackersSince } from "./trackers";
 import { weatherSince } from "./weather";
+import { parseCoords } from "./lib/places";
 
 export const LOOKBACK_DAYS = 90;
 const MED_LOOKBACK_DAYS = 120;
@@ -82,6 +83,14 @@ async function computed(ctx: QueryCtx, userId: Id<"users">, today: string) {
   };
 }
 
+function placeOf(user: Doc<"users"> | null): string | null {
+  const location = user?.location?.trim();
+  if (!location) return null;
+  const point = user?.locationPoint;
+  if (point?.for === location && point.place) return point.place;
+  return parseCoords(location) ? null : location;
+}
+
 // The Journal tab's insights card. `today` is the phone's local date (queries can't read the clock).
 export const view = query({
   args: { today: v.string() },
@@ -95,6 +104,8 @@ export const view = query({
       patterns: patterns.map((p) => patternText(p, lang)),
       medEffects: effects.map((e) => medEffectText(e, lang)),
       weather: weatherToday ? weatherLine(weatherToday, lang) : null,
+      // Where that weather is for: the looked-up place name, else the location as they typed it.
+      weatherPlace: weatherToday ? placeOf(user) : null,
       // The flare forecast: tomorrow's weather on the worse side of one of their weather patterns.
       tomorrow: (await tomorrowMatches(ctx, userId, today)).map((m) => forecastLine(m, lang)),
       hasLocation: !!user?.location?.trim(),

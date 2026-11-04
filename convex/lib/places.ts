@@ -40,14 +40,26 @@ export function parseCoords(s: string): { lat: number; lon: number } | null {
   return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
 }
 
-export async function geocode(query: string): Promise<{ lat: number; lon: number; label: string } | null> {
+type Address = Partial<Record<"city" | "town" | "village" | "hamlet" | "suburb" | "municipality" | "county" | "state" | "country", string>>;
+
+// A short name for where the point is, "Berkeley, California", from Nominatim's address parts.
+export function placeName(address: Address | undefined): string | undefined {
+  if (!address) return undefined;
+  const local = address.city ?? address.town ?? address.village ?? address.hamlet ?? address.suburb ?? address.municipality ?? address.county;
+  const region = address.state ?? address.country;
+  const parts = [local, region].filter((x, i, all): x is string => !!x && all.indexOf(x) === i);
+  return parts.length ? parts.join(", ").slice(0, 80) : undefined;
+}
+
+// `place`: a short name for it, when Nominatim knows one (not for typed coordinates).
+export async function geocode(query: string): Promise<{ lat: number; lon: number; label: string; place?: string } | null> {
   const coords = parseCoords(query);
   if (coords) return { ...coords, label: query };
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=1&q=${encodeURIComponent(query)}`;
   const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
   if (!res.ok) throw new Error(`Nominatim ${res.status}`);
-  const [hit] = (await res.json()) as { lat: string; lon: string; display_name: string }[];
-  return hit ? { lat: Number(hit.lat), lon: Number(hit.lon), label: hit.display_name } : null;
+  const [hit] = (await res.json()) as { lat: string; lon: string; display_name: string; address?: Address }[];
+  return hit ? { lat: Number(hit.lat), lon: Number(hit.lon), label: hit.display_name, place: placeName(hit.address) } : null;
 }
 
 export function overpassQuery(kind: CareKind, lat: number, lon: number) {

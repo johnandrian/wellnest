@@ -5,6 +5,7 @@ import { chartSeries, dateList, findPatterns, Inputs, medEffects, shiftDate, wee
 import { medEffectText, patternText, weatherLine, weeklyText } from "../convex/lib/insightsText";
 import { toDays } from "../convex/lib/weather";
 import { parseQuestions } from "../convex/questions";
+import { placeName } from "../convex/lib/places";
 import { cortexCalls, createAppUser, drain, messagesOf, mockApis, pushSends, setEnv, setup, weatherCalls } from "./helpers";
 
 // Sunday 1 November 2026, 18:10 UTC.
@@ -157,7 +158,41 @@ describe("insights in the app and for the model", () => {
     expect(view.patterns).toEqual(["Dolor: media de 6/10 los días con humedad del 65 % o más (10 días), frente a 2/10 el resto (10)."]);
     expect(view.weather).toBe("11–20°C · humedad 40% · calidad del aire 30 (buena)");
     expect(view.hasLocation).toBe(true);
-    expect(await other.as.query(api.insights.view, { today: TODAY })).toEqual({ patterns: [], medEffects: [], weather: null, tomorrow: [], hasLocation: false });
+    // Not looked up yet: the location as typed.
+    expect(view.weatherPlace).toBe("Berkeley");
+    expect(await other.as.query(api.insights.view, { today: TODAY })).toEqual({ patterns: [], medEffects: [], weather: null, weatherPlace: null, tomorrow: [], hasLocation: false });
+  });
+
+  test("the weather says where it's for: the place name from the map lookup, looked up again for older points", async () => {
+    const t = setup();
+    const { calls } = mockApis({
+      geocode: [{ lat: "37.8716", lon: "-122.2727", display_name: "94704, Berkeley, Alameda County, California, United States", address: { city: "Berkeley", county: "Alameda County", state: "California", country: "United States" } }],
+      weatherHourly: { time: [`${TODAY}T09:00`], temperature_2m: [15], relative_humidity_2m: [50], pressure_msl: [1012], precipitation: [0] },
+    });
+    const { userId, as } = await createAppUser(t);
+    // Saved before place names were kept.
+    await t.run((ctx) => ctx.db.patch(userId, { location: "94704", locationPoint: { lat: 37.87, lon: -122.27, for: "94704" } }));
+    await t.action(internal.weather.refresh, { userId });
+    expect(calls.filter((c) => c.url.includes("nominatim"))).toHaveLength(1);
+    expect(calls.find((c) => c.url.includes("nominatim"))!.url).toContain("addressdetails=1");
+    expect((await t.run((ctx) => ctx.db.get(userId)))!.locationPoint).toMatchObject({ for: "94704", place: "Berkeley, California" });
+    expect((await as.query(api.insights.view, { today: TODAY }))!.weatherPlace).toBe("Berkeley, California");
+
+    // Once it has a place name it isn't looked up again; typed coordinates never are, and show no place.
+    await t.action(internal.weather.refresh, { userId });
+    expect(calls.filter((c) => c.url.includes("nominatim"))).toHaveLength(1);
+    await t.run((ctx) => ctx.db.patch(userId, { location: "37.87,-122.27" }));
+    await t.action(internal.weather.refresh, { userId });
+    expect(calls.filter((c) => c.url.includes("nominatim"))).toHaveLength(1);
+    expect((await as.query(api.insights.view, { today: TODAY }))!.weatherPlace).toBeNull();
+  });
+
+  test("place names are the town and the state or country, without repeats", () => {
+    expect(placeName({ city: "Berkeley", state: "California", country: "United States" })).toBe("Berkeley, California");
+    expect(placeName({ village: "Oia", country: "Greece" })).toBe("Oia, Greece");
+    expect(placeName({ city: "Singapore", country: "Singapore" })).toBe("Singapore");
+    expect(placeName({})).toBeUndefined();
+    expect(placeName(undefined)).toBeUndefined();
   });
 
   test("find_patterns gives the model the patterns in English with a caution", async () => {

@@ -37,7 +37,7 @@ export function InsightsCard({ today, s }: { today: string; s: Strings }) {
       )}
       {data.weather ? (
         <Text style={styles.weather}>
-          <Ionicons name="partly-sunny-outline" size={13} color={colors.muted} /> {s.insightsWeather}: {data.weather}
+          <Ionicons name="partly-sunny-outline" size={13} color={colors.muted} /> {data.weatherPlace ? s.weatherIn.replace("{place}", data.weatherPlace) : s.insightsWeather}: {data.weather}
         </Text>
       ) : (
         !data.hasLocation && <Text style={styles.muted}>{s.insightsNoLocation}</Text>

@@ -61,6 +61,9 @@ function Themed() {
     if (Platform.OS === "web") {
       document.body.style.backgroundColor = colors.bg;
       document.documentElement.style.colorScheme = scheme;
+      // Scroll bar colours (public/index.html).
+      document.documentElement.style.setProperty("--scrollbar", colors.mint);
+      document.documentElement.style.setProperty("--scrollbar-hover", colors.primary);
     }
   }, [scheme]);
   return (
