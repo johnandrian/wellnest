@@ -23,10 +23,30 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
   if (!today) return null;
   const answered = KEYS.every((k) => today[k] !== null);
   if (inChat && (answered || today.skipped)) return null;
-  const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
-
   return (
-    <View style={[styles.card, inChat && !flush && styles.inChat]}>
+    <DailyCardView
+      s={s}
+      values={today}
+      onPick={(k, v) => void log({ [k]: v, date })}
+      onSkip={inChat ? () => void skip() : undefined}
+      inset={inChat && !flush}
+    />
+  );
+}
+
+export type DailyKey = (typeof KEYS)[number];
+
+// The card itself, from values passed in (the public demo keeps its answers on the page).
+export function DailyCardView({ s, values, onPick, onSkip, inset = false }: {
+  s: Strings;
+  values: Record<DailyKey, number | null>;
+  onPick: (k: DailyKey, v: number) => void;
+  onSkip?: () => void;
+  inset?: boolean;
+}) {
+  const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
+  return (
+    <View style={[styles.card, inset && styles.inChat]}>
       <Text style={styles.title}>{s.dailyTitle}</Text>
       {KEYS.map((k) => (
         <View key={k} style={styles.row}>
@@ -35,11 +55,11 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
             {FACES.map((face, i) => (
               <Tap
                 key={face}
-                style={[styles.face, today[k] === i + 1 && styles.faceOn]}
-                onPress={() => void log({ [k]: i + 1, date })}
+                style={[styles.face, values[k] === i + 1 && styles.faceOn]}
+                onPress={() => onPick(k, i + 1)}
                 accessibilityRole="radio"
                 accessibilityLabel={`${label[k]} ${i + 1}/5`}
-                accessibilityState={{ selected: today[k] === i + 1 }}
+                accessibilityState={{ selected: values[k] === i + 1 }}
               >
                 <Text style={styles.faceText}>{face}</Text>
               </Tap>
@@ -47,8 +67,8 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
           </View>
         </View>
       ))}
-      {inChat && (
-        <Tap onPress={() => void skip()} accessibilityRole="button">
+      {onSkip && (
+        <Tap onPress={onSkip} accessibilityRole="button">
           <Text style={styles.link}>{s.dailyNotToday}</Text>
         </Tap>
       )}

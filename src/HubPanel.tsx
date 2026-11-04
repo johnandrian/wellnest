@@ -38,7 +38,7 @@ export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; lab
   { tab: "circle", icon: "circle", tint: "circle", label: (s) => s.tabCircle, desc: (s) => s.toolCircleDesc },
 ];
 
-function greeting(s: Strings, name: string | null) {
+export function greeting(s: Strings, name: string | null) {
   const h = new Date().getHours();
   const hi = h < 12 ? s.greetMorning : h < 18 ? s.greetAfternoon : s.greetEvening;
   return name ? `${hi}, ${name.split(" ")[0]}` : hi;

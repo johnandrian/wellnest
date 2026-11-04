@@ -142,6 +142,11 @@ function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; 
                 <Text style={styles.secondaryText}>{s.landSignIn}</Text>
               </Tap>
             </View>
+            <Tap style={styles.demo} onPress={() => onOpen("/demo")} accessibilityRole="link">
+              <Icon name="dashboard" size={18} color={colors.primary} />
+              <Text style={styles.demoText}>{s.landDemo}</Text>
+              <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+            </Tap>
           </View>
           <View style={wide ? styles.previewWide : undefined}>
             <Preview s={s} />
@@ -264,6 +269,8 @@ const styles = themed(() => ({
   primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
   secondary: { minHeight: 50, paddingHorizontal: 22, justifyContent: "center", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface },
   secondaryText: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  demo: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8, minHeight: TOUCH, marginTop: 4, paddingHorizontal: 4 },
+  demoText: { color: colors.primary, fontSize: 16, fontWeight: "700", textDecorationLine: "underline" },
   previewWide: { width: 380 },
   preview: { ...ui.card, padding: 18, gap: 14, borderRadius: radius.lg },
   previewTitle: { fontSize: 15, fontWeight: "700", color: colors.text },

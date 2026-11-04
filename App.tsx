@@ -14,6 +14,7 @@ import { applyTheme, colors, themed } from "./src/theme";
 import { strings } from "./src/i18n";
 import { takeInviteFromUrl } from "./src/invite";
 import { usePath } from "./src/route";
+import { DemoPage } from "./src/DemoPage";
 
 // A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
 takeInviteFromUrl();
@@ -68,13 +69,15 @@ function Themed() {
   }, [scheme]);
   return (
     <View style={styles.root}>
-      {/* The privacy page and the free tools are open to everyone, signed in or not. */}
+      {/* The privacy page, the free tools and the demo dashboard are open to everyone, signed in or not. */}
       {path === "/privacy" ? (
         <Privacy s={pageLang} onBack={() => go("/")} />
       ) : path === "/medication-list" ? (
         <MedListTool s={pageLang} onBack={() => go("/")} onCreate={create} />
       ) : path === "/appointment-checklist" ? (
         <ChecklistPage s={pageLang} onBack={() => go("/")} onCreate={create} />
+      ) : path === "/demo" ? (
+        <DemoPage s={pageLang} onBack={() => go("/")} onCreate={create} />
       ) : (
         <>
           <AuthLoading>

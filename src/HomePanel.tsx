@@ -1,10 +1,12 @@
 // The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, questions
 // to ask at an appointment in the coming week, four weeks of charts for what the user tracks, tomorrow's flare
 // forecast, the strongest pattern, and every tool as a tile. It fills the window: more columns on wider screens.
-import { useState } from "react";
+// DashboardView draws it from data passed in, so the public demo (src/DemoPage.tsx) shows the same screen.
+import { ReactNode, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAction, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
@@ -18,7 +20,9 @@ import type { Id } from "../convex/_generated/dataModel";
 // Questions show on the dashboard in the week before an appointment.
 const QUESTIONS_DAYS = 7;
 
-type Chart = NonNullable<ReturnType<typeof useDashboard>>["charts"][number];
+export type DashboardData = NonNullable<FunctionReturnType<typeof api.dashboard.view>>;
+export type InsightsData = NonNullable<FunctionReturnType<typeof api.insights.view>>;
+type Chart = DashboardData["charts"][number];
 
 function useDashboard() {
   // Fixed while the screen is open, so the query isn't re-run on every render.
@@ -46,16 +50,33 @@ function trend(c: Chart): "better" | "worse" | "same" | null {
 export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTab) => void; onChat: () => void }) {
   const data = useDashboard();
   const insights = useQuery(api.insights.view, { today: localDate() });
-  const { width } = useWindowDimensions();
-  const wide = width >= 640;
-  const wider = width >= 1100;
   const [now] = useState(() => Date.now());
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
+  return <DashboardView data={data} insights={insights ?? null} now={now} s={s} onOpen={onOpen} onChat={onChat} checkin={<DailyCard s={s} inChat flush />} />;
+}
+
+// The dashboard itself. `checkin`: today's check-in card. `demo`: sample data, so nothing asks the server.
+export function DashboardView(p: {
+  data: DashboardData;
+  insights: InsightsData | null;
+  now: number;
+  s: Strings;
+  onOpen: (t: HubTab) => void;
+  onChat: () => void;
+  checkin: ReactNode;
+  demo?: boolean;
+  header?: ReactNode;
+}) {
+  const { data, insights, now, s, onOpen, onChat } = p;
+  const { width } = useWindowDimensions();
+  const wide = width >= 640;
+  const wider = width >= 1100;
   const m = data.meds;
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      {p.header}
       <View style={styles.stats}>
         <Stat
           icon="medications"
@@ -98,9 +119,9 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
         />
       </View>
 
-      <DailyCard s={s} inChat flush />
+      {p.checkin}
 
-      {data.visit && data.visit.startsAt - now < QUESTIONS_DAYS * 86_400_000 && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} />}
+      {data.visit && data.visit.startsAt - now < QUESTIONS_DAYS * 86_400_000 && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} demo={p.demo} />}
 
       <View style={styles.sectionRow}>
         <Text style={styles.section} accessibilityRole="header">
@@ -189,10 +210,10 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   );
 }
 
-type Visit = NonNullable<NonNullable<ReturnType<typeof useDashboard>>["visit"]>;
+type Visit = NonNullable<DashboardData["visit"]>;
 
 // The next appointment's questions to ask (convex/questions.ts), or a button to write some, and the prep checklist.
-function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen: (t: HubTab) => void }) {
+function VisitQuestions({ visit, s, onOpen, demo }: { visit: Visit; s: Strings; onOpen: (t: HubTab) => void; demo?: boolean }) {
   const suggest = useAction(api.questions.suggest);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,7 +252,7 @@ function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen
         <Text style={styles.small}>{s.homeQuestionsEmpty}</Text>
       )}
       <View style={styles.actions}>
-        {!visit.questions.length && (
+        {!visit.questions.length && !demo && (
           <Tap style={styles.ask} onPress={() => void write()} disabled={busy} accessibilityRole="button" accessibilityState={{ busy }}>
             <SwapIcon id={busy ? "busy" : "idle"}>
               {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
