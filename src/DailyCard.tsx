@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, ui, themed } from "./theme";
+import { colors, scaleColor, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
@@ -56,7 +56,7 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
   );
 }
 
-// Three small rows of 1-5 bars, one per question, over the chosen days.
+// Three small rows of 1-5 bars, one per question, over the chosen days, coloured from red (1) to teal (5).
 export function DailyChart({ days, daily, s }: { days: string[]; daily: { date: string; mood: number | null; energy: number | null; sleepQuality: number | null }[]; s: Strings }) {
   const byDate = new Map(daily.map((d) => [d.date, d]));
   const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
@@ -70,7 +70,7 @@ export function DailyChart({ days, daily, s }: { days: string[]; daily: { date: 
               const v = byDate.get(d)?.[k];
               return (
                 <View key={d} style={styles.slot}>
-                  {v != null && <View style={[styles.bar, { height: `${v * 20}%`, backgroundColor: v <= 2 ? colors.amber : colors.primary }]} />}
+                  {v != null && <View style={[styles.bar, { height: `${v * 20}%`, backgroundColor: scaleColor((v - 1) / 4) }]} />}
                 </View>
               );
             })}

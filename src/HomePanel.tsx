@@ -8,7 +8,7 @@ import { useAction, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
-import { colors, radius, tint, ui, themed } from "./theme";
+import { colors, radius, scaleColor, tint, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
 import { TOOLS, type HubTab } from "./HubPanel";
@@ -296,7 +296,14 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
   const top = Math.max(chart.max, ...values) || 1;
   // Measures without a fixed scale (peak flow, steps, heart rate) start just under their lowest day, so changes show.
   const floor = chart.unit.startsWith("/") ? 0 : Math.max(0, Math.min(...values) - (top - Math.min(...values)) * 0.5 - top * 0.02);
-  const recent = dates.slice(-7)[0];
+
+  // Each bar's colour says how good that day was: red to teal, by which direction is bad. 1-5 ratings start at 1.
+  // Measures with no bad direction (steps) stay in the greens.
+  const base = chart.unit === "/5" ? 1 : floor;
+  const barColor = (v: number) => {
+    const f = Math.min(1, Math.max(0, (v - base) / (top - base || 1)));
+    return scaleColor(chart.worse === "high" ? 1 - f : chart.worse === "low" ? f : 0.75 + 0.25 * f);
+  };
   const label = t && { better: s.homeBetter, worse: s.homeWorse, same: s.homeSame }[t];
   return (
     <Tap style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]} onPress={onPress} accessibilityRole="button"
@@ -329,7 +336,7 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
           return (
             <View key={d} style={styles.slot}>
               {v !== undefined && (
-                <View style={[styles.bar, { height: `${Math.max(6, ((v - floor) / (top - floor || 1)) * 100)}%`, backgroundColor: d >= recent ? colors.primary : colors.mint }]} />
+                <View style={[styles.bar, { height: `${Math.max(6, ((v - floor) / (top - floor || 1)) * 100)}%`, backgroundColor: barColor(v) }]} />
               )}
             </View>
           );
@@ -380,6 +387,7 @@ const styles = themed(() => ({
   bars: { flexDirection: "row", alignItems: "flex-end", height: 64, gap: 2 },
   slot: { flex: 1, height: "100%", justifyContent: "flex-end" },
   bar: { width: "100%", borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+
   axis: { flexDirection: "row", justifyContent: "space-between" },
   axisText: { fontSize: 12, color: colors.muted },
   insight: { ...ui.card, padding: 14, gap: 10, backgroundColor: colors.primarySoft, borderColor: colors.mint },

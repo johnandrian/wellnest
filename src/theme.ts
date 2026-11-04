@@ -29,6 +29,12 @@ const LIGHT = {
   seizure: "#7C3AED",
   period: "#E5484D",
   heart: "#E5484D",
+  // Bar charts of how a day went, from bad to good (red, orange, yellow, green, teal); see scaleColor.
+  scale1: "#D9443A",
+  scale2: "#EE8A3C",
+  scale3: "#E0B030",
+  scale4: "#6DBE8C",
+  scale5: "#0B5D57",
   codeBg: "#F3F4F6",
   // On the teal header band: the translucent fill behind its round buttons and tabs.
   onPrimaryFill: "rgba(255, 255, 255, 0.16)",
@@ -63,6 +69,11 @@ const DARK: Palette = {
   seizure: "#A78BFA",
   period: "#F87171",
   heart: "#F87171",
+  scale1: "#F87171",
+  scale2: "#FB923C",
+  scale3: "#FACC15",
+  scale4: "#6EE7B7",
+  scale5: "#5FC7B7",
   codeBg: "#232C35",
   onPrimaryFill: "rgba(6, 43, 39, 0.12)",
   backdrop: "rgba(0, 0, 0, 0.55)",
@@ -152,6 +163,26 @@ export function themed<T extends Sheet>(make: () => T & Sheet, opts: { scaleText
 }
 
 // Shared shapes for the Health tools screens: soft cards on a light page, comfortable touch targets.
+// A smooth colour from bad (0) to good (1) through the five scale stops, for chart bars.
+export function scaleColor(good: number): string {
+  const stops = [colors.scale1, colors.scale2, colors.scale3, colors.scale4, colors.scale5];
+  const x = Math.min(1, Math.max(0, Number.isFinite(good) ? good : 0.5)) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(x));
+  const f = x - i;
+  const rgb = (h: string) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+  const [a, b] = [rgb(stops[i]), rgb(stops[i + 1])];
+  return `#${a.map((v, k) => Math.round(v + (b[k] - v) * f).toString(16).padStart(2, "0")).join("")}`;
+}
+
+// A 0-10 severity (pain, a symptom): teal for mild through yellow and orange to red for the worst.
+export const severityColor = (n: number) => scaleColor(1 - n / 10);
+
+// Dark or white text, whichever reads better on a chart colour such as scaleColor's.
+export function inkOn(bg: string): string {
+  const [r, g, b] = [1, 3, 5].map((k) => parseInt(bg.slice(k, k + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5 ? LIGHT.text : LIGHT.surface;
+}
+
 export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
 export const TOUCH = 44; // minimum touch target (iOS 44pt; Android adds hitSlop to reach 48dp)
 

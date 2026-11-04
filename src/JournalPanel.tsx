@@ -6,7 +6,7 @@ import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH, themed } from "./theme";
+import { colors, severityColor, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
@@ -26,7 +26,6 @@ function lastDays(n: number) {
   return out;
 }
 
-const severityColor = (s: number) => (s >= 7 ? colors.danger : s >= 4 ? colors.amber : colors.mint);
 
 function Chart({ days, points, sleep, periodDays, s }: {
   days: string[];
@@ -131,7 +130,7 @@ export function JournalPanel({ s }: { s: Strings }) {
       ))}
       {data && data.symptoms.length > 0 && (sleep.size > 0 || periodDays.size > 0) && (
         <View style={styles.legend}>
-          <View style={[styles.legendSwatch, { backgroundColor: colors.mint }]} />
+          <View style={[styles.legendSwatch, { backgroundColor: severityColor(5) }]} />
           <Text style={styles.small}>{s.legendSeverity}</Text>
           {sleep.size > 0 && <View style={[styles.legendSwatch, { backgroundColor: colors.sleep }]} />}
           {sleep.size > 0 && <Text style={styles.small}>{s.legendSleep}</Text>}

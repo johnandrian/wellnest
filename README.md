@@ -207,7 +207,7 @@ A one-page Markdown summary to bring to an appointment: reason, main concerns, a
 - **Limits:** one at a time, 5 a day.
 
 ## Medications and reminders
-The **Medications** tab lists every medication: active, paused and stopped (kept for the history). Tap one for its details:
+The **Medications** tab shows every medication in its own box (two to a row on phones, three on wider screens, so none is missed going down the list) with its dose, schedule, next dose, days of supply left and whether it's paused or stopped (stopped ones are kept for the history). Tap a box and it spans the row with its details:
 - **Dose:** a number and a unit picked from chips (mg, mcg, g, mL, tablets, capsules, puffs, drops, units, patches, sprays, or one typed under Other), saved as one line of text in the user's language ("2 tablets") so older doses still read back (`src/DoseInput.tsx`, `src/dose.ts`).
 - **Details:** generic name, form (tablet, inhaler, patch...), prescriber, how to take it ("with food", filled from a label scan), notes, and a **different dose at some times** (e.g. 300 mg in the morning, 600 mg at night); the reminder says the right dose.
 - **Medication list:** medicine, strength / dose, when and how it's taken, and notes for every current medication, printed or saved as a PDF (`src/medList.ts`).
@@ -269,7 +269,7 @@ iOS and Android get push notifications (Expo push) for **medication reminders** 
 
 ## Symptom journal
 When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps were bad yesterday"), the model logs it with `log_symptom`: one entry per symptom per local day (a second report that day updates it), severity 0-10, an optional note. The **Health tools** button (the filled grid icon) opens a dashboard: the next dose and appointment, days logged and doses taken this week, today's check-in, four weeks of charts for what the user tracks (picked by their setup focus, each compared with last week), the strongest pattern and today's weather (`convex/dashboard.ts`). Tiles under it open the Journal, Medications, Exercise, Visits, Reports, Records and Care; inside a tool, the back button returns to the dashboard and the row under the header switches tools.
-- **Journal tab:** a severity bar chart per symptom for 14, 30 or 90 days, with Apple Health sleep (dark when under 6 h) and period days underneath; per-symptom summaries (days logged, average, latest, getting better or worse); and patterns such as "Headache averaged 7/10 on days with under 6 h of sleep vs 3/10 otherwise", shown only with at least 3 days on each side and a 1.5-point gap, and labelled as associations, not causes. Entries can be added or removed by hand.
+- **Journal tab:** a severity bar chart per symptom for 14, 30 or 90 days, with Apple Health sleep (dark when under 6 h) and period days underneath; per-symptom summaries (days logged, average, latest, getting better or worse); and patterns such as "Headache averaged 7/10 on days with under 6 h of sleep vs 3/10 otherwise", shown only with at least 3 days on each side and a 1.5-point gap, and labelled as associations, not causes. Bars run from teal for mild through yellow and orange to red for the worst, and the check-in's mood, energy and sleep bars (and the dashboard charts) use the same smooth scale by how good the day was.
 - **Model and summaries:** `get_symptom_journal` gives the model the same summaries, patterns and entries; visit summaries include them. The journal can be deleted from "What Wellnest knows about me".
 
 ## Chat history

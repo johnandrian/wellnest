@@ -1,15 +1,16 @@
-// Medications (convex/medications.ts, convex/reminders.ts): the list with status and supply, and each medication's
-// details: generic name, form, prescriber, how to take it, per-time doses, refills, the eScript photo, side effects
-// and history. A pill bottle scan fills the add form, and the medication list prints or saves as a PDF (./medList.ts).
-// Reminder messages with Taken / Skip appear in the chat.
+// Medications (convex/medications.ts, convex/reminders.ts): a box per medication with its dose, schedule, next dose,
+// status and supply (two to a row on phones, three on wider screens, so none is missed going down the list); the open
+// one spans the row with that medication's details: generic name, form, prescriber, how to take it, per-time doses,
+// refills, the eScript photo, side effects and history. A pill bottle scan fills the add form, and the medication
+// list prints or saves as a PDF (./medList.ts). Reminder messages with Taken / Skip appear in the chat.
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Platform, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, ui, TOUCH, themed } from "./theme";
+import { colors, radius, tint, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
 import { Enter, Reveal, SwapIcon } from "./Motion";
@@ -24,6 +25,7 @@ const FORMS = ["tablet", "capsule", "liquid", "inhaler", "patch", "injection", "
 type Form = (typeof FORMS)[number];
 
 const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
+const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 const describe = (r: Rule, s: Strings) =>
   r.kind === "daily" ? s.dailyAt.replace("{times}", r.times.join(", ")) : s.everyNHours.replace("{n}", String(r.everyHours));
 
@@ -381,6 +383,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   const [fromLabel, setFromLabel] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const me = useQuery(api.chat.me);
+  const threeUp = useWindowDimensions().width >= 600;
 
   const list = (meds ?? []).filter((m) => showStopped || m.status !== "stopped");
   const stoppedCount = (meds ?? []).filter((m) => m.status === "stopped").length;
@@ -476,28 +479,65 @@ export function MedicationsPanel({ s }: { s: Strings }) {
         </Tap>
       )}
       {meds?.length === 0 && !adding && <Text style={styles.empty}>{s.remindersEmpty}</Text>}
-      {list.map((m) => (
-        <View key={m._id} style={[styles.med, m.status !== "active" && styles.medInactive]}>
-          <Tap style={styles.medHead} onPress={() => setOpen(open === m._id ? null : m._id)} accessibilityRole="button" accessibilityState={{ expanded: open === m._id }}>
-            <View style={styles.flex}>
-              <Text style={styles.medName}>
-                {m.name}
-                {m.dose ? <Text style={styles.dose}> · {m.dose}</Text> : null}
-                {m.status !== "active" && <Text style={styles.status}>  {m.status === "paused" ? s.medPaused : s.medStopped}</Text>}
-              </Text>
-              <Text style={styles.small}>
-                {describe(m.rule, s)}
-                {m.nextAt ? ` · ${s.nextAt.replace("{when}", when(m.nextAt, s))}` : ""}
-                {m.daysLeft !== null && m.status !== "stopped" ? ` · ${s.medDaysLeft.replace("{n}", String(m.daysLeft))}` : ""}
-              </Text>
-            </View>
-            <SwapIcon id={open === m._id ? "up" : "down"}>
-              <Ionicons name={open === m._id ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
-            </SwapIcon>
-          </Tap>
-          {open === m._id && <Detail id={m._id} s={s} />}
+      {list.length > 0 && (
+        <View style={styles.tiles}>
+          {list.map((m) => {
+            const isOpen = open === m._id;
+            const c = tint.medications;
+            const lowSupply = m.daysLeft !== null && m.daysLeft <= 7 && m.status !== "stopped";
+            return (
+              <View key={m._id} style={[styles.tile, isOpen ? styles.tileOpen : threeUp ? styles.third : styles.half, m.status !== "active" && styles.medInactive]}>
+                <Tap
+                  style={styles.tileHead}
+                  onPress={() => setOpen(isOpen ? null : m._id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
+                  accessibilityLabel={[m.name, m.dose, m.status !== "active" ? (m.status === "paused" ? s.medPaused : s.medStopped) : null, describe(m.rule, s)].filter(Boolean).join(", ")}
+                >
+                  <View style={styles.tileTop}>
+                    <View style={[styles.tileIcon, { backgroundColor: m.status === "active" ? c.bg : colors.border }]}>
+                      <Icon name="medications" size={20} color={m.status === "active" ? c.fg : colors.muted} />
+                    </View>
+                    {m.status !== "active" && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{m.status === "paused" ? s.medPaused : s.medStopped}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.tileName} numberOfLines={isOpen ? undefined : 2}>
+                    {m.name}
+                  </Text>
+                  {!!m.dose && <Text style={styles.tileDose}>{m.dose}</Text>}
+                  <View style={styles.tileLine}>
+                    <Ionicons name="time-outline" size={14} color={colors.muted} />
+                    <Text style={[styles.small, styles.flex]}>{describe(m.rule, s)}</Text>
+                  </View>
+                  {!!m.nextAt && (
+                    <Text style={styles.tileNext}>{cap(s.nextAt.replace("{when}", when(m.nextAt, s)))}</Text>
+                  )}
+                  {m.daysLeft !== null && m.status !== "stopped" && (
+                    <Text style={[styles.small, lowSupply && styles.lowSupply]}>
+                      {lowSupply ? "⚠ " : ""}
+                      {s.medDaysLeft.replace("{n}", String(m.daysLeft))}
+                    </Text>
+                  )}
+                  <View style={styles.tileMore}>
+                    <Text style={styles.link}>{isOpen ? s.close : s.medDetails}</Text>
+                    <SwapIcon id={isOpen ? "up" : "down"}>
+                      <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.primary} />
+                    </SwapIcon>
+                  </View>
+                </Tap>
+                {isOpen && (
+                  <Enter from={8}>
+                    <Detail id={m._id} s={s} />
+                  </Enter>
+                )}
+              </View>
+            );
+          })}
         </View>
-      ))}
+      )}
       {stoppedCount > 0 && (
         <Tap onPress={() => setShowStopped(!showStopped)} accessibilityRole="button">
           <Text style={styles.link}>{(showStopped ? s.medHideStopped : s.medShowStopped).replace("{n}", String(stoppedCount))}</Text>
@@ -594,9 +634,25 @@ const styles = themed(() => ({
   warn: { color: colors.danger, fontWeight: "600" },
   section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   flex: { flex: 1 },
-  med: { ...ui.card, padding: 10, gap: 6 },
-  medInactive: { backgroundColor: colors.bg },
+  // A box per medication; the open one takes the whole row for its details.
+  tiles: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  half: { flexBasis: "46%", flexGrow: 1, maxWidth: "50%" },
+  third: { flexBasis: "30%", flexGrow: 1, maxWidth: "33.4%" },
+  tileOpen: { flexBasis: "100%" },
+  tile: { ...ui.card, padding: 14, gap: 8, borderTopWidth: 4, borderTopColor: tint.medications.fg },
+  medInactive: { backgroundColor: colors.bg, borderTopColor: colors.inputBorder },
   medHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  tileHead: { gap: 6 },
+  tileTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  tileIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  badge: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.warningSoft },
+  badgeText: { fontSize: 12, fontWeight: "700", color: colors.warningText },
+  tileName: { fontSize: 17, fontWeight: "700", color: colors.text },
+  tileDose: { fontSize: 15, color: colors.text },
+  tileLine: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
+  tileNext: { fontSize: 13, fontWeight: "600", color: colors.primary },
+  lowSupply: { color: colors.warningText, fontWeight: "600" },
+  tileMore: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   medName: { fontSize: 15, fontWeight: "600", color: colors.text },
   dose: { fontWeight: "400", color: colors.muted },
   status: { fontSize: 12, fontWeight: "600", color: colors.warningText },
