@@ -1,7 +1,7 @@
 // Account setup: a few questions after someone first signs in (src/Onboarding.tsx), each one skippable. Language,
 // city, medications and the check-in switches reuse their own functions; this file keeps the rest: what to call
-// them, their age range and sex, what they use Wellnest for, conditions and allergies (saved as facts), one emergency
-// contact, and finishing, which posts a welcome in the chat the first time. Existing accounts see it once too.
+// them, their age range and sex, what they use Wellnest for, conditions and allergies (saved as facts), emergency
+// contacts, and finishing, which posts a welcome in the chat the first time. Existing accounts see it once too.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, MutationCtx, query } from "./_generated/server";
@@ -44,7 +44,7 @@ export const state = query({
         dose: m.dose ?? "",
         times: m.schedule.kind === "daily" ? m.schedule.times : [],
       })),
-      contact: plan?.contacts[0] ?? null,
+      contacts: plan?.contacts ?? [],
       checkins: user.checkins ?? true,
       weeklySummary: user.weeklySummary ?? true,
     };
@@ -90,21 +90,25 @@ export const addFacts = mutation({
   },
 });
 
-// One emergency contact, kept as the first contact of the emergency plan (made if there's none yet).
-export const setContact = mutation({
-  args: { name: v.string(), relation: v.optional(v.string()), phone: v.string() },
+export const MAX_CONTACTS = 10;
+
+// The emergency contacts, in order. Setup shows every contact the emergency plan already has, so this replaces the
+// plan's list (the plan is made if there's none yet). Rows left blank are dropped; a half-filled row is an error.
+export const setContacts = mutation({
+  args: { contacts: v.array(v.object({ name: v.string(), phone: v.string(), relation: v.optional(v.string()) })) },
   handler: async (ctx, args) => {
     const userId = await me(ctx);
-    const contact = { name: clip(args.name, 80) ?? "", relation: clip(args.relation, 40), phone: args.phone.trim().slice(0, 40) };
-    if (!contact.name) throw new Error("Add their name.");
-    if (!/\d{3,}/.test(contact.phone)) throw new Error("Add a phone number.");
-    const plan = await ctx.db.query("emergencyPlans").withIndex("by_user", (q) => q.eq("userId", userId)).unique();
-    if (!plan) {
-      await ctx.db.insert("emergencyPlans", { userId, sections: [], contacts: [contact] });
-      return;
+    const contacts = args.contacts
+      .map((c) => ({ name: clip(c.name, 80) ?? "", relation: clip(c.relation, 40), phone: c.phone.trim().slice(0, 40) }))
+      .filter((c) => c.name || c.phone || c.relation);
+    if (contacts.length > MAX_CONTACTS) throw new Error(`Add up to ${MAX_CONTACTS} contacts.`);
+    for (const c of contacts) {
+      if (!c.name) throw new Error("Add a name for each contact.");
+      if (!/\d{3,}/.test(c.phone)) throw new Error(`Add a phone number for ${c.name}.`);
     }
-    const others = plan.contacts.filter((c) => c.name.toLowerCase() !== contact.name.toLowerCase());
-    await ctx.db.patch(plan._id, { contacts: [contact, ...others].slice(0, 10) });
+    const plan = await ctx.db.query("emergencyPlans").withIndex("by_user", (q) => q.eq("userId", userId)).unique();
+    if (plan) await ctx.db.patch(plan._id, { contacts });
+    else if (contacts.length) await ctx.db.insert("emergencyPlans", { userId, sections: [], contacts });
   },
 });
 

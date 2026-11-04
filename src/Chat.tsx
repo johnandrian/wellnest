@@ -12,13 +12,14 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
-import { colors, TEXT_SIZES, themed, themeVersion } from "./theme";
+import { colors, radius, TEXT_SIZES, themed, themeVersion } from "./theme";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
@@ -79,6 +80,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const [panel, setPanel] = useState<Panel | null>(null);
   const [hubTab, setHubTab] = useState<HubTab>("home");
   const [history, setHistory] = useState(false);
+  const narrow = useWindowDimensions().width < 440;
   const openHub = (tab: HubTab) => {
     setHubTab(tab);
     setScreen("hub");
@@ -249,12 +251,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             </Pressable>
           )}
           <Pressable
-            style={({ pressed }) => [styles.dashButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.dashButton, narrow && styles.dashButtonNarrow, pressed && styles.pressed]}
             onPress={() => openHub("home")}
             accessibilityRole="button"
-            accessibilityLabel={s.hubTitle}
+            accessibilityLabel={s.dashboard}
           >
             <Icon name="dashboard" size={18} color={colors.onPrimary} />
+            {/* Like the dashboard's Chat button: named, and just the icon on a phone so the header still fits. */}
+            {!narrow && <Text style={styles.dashText}>{s.dashboard}</Text>}
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -695,7 +699,9 @@ const styles = themed(() => ({
   headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },
   headerButton: { width: 38, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   // Health tools: the one filled button, so it stands out from the chat's own controls.
-  dashButton: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary, marginHorizontal: 4 },
+  dashButton: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.primary, marginHorizontal: 4 },
+  dashButtonNarrow: { width: 40, paddingHorizontal: 0, justifyContent: "center" },
+  dashText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   headerLink: { color: colors.primary, fontSize: 16 },
   // Above the chat while it drops open, so it slides over the messages rather than pushing them.
   settingsWrap: { zIndex: 5, maxHeight: "70%" },

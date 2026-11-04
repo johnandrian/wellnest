@@ -24,7 +24,7 @@ describe("account setup", () => {
       await ctx.db.patch(userId, { location: "Berkeley, CA" });
       await ctx.db.insert("memoryFacts", { userId, text: "Allergy: penicillin", source: "user" });
     });
-    expect(await as.query(api.onboarding.state)).toMatchObject({ done: false, location: "Berkeley, CA", facts: ["Allergy: penicillin"], contact: null, checkins: true, weeklySummary: true });
+    expect(await as.query(api.onboarding.state)).toMatchObject({ done: false, location: "Berkeley, CA", facts: ["Allergy: penicillin"], contacts: [], checkins: true, weeklySummary: true });
   });
 
   test("profile and focus are saved, cleared with null, and need a signed-in user", async () => {
@@ -48,16 +48,31 @@ describe("account setup", () => {
     expect((await as.query(api.onboarding.state))!.facts).toEqual(["Afección: Asma", "Alergia: Penicilina"]);
   });
 
-  test("the emergency contact goes first in the emergency plan, made if needed", async () => {
+  test("emergency contacts are the emergency plan's contacts, in order, made if needed", async () => {
     const t = setup();
     const { as } = await createAppUser(t);
-    await expect(as.mutation(api.onboarding.setContact, { name: "Jo", phone: "call me" })).rejects.toThrow(/phone number/);
-    await as.mutation(api.onboarding.setContact, { name: "Jo", relation: "sister", phone: "+1 555 0101" });
+    expect((await as.query(api.onboarding.state))!.contacts).toEqual([]);
+    await expect(as.mutation(api.onboarding.setContacts, { contacts: [{ name: "Jo", phone: "call me" }] })).rejects.toThrow(/phone number for Jo/);
+    await expect(as.mutation(api.onboarding.setContacts, { contacts: [{ name: " ", phone: "555 0101" }] })).rejects.toThrow(/name/);
+    await as.mutation(api.onboarding.setContacts, {
+      contacts: [
+        { name: " Jo ", phone: "+1 555 0101", relation: "sister" },
+        { name: "", phone: " ", relation: " " },
+        { name: "Sam", phone: "555 0202" },
+      ],
+    });
+    expect((await as.query(api.onboarding.state))!.contacts).toEqual([
+      { name: "Jo", phone: "+1 555 0101", relation: "sister" },
+      { name: "Sam", phone: "555 0202" },
+    ]);
+
+    // The plan's own steps are kept; the contact list is replaced by what setup shows.
     await as.mutation(api.emergency.save, { sections: [{ title: "Seizure", steps: ["Time it"] }], contacts: [{ name: "Jo", phone: "+1 555 0101" }, { name: "Sam", phone: "555 0202" }] });
-    await as.mutation(api.onboarding.setContact, { name: "jo", relation: "sister", phone: "+1 555 0199" });
-    const plan = (await as.query(api.emergency.get))!;
-    expect(plan).toMatchObject({ exists: true, sections: [{ title: "Seizure" }], contacts: [{ name: "jo", relation: "sister", phone: "+1 555 0199" }, { name: "Sam" }] });
-    expect((await as.query(api.onboarding.state))!.contact).toMatchObject({ name: "jo" });
+    await as.mutation(api.onboarding.setContacts, { contacts: [{ name: "Sam", phone: "555 0202", relation: "partner" }, { name: "Ana", phone: "555 0303" }] });
+    expect(await as.query(api.emergency.get)).toMatchObject({ exists: true, sections: [{ title: "Seizure" }], contacts: [{ name: "Sam", relation: "partner" }, { name: "Ana" }] });
+
+    const eleven = Array.from({ length: 11 }, (_, i) => ({ name: `P${i}`, phone: `555 01${i}` }));
+    await expect(as.mutation(api.onboarding.setContacts, { contacts: eleven })).rejects.toThrow(/up to 10/);
   });
 
   test("finishing marks the account set up and welcomes them once, by name, with tips for their focus", async () => {

@@ -1,6 +1,6 @@
 // Account setup (convex/onboarding.ts): one question per screen after someone first signs in (existing accounts too,
 // once). Every step can be skipped, "Finish later" keeps what's done, and Settings can run it again. Answers already
-// on the account (language, city, facts, medications, the emergency contact) start filled in. Medications can be
+// on the account (language, city, facts, medications, emergency contacts) start filled in. Medications can be
 // typed or scanned from the pill bottle, and the ones added can be edited or removed before moving on.
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
@@ -21,6 +21,12 @@ const FOCUS = ["symptoms", "pain", "asthma", "seizures", "medications", "mood", 
 const AGES = ["under_18", "18_29", "30_44", "45_64", "65_plus"] as const;
 const SEXES = ["female", "male", "other", "unspecified"] as const;
 type Focus = (typeof FOCUS)[number];
+// Must match MAX_CONTACTS in convex/onboarding.ts.
+const MAX_CONTACTS = 10;
+// An emergency contact being typed; `key` keeps each card's inputs and animation steady as cards are removed.
+type ContactRow = { key: number; name: string; phone: string; relation: string };
+let contactKey = 0;
+const blankContact = (): ContactRow => ({ key: ++contactKey, name: "", phone: "", relation: "" });
 type Step = "language" | "about" | "focus" | "conditions" | "meds" | "contact" | "city" | "phone" | "prefs";
 
 const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
@@ -45,7 +51,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const saveProfile = useMutation(api.onboarding.saveProfile);
   const setFocus = useMutation(api.onboarding.setFocus);
   const addFacts = useMutation(api.onboarding.addFacts);
-  const setContact = useMutation(api.onboarding.setContact);
+  const setContacts = useMutation(api.onboarding.setContacts);
   const finish = useMutation(api.onboarding.finish);
   const addMed = useMutation(api.reminders.add);
   const updateMed = useMutation(api.medications.update);
@@ -80,9 +86,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     setMedDirections(l.instructions ?? "");
     if (l.timesPerDay) setMedTime(timesFor(l.timesPerDay));
   });
-  const [contactName, setContactName] = useState("");
-  const [contactRelation, setContactRelation] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [contacts, setContactRows] = useState<ContactRow[]>(() => [blankContact()]);
+  // Whether the contacts were changed here, so moving on doesn't rewrite the emergency plan for nothing.
+  const [contactsEdited, setContactsEdited] = useState(false);
   const [city, setCity] = useState("");
   const loaded = useRef(false);
   useEffect(() => {
@@ -93,10 +99,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     setSex(state.sex);
     setFocusList(state.focus);
     setCity(state.location);
-    if (state.contact) {
-      setContactName(state.contact.name);
-      setContactRelation(state.contact.relation ?? "");
-      setContactPhone(state.contact.phone);
+    if (state.contacts.length) {
+      setContactRows(state.contacts.map((c) => ({ key: ++contactKey, name: c.name, phone: c.phone, relation: c.relation ?? "" })));
     }
   }, [state]);
 
@@ -136,8 +140,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         const a = allergyText.trim() ? [...allergies, allergyText] : allergies;
         if (c.length || a.length) await addFacts({ conditions: c, allergies: a });
       }
-      if (step === "contact" && (contactName.trim() || contactPhone.trim())) {
-        await setContact({ name: contactName, relation: contactRelation || undefined, phone: contactPhone });
+      if (step === "contact" && contactsEdited) {
+        await setContacts({ contacts: contacts.map((c) => ({ name: c.name, phone: c.phone, relation: c.relation.trim() || undefined })) });
+        setContactsEdited(false);
       }
       if (step === "city" && city.trim() !== state.location) await setLocation({ location: city });
     });
@@ -172,6 +177,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     setMedTime(m.times.join(", ") || "08:00");
     setMedDirections("");
   };
+
+  const editContact = (key: number, change: Partial<ContactRow>) => {
+    setContactsEdited(true);
+    setContactRows(contacts.map((c) => (c.key === key ? { ...c, ...change } : c)));
+  };
+  const removeContact = (key: number) => {
+    setContactsEdited(true);
+    const left = contacts.filter((c) => c.key !== key);
+    setContactRows(left.length ? left : [blankContact()]);
+  };
+  const lastContact = contacts[contacts.length - 1];
+  const canAddContact = contacts.length < MAX_CONTACTS && !!(lastContact.name.trim() || lastContact.phone.trim());
 
   const source = health.name ?? "";
 
@@ -336,9 +353,37 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "contact" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_contactTitle}</Text>
-            <TextInput style={styles.input} value={contactName} onChangeText={setContactName} placeholder={s.ob_contactName} placeholderTextColor={colors.muted} maxLength={80} />
-            <TextInput style={styles.input} value={contactRelation} onChangeText={setContactRelation} placeholder={s.ob_contactRelation} placeholderTextColor={colors.muted} maxLength={40} />
-            <TextInput style={styles.input} value={contactPhone} onChangeText={setContactPhone} placeholder={s.ob_contactPhone} placeholderTextColor={colors.muted} maxLength={40} keyboardType="phone-pad" autoComplete="tel" />
+            {contacts.map((c, i) => {
+              const n = s.ob_contactN.replace("{n}", String(i + 1));
+              const empty = !c.name && !c.phone && !c.relation;
+              return (
+                <Enter key={c.key} style={styles.contactCard} from={8}>
+                  <View style={styles.contactHead}>
+                    <Text style={styles.contactLabel}>{n}</Text>
+                    {(contacts.length > 1 || !empty) && (
+                      <Tap style={styles.iconButton} onPress={() => removeContact(c.key)} disabled={busy} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${c.name.trim() || n}`}>
+                        <Ionicons name="trash-outline" size={20} color={colors.muted} />
+                      </Tap>
+                    )}
+                  </View>
+                  <TextInput style={styles.input} value={c.name} onChangeText={(name) => editContact(c.key, { name })} placeholder={s.ob_contactName} placeholderTextColor={colors.muted} maxLength={80} accessibilityLabel={`${n}: ${s.ob_contactName}`} autoComplete="name" />
+                  <TextInput style={styles.input} value={c.phone} onChangeText={(phone) => editContact(c.key, { phone })} placeholder={s.ob_contactPhone} placeholderTextColor={colors.muted} maxLength={40} keyboardType="phone-pad" autoComplete="tel" accessibilityLabel={`${n}: ${s.ob_contactPhone}`} />
+                  <TextInput style={styles.input} value={c.relation} onChangeText={(relation) => editContact(c.key, { relation })} placeholder={s.ob_contactRelation} placeholderTextColor={colors.muted} maxLength={40} accessibilityLabel={`${n}: ${s.ob_contactRelation}`} />
+                </Enter>
+              );
+            })}
+            {contacts.length < MAX_CONTACTS && (
+              <Tap
+                style={[ui.addButton, !canAddContact && styles.disabled]}
+                onPress={() => setContactRows([...contacts, blankContact()])}
+                disabled={!canAddContact || busy}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canAddContact }}
+              >
+                <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+                <Text style={styles.link}>{s.ob_contactAdd}</Text>
+              </Tap>
+            )}
           </>
         )}
 
@@ -435,6 +480,9 @@ const styles = themed(() => ({
   medRow: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 12, minHeight: 56 },
   medRowOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   medForm: { gap: 10 },
+  contactCard: { ...ui.card, gap: 10, padding: 14 },
+  contactLabel: { fontSize: 15, fontWeight: "600", color: colors.text },
+  contactHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: TOUCH, marginVertical: -6 },
   iconButton: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
   muted: { color: colors.muted, fontWeight: "400" },
   smallButton: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 12 },
