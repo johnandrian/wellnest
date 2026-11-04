@@ -1,9 +1,11 @@
-// What people see before they sign in: a welcome page that says what Wellnest does (talk or type, patterns and the
-// flare forecast, medications, lab reports, the care circle, visit prep), how it works and how data stays theirs,
-// then sign-in or a new account. In the phone's or browser's language, with a switch at the bottom. Someone who
-// came from a care circle invite sees whose it is first.
+// What people see before they sign in: a welcome page that leads with the tracker (log in a tap, see trends and
+// patterns, with a preview of a week), then medications, visit prep, the Care Circle and talking or typing, how it
+// works, the free tools (/medication-list, /appointment-checklist) and how data stays theirs, then sign-in or a new
+// account. In the phone's or browser's language, with a switch at the bottom. Someone who came from a Care Circle
+// invite sees whose it is first.
 import { useMemo, useState } from "react";
 import { Image, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
@@ -36,28 +38,71 @@ function saveLang(lang: Lang) {
   }
 }
 
+// In the order of `s.landFeatures`: the tracker first.
 const FEATURES: { icon: IconName; tint: keyof typeof tint }[] = [
-  { icon: "history", tint: "journal" },
+  { icon: "journal", tint: "journal" },
   { icon: "insights", tint: "appointments" },
   { icon: "medications", tint: "medications" },
-  { icon: "records", tint: "records" },
+  { icon: "guides", tint: "guides" },
   { icon: "circle", tint: "circle" },
-  { icon: "reports", tint: "reports" },
+  { icon: "history", tint: "records" },
 ];
 
-export function Welcome({ onPrivacy }: { onPrivacy: () => void }) {
+const TOOLS: { path: string; icon: IconName; tint: keyof typeof tint }[] = [
+  { path: "/medication-list", icon: "medList", tint: "medications" },
+  { path: "/appointment-checklist", icon: "guides", tint: "guides" },
+];
+
+// A made-up week for the preview card: pain eases as sleep gets longer.
+const PREVIEW = { pain: [6, 7, 5, 4, 3, 3, 2], sleep: [5, 5.5, 6.5, 7, 7.5, 7, 8] };
+
+export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string) => void; initialAuth?: "signIn" | "signUp" | null }) {
   const [lang, setLang] = useState<Lang>(deviceLang);
-  const [auth, setAuth] = useState<"signIn" | "signUp" | null>(null);
+  const [auth, setAuth] = useState<"signIn" | "signUp" | null>(initialAuth);
   const s = strings(lang);
   const pick = (l: Lang) => {
     setLang(l);
     saveLang(l);
   };
   if (auth) return <SignIn key={auth} s={s} initialFlow={auth} onBack={() => setAuth(null)} />;
-  return <Landing s={s} lang={lang} onLang={pick} onAuth={setAuth} onPrivacy={onPrivacy} />;
+  return <Landing s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
 }
 
-function Landing({ s, lang, onLang, onAuth, onPrivacy }: { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onPrivacy: () => void }) {
+// A week of pain and sleep as small bars, and the pattern Wellnest found in it.
+function Preview({ s }: { s: Strings }) {
+  const rows = [
+    { label: s.landPreviewPain, values: PREVIEW.pain, max: 10, color: tint.care.fg, icon: "pain" as const },
+    { label: s.landPreviewSleep, values: PREVIEW.sleep, max: 9, color: tint.journal.fg, icon: "sleep" as const },
+  ];
+  return (
+    <View style={styles.preview} accessibilityLabel={`${s.landPreviewTitle}. ${s.landPreviewPattern}`}>
+      <Text style={styles.previewTitle}>{s.landPreviewTitle}</Text>
+      {rows.map((r) => (
+        <View key={r.label} style={styles.previewRow}>
+          <View style={styles.previewLabel}>
+            <Icon name={r.icon} size={16} color={r.color} />
+            <Text style={styles.previewLabelText} numberOfLines={1}>
+              {r.label}
+            </Text>
+          </View>
+          <View style={styles.previewBars}>
+            {r.values.map((v, i) => (
+              <View key={i} style={styles.previewSlot}>
+                <View style={[styles.previewBar, { height: `${(v / r.max) * 100}%`, backgroundColor: r.color }]} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+      <View style={styles.previewPattern}>
+        <Icon name="insights" size={18} color={colors.primary} />
+        <Text style={styles.previewPatternText}>{s.landPreviewPattern}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onOpen: (path: string) => void }) {
   const { width } = useWindowDimensions();
   const wide = width >= 760;
   const token = useMemo(() => pendingInvite(), []);
@@ -98,12 +143,9 @@ function Landing({ s, lang, onLang, onAuth, onPrivacy }: { s: Strings; lang: Lan
               </Tap>
             </View>
           </View>
-          <Image
-            source={require("../assets/wellnest-logo.png")}
-            style={[styles.logo, wide && styles.logoWide]}
-            resizeMode="contain"
-            accessibilityLabel="Wellnest"
-          />
+          <View style={wide ? styles.previewWide : undefined}>
+            <Preview s={s} />
+          </View>
         </Enter>
 
         <Enter style={styles.grid} from={24}>
@@ -134,6 +176,27 @@ function Landing({ s, lang, onLang, onAuth, onPrivacy }: { s: Strings; lang: Lan
           </View>
         </Enter>
 
+        <Enter style={styles.block} from={32}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            {s.landToolsTitle}
+          </Text>
+          <Text style={styles.sectionSub}>{s.landToolsSub}</Text>
+          <View style={[styles.steps, wide && styles.stepsWide]}>
+            {s.landTools.map((t, i) => (
+              <Tap key={t.title} style={[styles.tool, wide && styles.flex]} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
+                <View style={[styles.featureIcon, { backgroundColor: tint[TOOLS[i].tint].bg }]}>
+                  <Icon name={TOOLS[i].icon} size={22} color={tint[TOOLS[i].tint].fg} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.featureTitle}>{t.title}</Text>
+                  <Text style={styles.featureBody}>{t.body}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+              </Tap>
+            ))}
+          </View>
+        </Enter>
+
         <Enter style={styles.trust} from={32}>
           <Text style={styles.trustTitle} accessibilityRole="header">
             {s.landTrustTitle}
@@ -160,9 +223,14 @@ function Landing({ s, lang, onLang, onAuth, onPrivacy }: { s: Strings; lang: Lan
             ))}
           </View>
           <View style={styles.footerRow}>
-            <Tap onPress={onPrivacy} accessibilityRole="link">
+            <Tap onPress={() => onOpen("/privacy")} accessibilityRole="link">
               <Text style={styles.footerLink}>{s.landPrivacy}</Text>
             </Tap>
+            {s.landTools.map((t, i) => (
+              <Tap key={t.title} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
+                <Text style={styles.footerLink}>{t.title}</Text>
+              </Tap>
+            ))}
             <Text style={styles.footerText}>© {new Date().getFullYear()} Wellnest</Text>
           </View>
         </View>
@@ -196,8 +264,19 @@ const styles = themed(() => ({
   primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
   secondary: { minHeight: 50, paddingHorizontal: 22, justifyContent: "center", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface },
   secondaryText: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  logo: { width: 220, height: 166, alignSelf: "center" },
-  logoWide: { width: 340, height: 257 },
+  previewWide: { width: 380 },
+  preview: { ...ui.card, padding: 18, gap: 14, borderRadius: radius.lg },
+  previewTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  previewRow: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
+  previewLabel: { width: 76, flexDirection: "row", alignItems: "center", gap: 6, paddingBottom: 2 },
+  previewLabelText: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  previewBars: { flex: 1, flexDirection: "row", alignItems: "flex-end", gap: 5, height: 56 },
+  previewSlot: { flex: 1, height: "100%", justifyContent: "flex-end" },
+  previewBar: { width: "100%", borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  previewPattern: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+  previewPatternText: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.text },
+  sectionSub: { fontSize: 15, color: colors.muted, marginTop: -8 },
+  tool: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.lg },
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   feature: { ...ui.card, padding: 18, gap: 8, borderRadius: radius.lg },

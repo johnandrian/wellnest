@@ -209,6 +209,19 @@ export const remind = internalMutation({
 });
 
 // Upcoming and recent appointments (telehealth bookings included), for the Visits tab. `now` comes from the app.
+// Ticks one item of the appointment prep checklist on or off (src/GuidesPanel.tsx).
+export const setChecked = mutation({
+  args: { id: v.id("visits"), item: v.string(), on: v.boolean() },
+  handler: async (ctx, { id, item, on }) => {
+    const row = await ownVisit(ctx, id);
+    const key = item.slice(0, 40);
+    if (on === (row.checked ?? []).includes(key)) return;
+    const rest = (row.checked ?? []).filter((x) => x !== key);
+    const checked = on ? [...rest, key].slice(-60) : rest;
+    await ctx.db.patch(id, { checked: checked.length ? checked : undefined });
+  },
+});
+
 export const list = query({
   args: { now: v.number() },
   handler: async (ctx, { now }) => {
@@ -237,6 +250,7 @@ export const list = query({
         prep: r.prep ?? null,
         notes: r.notes ?? null,
         questions: r.questions ?? null,
+        checked: r.checked ?? [],
         joinUrl: null as string | null,
       })),
       ...tele.map((a) => ({
@@ -253,6 +267,7 @@ export const list = query({
         prep: null,
         notes: null,
         questions: null as string[] | null,
+        checked: [] as string[],
         joinUrl: a.joinUrl ?? null,
       })),
     ];

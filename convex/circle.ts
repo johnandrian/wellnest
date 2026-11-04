@@ -69,7 +69,7 @@ export const invite = mutation({
     const now = Date.now();
     const members = await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(MAX_MEMBERS * 2);
     if (members.length + (await openInvites(ctx, userId, now)).length >= MAX_MEMBERS) {
-      throw new Error(`A care circle has up to ${MAX_MEMBERS} people. Remove someone or cancel an invite first.`);
+      throw new Error(`A Care Circle has up to ${MAX_MEMBERS} people. Remove someone or cancel an invite first.`);
     }
     const token = newToken();
     await ctx.db.insert("circleInvites", { ownerId: userId, token, label: label?.trim().slice(0, 60) || undefined, alerts, expiresAt: now + INVITE_DAYS * DAY_MS });

@@ -26,6 +26,7 @@ type AddArgs = {
   genericName?: string;
   form?: "tablet" | "capsule" | "liquid" | "inhaler" | "patch" | "injection" | "cream" | "drops" | "other";
   prescriber?: string;
+  directions?: string;
   timeDoses?: { time: string; dose: string }[];
 };
 
@@ -65,6 +66,7 @@ async function addMedication(ctx: MutationCtx, userId: Id<"users">, args: AddArg
     genericName: args.genericName?.trim().slice(0, 80) || undefined,
     form: args.form,
     prescriber: args.prescriber?.trim().slice(0, 80) || undefined,
+    directions: args.directions?.trim().slice(0, 200) || undefined,
     timeDoses: checked.schedule.kind === "daily" ? args.timeDoses?.filter((t) => t.dose.trim() && (checked.schedule as { times: string[] }).times.includes(t.time)) : undefined,
   });
   const med = (await ctx.db.get(id))!;
@@ -90,6 +92,7 @@ export const add = mutation({
     genericName: v.optional(v.string()),
     form: v.optional(medForm),
     prescriber: v.optional(v.string()),
+    directions: v.optional(v.string()),
     timeDoses: v.optional(v.array(timeDose)),
   },
   handler: async (ctx, args) => {

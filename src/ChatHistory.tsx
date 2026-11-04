@@ -1,6 +1,8 @@
 // Chat history (convex/chats.ts): a drawer from the left with every chat, newest first. Tap one to continue it;
 // the trash button deletes it after a yes. It slides in over a dimmed chat and slides back out when closed.
-import { Alert, Animated, Platform, Pressable, ScrollView, Text, View } from "react-native";
+// The search box above "New chat" finds chats by their title or anything said in them.
+import { useState } from "react";
+import { Alert, Animated, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
@@ -9,7 +11,7 @@ import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { colors, radius, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
-import { usePresence } from "./Motion";
+import { Enter, SwapIcon, usePresence } from "./Motion";
 
 function confirmDelete(s: Strings): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(s.deleteChatBody));
@@ -51,10 +53,18 @@ export function ChatHistory({ open, s, onClose }: { open: boolean; s: Strings; o
 }
 
 function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
-  const chats = useQuery(api.chats.list);
+  const all = useQuery(api.chats.list);
   const start = useMutation(api.chats.start);
   const open = useMutation(api.chats.open);
   const remove = useMutation(api.chats.remove);
+  const [query, setQuery] = useState("");
+  const q = query.trim();
+  const found = useQuery(api.chats.search, q.length >= 2 ? { text: q } : "skip");
+  // Titles match as you type; message text once the server answers. A chat found both ways shows once, with its line.
+  const byTitle = q ? (all ?? []).filter((c) => (c.title || s.chatUntitled).toLowerCase().includes(q.toLowerCase())) : [];
+  const chats: { _id: Id<"chats"> | null; title: string; lastAt: number; current: boolean; snippet?: string }[] | undefined = !q
+    ? all
+    : [...(found ?? []), ...byTitle.filter((c) => !(found ?? []).some((f) => f._id === c._id))];
 
   return (
     <>
@@ -65,6 +75,28 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
         <Tap style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel={s.closeHistory}>
           <Ionicons name="close" size={22} color={colors.text} />
         </Tap>
+      </View>
+      <View style={styles.search}>
+        <View style={styles.searchIcon} pointerEvents="none">
+          <Ionicons name="search" size={18} color={colors.muted} />
+        </View>
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={s.chatSearch}
+          placeholderTextColor={colors.muted}
+          accessibilityLabel={s.chatSearch}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {!!query && (
+          <Tap style={styles.clear} onPress={() => setQuery("")} accessibilityRole="button" accessibilityLabel={s.cancel}>
+            <SwapIcon id="clear">
+              <Ionicons name="close-circle" size={18} color={colors.muted} />
+            </SwapIcon>
+          </Tap>
+        )}
       </View>
       <Tap
         style={styles.newChat}
@@ -79,9 +111,9 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
         <Text style={styles.newChatText}>{s.newChat}</Text>
       </Tap>
       <ScrollView contentContainerStyle={styles.list}>
-        {chats?.length === 0 && <Text style={styles.empty}>{s.chatsEmpty}</Text>}
+        {chats?.length === 0 && <Text style={styles.empty}>{q ? s.chatSearchNone.replace("{q}", q) : s.chatsEmpty}</Text>}
         {chats?.map((c) => (
-          <View key={c._id ?? "first"} style={[styles.row, c.current && styles.rowOn]}>
+          <Enter key={c._id ?? "first"} from={6} style={[styles.row, c.current && styles.rowOn]}>
             <Tap
               style={styles.rowMain}
               onPress={async () => {
@@ -97,6 +129,11 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
                 <Text style={[styles.rowTitle, c.current && styles.rowTitleOn]} numberOfLines={1}>
                   {c.title || s.chatUntitled}
                 </Text>
+                {!!c.snippet && (
+                  <Text style={styles.snippet} numberOfLines={2}>
+                    {c.snippet}
+                  </Text>
+                )}
                 <Text style={styles.rowDate}>{c.current ? `${s.chatCurrent} · ${dayLabel(c.lastAt, s)}` : dayLabel(c.lastAt, s)}</Text>
               </View>
             </Tap>
@@ -112,7 +149,7 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
                 <Ionicons name="trash-outline" size={18} color={colors.muted} />
               </Tap>
             )}
-          </View>
+          </Enter>
         ))}
       </ScrollView>
     </>
@@ -136,6 +173,12 @@ const styles = themed(() => ({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
   title: { fontSize: 20, fontWeight: "700", color: colors.text },
   close: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center", borderRadius: TOUCH / 2 },
+  // The text box is the bordered field (so the focus ring wraps it); the icons sit on top of it.
+  search: { marginHorizontal: 16, marginTop: 8, justifyContent: "center" },
+  searchIcon: { position: "absolute", left: 12, zIndex: 1 },
+  searchInput: { minHeight: TOUCH, paddingLeft: 38, paddingRight: TOUCH, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.md, backgroundColor: colors.bg },
+  clear: { position: "absolute", right: 0, width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
+  snippet: { fontSize: 13, color: colors.text, marginTop: 2, lineHeight: 18 },
   newChat: { ...ui.button, flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 8, marginBottom: 8 },
   newChatText: { color: colors.onPrimary, fontWeight: "700", fontSize: 15 },
   list: { paddingHorizontal: 8, paddingBottom: 24, gap: 2 },

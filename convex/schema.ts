@@ -103,6 +103,8 @@ export default defineSchema({
     checkins: v.optional(v.boolean()),
     // Account setup (convex/onboarding.ts): when it was finished, what to call them, and what they use Wellnest for.
     onboardedAt: v.optional(v.number()),
+    // The first-time tour of the app (src/Tour.tsx): when it was finished or skipped.
+    touredAt: v.optional(v.number()),
     profile: v.optional(profile),
     focus: v.optional(v.array(focus)),
     // The Sunday evening summary of the week (convex/weekly.ts); on when unset. `weeklySentAt` stops a second one.
@@ -176,6 +178,8 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_chat", ["userId", "chatId"])
+    // The chat history's search box (convex/chats.ts).
+    .searchIndex("search_text", { searchField: "text", filterFields: ["userId"] })
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: EMBEDDING_DIMS,
@@ -280,6 +284,7 @@ export default defineSchema({
     prep: v.optional(v.string()), // questions and things to bring
     notes: v.optional(v.string()), // what was said, written afterwards
     questions: v.optional(v.array(v.string())), // suggested questions to ask, from what changed (convex/visits.ts)
+    checked: v.optional(v.array(v.string())), // ticked items of the appointment prep checklist (src/GuidesPanel.tsx)
     status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
     remindJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_user_and_start", ["userId", "startsAt"]),
@@ -397,6 +402,7 @@ export default defineSchema({
     form: v.optional(medForm),
     prescriber: v.optional(v.string()),
     notes: v.optional(v.string()),
+    directions: v.optional(v.string()), // how to take it ("with food", "under the tongue"), for the medication list
     timeDoses: v.optional(v.array(timeDose)), // a different dose at some daily times
     supply: v.optional(supply), // refill tracking
     scriptImage: v.optional(v.id("_storage")), // eScript QR code or prescription label

@@ -37,7 +37,13 @@ export const state = query({
       focus: user.focus ?? [],
       location: user.location ?? "",
       facts: (await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(50)).map((f) => f.text),
-      meds: meds.map((m) => m.name),
+      // Set up here as one daily reminder each; the step lists them to edit or remove.
+      meds: meds.map((m) => ({
+        _id: m._id,
+        name: m.name,
+        dose: m.dose ?? "",
+        times: m.schedule.kind === "daily" ? m.schedule.times : [],
+      })),
       contact: plan?.contacts[0] ?? null,
       checkins: user.checkins ?? true,
       weeklySummary: user.weeklySummary ?? true,
@@ -113,5 +119,14 @@ export const finish = mutation({
       await saveAssistantReply(ctx, { userId, text: welcomeText(langOf(user), user.profile?.name, user.focus ?? []), channel: "app", urgent: false }, false);
     }
     await ctx.db.patch(userId, { onboardedAt: Date.now() });
+  },
+});
+
+// The first-time tour (src/Tour.tsx) was finished or skipped; it can be watched again from Settings.
+export const tourDone = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await me(ctx);
+    await ctx.db.patch(userId, { touredAt: Date.now() });
   },
 });

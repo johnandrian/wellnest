@@ -151,7 +151,7 @@ const TEXT = {
     zh: (who: string) => `${who} 错过了几次服药`,
   },
   circleJoined: {
-    en: (who: string) => `👥 **${who}** joined your care circle. You can change what they're alerted about, or remove them, under Health tools → Care circle.`,
+    en: (who: string) => `👥 **${who}** joined your Care Circle. You can change what they're alerted about, or remove them, under Health tools → Care Circle.`,
     es: (who: string) => `👥 **${who}** se unió a tu círculo de cuidado. Puedes cambiar sus avisos o quitarle en Herramientas de salud → Círculo de cuidado.`,
     el: (who: string) => `👥 **${who}**: μπήκε στον κύκλο φροντίδας σου. Μπορείς να αλλάξεις τις ειδοποιήσεις ή να το αφαιρέσεις από Εργαλεία υγείας → Κύκλος φροντίδας.`,
     zh: (who: string) => `👥 **${who}** 加入了你的照护圈。你可以在“健康工具 → 照护圈”中修改其提醒，或将其移除。`,

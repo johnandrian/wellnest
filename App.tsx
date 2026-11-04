@@ -1,12 +1,13 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, useColorScheme, View } from "react-native";
-import { ConvexReactClient, Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
+import { ConvexReactClient, Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import * as SecureStore from "expo-secure-store";
 import { Chat } from "./src/Chat";
 import { Welcome, deviceLang } from "./src/Welcome";
 import { Privacy } from "./src/Privacy";
+import { ChecklistPage, MedListTool } from "./src/PublicPages";
 import { Onboarding } from "./src/Onboarding";
 import { api } from "./convex/_generated/api";
 import { applyTheme, colors, themed } from "./src/theme";
@@ -45,6 +46,13 @@ function Themed() {
   const system = useColorScheme();
   const me = useQuery(api.chat.me);
   const [path, go] = usePath();
+  // "Create an account" on a free tool page goes straight to the sign-up form.
+  const [signUp, setSignUp] = useState(false);
+  const create = () => {
+    setSignUp(true);
+    go("/");
+  };
+  const pageLang = strings(me?.language ?? deviceLang());
   const pref = me?.appearance;
   const scheme = pref && pref.theme !== "system" ? pref.theme : system === "dark" ? "dark" : "light";
   applyTheme(scheme, pref?.textSize ?? 1);
@@ -57,16 +65,20 @@ function Themed() {
   }, [scheme]);
   return (
     <View style={styles.root}>
+      {/* The privacy page and the free tools are open to everyone, signed in or not. */}
       {path === "/privacy" ? (
-        // Open to everyone, signed in or not.
-        <Privacy s={strings(me?.language ?? deviceLang())} onBack={() => go("/")} />
+        <Privacy s={pageLang} onBack={() => go("/")} />
+      ) : path === "/medication-list" ? (
+        <MedListTool s={pageLang} onBack={() => go("/")} onCreate={create} />
+      ) : path === "/appointment-checklist" ? (
+        <ChecklistPage s={pageLang} onBack={() => go("/")} onCreate={create} />
       ) : (
         <>
           <AuthLoading>
             <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />
           </AuthLoading>
           <Unauthenticated>
-            <Welcome onPrivacy={() => go("/privacy")} />
+            <Welcome key={signUp ? "signUp" : "welcome"} onOpen={go} initialAuth={signUp ? "signUp" : null} />
           </Unauthenticated>
           <Authenticated>
             <Home />
@@ -78,10 +90,16 @@ function Themed() {
   );
 }
 
-// Account setup first (once, or again from Settings), then the chat.
+// Account setup first (once, or again from Settings), then the dashboard and chat.
 function Home() {
   const me = useQuery(api.chat.me);
   const [redo, setRedo] = useState(false);
+  const setTimeZone = useMutation(api.chat.setTimeZone);
+  // Medication reminders fire at local times, so the backend needs this device's time zone, already during setup.
+  useEffect(() => {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    void setTimeZone({ timeZone, utcOffsetMin: -new Date().getTimezoneOffset() }).catch(() => {});
+  }, [setTimeZone]);
   if (me === undefined) return <ActivityIndicator style={{ flex: 1 }} />;
   if (me && (!me.onboarded || redo)) return <Onboarding onDone={() => setRedo(false)} />;
   return <Chat onRedoSetup={() => setRedo(true)} />;

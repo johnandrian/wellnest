@@ -6,7 +6,7 @@ import { internalMutation, mutation, MutationCtx, query } from "./_generated/ser
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { daysLeft, medEventKind, medForm, statusOf, timeDose } from "./lib/meds";
-import { nextDue, normalizeTime } from "./lib/reminders";
+import { checkSchedule, nextDue, normalizeTime } from "./lib/reminders";
 import { clampSeverity } from "./lib/journal";
 import { lookupSoon } from "./drugs";
 
@@ -67,9 +67,13 @@ export async function refillMed(ctx: MutationCtx, med: Doc<"medications">, amoun
   await logEvent(ctx, med, "refilled", amount ? `+${amount}` : undefined);
 }
 
+// The details form, and account setup's edit (name, dose and daily times; new times reschedule the next reminder).
 export const update = mutation({
   args: {
     id: v.id("medications"),
+    name: v.optional(v.string()),
+    times: v.optional(v.array(v.string())),
+    directions: v.optional(v.string()),
     genericName: v.optional(v.string()),
     form: v.optional(medForm),
     prescriber: v.optional(v.string()),
@@ -77,9 +81,28 @@ export const update = mutation({
     dose: v.optional(v.string()),
     timeDoses: v.optional(v.array(timeDose)),
   },
-  handler: async (ctx, { id, dose, timeDoses, ...fields }) => {
-    const med = await own(ctx, id);
+  handler: async (ctx, { id, dose, timeDoses, name, times, ...fields }) => {
+    let med = await own(ctx, id);
     const patch: Partial<Doc<"medications">> = {};
+    if (name !== undefined) {
+      const clean = name.trim().slice(0, 80);
+      if (!clean) throw new Error("Give the medication a name.");
+      patch.name = clean;
+    }
+    if (times !== undefined) {
+      const checked = checkSchedule({ kind: "daily", times });
+      if ("error" in checked) throw new Error(checked.error);
+      patch.schedule = checked.schedule;
+      const kept = checked.schedule.kind === "daily" ? checked.schedule.times : [];
+      patch.timeDoses = (med.timeDoses ?? []).filter((t) => kept.includes(t.time));
+      if (med.active) {
+        if (med.jobId) await ctx.scheduler.cancel(med.jobId);
+        const at = nextDue(checked.schedule, Date.now(), med.timeZone, med.utcOffsetMin);
+        patch.nextAt = at;
+        patch.jobId = await ctx.scheduler.runAt(at, internal.reminders.fire, { id, dueAt: at });
+      }
+    }
+    if (fields.directions !== undefined) patch.directions = fields.directions.trim().slice(0, 200) || undefined;
     if (fields.genericName !== undefined) patch.genericName = fields.genericName.trim().slice(0, 80) || undefined;
     if (fields.prescriber !== undefined) patch.prescriber = fields.prescriber.trim().slice(0, 80) || undefined;
     if (fields.notes !== undefined) patch.notes = fields.notes.trim().slice(0, 500) || undefined;
@@ -91,8 +114,10 @@ export const update = mutation({
         .filter((t) => t.dose && times.includes(t.time));
     }
     await ctx.db.patch(id, patch);
+    const before = med;
+    med = { ...med, ...patch };
     if (dose !== undefined) await changeDose(ctx, med, dose);
-    if ("genericName" in patch && patch.genericName !== med.genericName) await lookupSoon(ctx, { ...med, genericName: patch.genericName }, true);
+    if ((patch.name && patch.name !== before.name) || ("genericName" in patch && patch.genericName !== before.genericName)) await lookupSoon(ctx, med, true);
   },
 });
 
@@ -169,6 +194,11 @@ export const all = query({
         nextAt: m.nextAt ?? null,
         daysLeft: daysLeft(m.schedule, m.supply),
         changedAt: m.stoppedAt ?? m.pausedAt ?? m._creationTime,
+        // For the printable medication list.
+        form: m.form ?? null,
+        notes: m.notes ?? null,
+        directions: m.directions ?? null,
+        timeDoses: m.timeDoses ?? [],
       }))
       .sort((a, b) => order[a.status] - order[b.status] || b.changedAt - a.changedAt);
   },
@@ -190,6 +220,7 @@ export const detail = query({
       form: m.form ?? null,
       prescriber: m.prescriber ?? null,
       notes: m.notes ?? null,
+      directions: m.directions ?? null,
       status: statusOf(m),
       rule: m.schedule.kind === "daily" ? m.schedule : { kind: "interval" as const, everyHours: m.schedule.everyHours },
       timeDoses: m.timeDoses ?? [],

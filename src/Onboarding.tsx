@@ -1,6 +1,7 @@
 // Account setup (convex/onboarding.ts): one question per screen after someone first signs in (existing accounts too,
 // once). Every step can be skipped, "Finish later" keeps what's done, and Settings can run it again. Answers already
-// on the account (language, city, facts, medications, the emergency contact) start filled in.
+// on the account (language, city, facts, medications, the emergency contact) start filled in. Medications can be
+// typed or scanned from the pill bottle, and the ones added can be edited or removed before moving on.
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
@@ -10,6 +11,11 @@ import { colors, radius, TOUCH, ui, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, strings } from "./i18n";
 import { Tap } from "./Tap";
 import { useHealthSync } from "./useHealthSync";
+import { DoseInput } from "./DoseInput";
+import { timesFor, useLabelScan } from "./labelScan";
+import { Icon } from "./Icon";
+import { Enter, SwapIcon } from "./Motion";
+import type { Id } from "../convex/_generated/dataModel";
 
 const FOCUS = ["symptoms", "pain", "asthma", "seizures", "medications", "mood", "wellness", "caregiver"] as const;
 const AGES = ["under_18", "18_29", "30_44", "45_64", "65_plus"] as const;
@@ -42,6 +48,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const setContact = useMutation(api.onboarding.setContact);
   const finish = useMutation(api.onboarding.finish);
   const addMed = useMutation(api.reminders.add);
+  const updateMed = useMutation(api.medications.update);
+  const removeMed = useMutation(api.reminders.remove);
   const setCheckins = useMutation(api.checkins.setEnabled);
   const setWeekly = useMutation(api.weekly.setEnabled);
 
@@ -63,6 +71,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [medName, setMedName] = useState("");
   const [medDose, setMedDose] = useState("");
   const [medTime, setMedTime] = useState("08:00");
+  const [medDirections, setMedDirections] = useState("");
+  // The medication being edited, or null while adding a new one.
+  const [editingMed, setEditingMed] = useState<Id<"medications"> | null>(null);
+  const label = useLabelScan(s, (l) => {
+    setMedName(l.name);
+    setMedDose(l.dose ?? "");
+    setMedDirections(l.instructions ?? "");
+    if (l.timesPerDay) setMedTime(timesFor(l.timesPerDay));
+  });
   const [contactName, setContactName] = useState("");
   const [contactRelation, setContactRelation] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -127,13 +144,34 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     if (ok) await advance();
   };
 
+  const clearMed = () => {
+    setMedName("");
+    setMedDose("");
+    setMedTime("08:00");
+    setMedDirections("");
+    setEditingMed(null);
+  };
+
   const saveMed = () =>
     run(async () => {
       if (!medName.trim()) return;
-      await addMed({ name: medName.trim(), dose: medDose.trim() || undefined, schedule: { kind: "daily", times: [medTime.trim()] } });
-      setMedName("");
-      setMedDose("");
+      const times = medTime.split(/[,\s]+/).filter(Boolean);
+      if (editingMed) {
+        await updateMed({ id: editingMed, name: medName.trim(), dose: medDose.trim(), times, ...(medDirections.trim() && { directions: medDirections }) });
+      } else {
+        await addMed({ name: medName.trim(), dose: medDose.trim() || undefined, directions: medDirections.trim() || undefined, schedule: { kind: "daily", times } });
+      }
+      clearMed();
     });
+
+  const editMed = (m: (typeof state.meds)[number]) => {
+    setError(null);
+    setEditingMed(m._id);
+    setMedName(m.name);
+    setMedDose(m.dose);
+    setMedTime(m.times.join(", ") || "08:00");
+    setMedDirections("");
+  };
 
   const source = health.name ?? "";
 
@@ -155,7 +193,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "language" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_langTitle}</Text>
-            <Text style={styles.hint}>{s.ob_langHint}</Text>
             <View style={styles.list}>
               {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
                 <Tap key={code} style={[styles.option, me.language === code && styles.optionOn]} onPress={() => void setLanguage({ language: code })} accessibilityRole="radio" accessibilityState={{ selected: me.language === code }}>
@@ -170,7 +207,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "about" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_aboutTitle}</Text>
-            <Text style={styles.hint}>{s.ob_aboutHint}</Text>
             <Text style={styles.label}>{s.ob_name}</Text>
             <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={s.ob_namePh} placeholderTextColor={colors.muted} maxLength={60} autoComplete="given-name" />
             <Text style={styles.label}>{s.ob_age}</Text>
@@ -191,7 +227,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "focus" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_focusTitle}</Text>
-            <Text style={styles.hint}>{s.ob_focusHint}</Text>
             <View style={styles.chips}>
               {FOCUS.map((f) => (
                 <Chip key={f} label={s[`ob_focus_${f}`]} on={focus.includes(f)} onPress={() => setFocusList(toggle(focus, f))} />
@@ -203,7 +238,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "conditions" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_condTitle}</Text>
-            <Text style={styles.hint}>{s.ob_condHint}</Text>
             {[
               { label: s.ob_conditions, list: conditions, set: setConditions, suggest: s.ob_condSuggest, text: conditionText, setText: setConditionText, ph: s.ob_conditionPh },
               { label: s.ob_allergies, list: allergies, set: setAllergies, suggest: s.ob_allergySuggest, text: allergyText, setText: setAllergyText, ph: s.ob_allergyPh },
@@ -243,29 +277,65 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "meds" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_medsTitle}</Text>
-            <Text style={styles.hint}>{s.ob_medsHint}</Text>
             {state.meds.map((m) => (
-              <View key={m} style={styles.saved}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                <Text style={styles.savedText}>{m}</Text>
+              <View key={m._id} style={[styles.medRow, editingMed === m._id && styles.medRowOn]}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                <View style={styles.flex}>
+                  <Text style={styles.savedText} numberOfLines={1}>
+                    {m.name}
+                    {m.dose ? <Text style={styles.muted}> · {m.dose}</Text> : null}
+                  </Text>
+                  {m.times.length > 0 && <Text style={styles.small}>{m.times.join(", ")}</Text>}
+                </View>
+                <Tap style={styles.iconButton} onPress={() => editMed(m)} disabled={busy} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${m.name}`}>
+                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                </Tap>
+                <Tap
+                  style={styles.iconButton}
+                  onPress={() => void run(async () => (await removeMed({ id: m._id }), editingMed === m._id && clearMed()))}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${s.remove}: ${m.name}`}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.muted} />
+                </Tap>
               </View>
             ))}
-            <TextInput style={styles.input} value={medName} onChangeText={setMedName} placeholder={s.ob_medName} placeholderTextColor={colors.muted} maxLength={80} />
-            <View style={styles.row}>
-              <TextInput style={[styles.input, styles.flex]} value={medDose} onChangeText={setMedDose} placeholder={s.ob_medDose} placeholderTextColor={colors.muted} maxLength={60} />
-              <TextInput style={[styles.input, styles.time]} value={medTime} onChangeText={setMedTime} placeholder={s.ob_medTime} placeholderTextColor={colors.muted} maxLength={5} accessibilityLabel={s.ob_medTime} />
-            </View>
-            <Tap style={[ui.addButton, !medName.trim() && styles.disabled]} onPress={() => void saveMed()} disabled={!medName.trim() || busy} accessibilityRole="button">
-              <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-              <Text style={styles.link}>{s.ob_medAdd}</Text>
-            </Tap>
+            {!editingMed && (
+              <Tap style={ui.addButton} onPress={() => void label.scan()} disabled={label.scanning || busy} accessibilityRole="button" accessibilityState={{ busy: label.scanning }}>
+                <SwapIcon id={label.scanning ? "busy" : "scan"}>
+                  {label.scanning ? <ActivityIndicator color={colors.primary} /> : <Icon name="scan" size={18} color={colors.primary} />}
+                </SwapIcon>
+                <Text style={styles.link}>{label.scanning ? s.medScanning : s.medScan}</Text>
+              </Tap>
+            )}
+            {label.error && <Text style={styles.error}>{label.error}</Text>}
+            <Enter key={editingMed ?? "new"} style={styles.medForm} from={8}>
+              <TextInput style={styles.input} value={medName} onChangeText={setMedName} placeholder={s.ob_medName} placeholderTextColor={colors.muted} maxLength={80} />
+              <DoseInput value={medDose} onChange={setMedDose} s={s} />
+              <View style={styles.row}>
+                <Ionicons name="time-outline" size={20} color={colors.muted} />
+                <TextInput style={[styles.input, styles.flex]} value={medTime} onChangeText={setMedTime} placeholder={s.ob_medTime} placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel={s.ob_medTime} autoCapitalize="none" />
+              </View>
+              {!!medDirections && <Text style={styles.small}>{s.medFromLabel.replace("{text}", medDirections)}</Text>}
+              <View style={styles.row}>
+                <Tap style={[ui.addButton, styles.flex, !medName.trim() && styles.disabled]} onPress={() => void saveMed()} disabled={!medName.trim() || busy} accessibilityRole="button">
+                  <Ionicons name={editingMed ? "checkmark" : "add-circle-outline"} size={18} color={colors.primary} />
+                  <Text style={styles.link}>{editingMed ? s.save : s.ob_medAdd}</Text>
+                </Tap>
+                {(editingMed || !!medName) && (
+                  <Tap style={styles.smallButton} onPress={clearMed} accessibilityRole="button">
+                    <Text style={styles.skipText}>{s.cancel}</Text>
+                  </Tap>
+                )}
+              </View>
+            </Enter>
           </>
         )}
 
         {step === "contact" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_contactTitle}</Text>
-            <Text style={styles.hint}>{s.ob_contactHint}</Text>
             <TextInput style={styles.input} value={contactName} onChangeText={setContactName} placeholder={s.ob_contactName} placeholderTextColor={colors.muted} maxLength={80} />
             <TextInput style={styles.input} value={contactRelation} onChangeText={setContactRelation} placeholder={s.ob_contactRelation} placeholderTextColor={colors.muted} maxLength={40} />
             <TextInput style={styles.input} value={contactPhone} onChangeText={setContactPhone} placeholder={s.ob_contactPhone} placeholderTextColor={colors.muted} maxLength={40} keyboardType="phone-pad" autoComplete="tel" />
@@ -275,7 +345,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "city" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_cityTitle}</Text>
-            <Text style={styles.hint}>{s.ob_cityHint}</Text>
             <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder={s.locationPlaceholder} placeholderTextColor={colors.muted} maxLength={200} autoComplete="postal-code" />
           </>
         )}
@@ -283,7 +352,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "phone" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_phoneTitle}</Text>
-            <Text style={styles.hint}>{s.ob_phoneHint.replace("{source}", source)}</Text>
             {health.status?.connected ? (
               <View style={styles.saved}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
@@ -302,7 +370,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {step === "prefs" && (
           <>
             <Text style={styles.title} accessibilityRole="header">{s.ob_prefsTitle}</Text>
-            <Text style={styles.hint}>{s.ob_prefsHint}</Text>
             <View style={styles.switchRow}>
               <Text style={[styles.optionText, styles.flex]}>{s.dailyCheckins}</Text>
               <Switch value={state.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
@@ -350,7 +417,7 @@ const styles = themed(() => ({
   scroll: { flex: 1 },
   body: { padding: 20, gap: 12, maxWidth: 560, width: "100%", alignSelf: "center" },
   title: { fontSize: 26, lineHeight: 32, fontWeight: "700", color: colors.text, marginTop: 8 },
-  hint: { fontSize: 16, lineHeight: 23, color: colors.muted, marginBottom: 4 },
+
   label: { fontSize: 15, fontWeight: "600", color: colors.text, marginTop: 8 },
   list: { gap: 10 },
   option: { ...ui.card, flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 56, paddingHorizontal: 16 },
@@ -365,7 +432,11 @@ const styles = themed(() => ({
   row: { flexDirection: "row", gap: 8, alignItems: "center" },
   flex: { flex: 1, minWidth: 0 },
   input: { minHeight: TOUCH, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.md, paddingHorizontal: 14, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
-  time: { width: 110 },
+  medRow: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 12, minHeight: 56 },
+  medRowOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  medForm: { gap: 10 },
+  iconButton: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
+  muted: { color: colors.muted, fontWeight: "400" },
   smallButton: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 12 },
   saved: { flexDirection: "row", alignItems: "center", gap: 8 },
   savedText: { fontSize: 16, color: colors.text },

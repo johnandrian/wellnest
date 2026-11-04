@@ -117,14 +117,20 @@ export function Reveal({ open, children, style }: { open: boolean; children: Rea
 }
 
 // Fades and lifts its content in when it first appears (a screen, a tool). Give it a new `key` to play it again.
-export function Enter({ children, style, from = 16 }: { children: ReactNode; style?: StyleProp<ViewStyle>; from?: number }) {
+// `fromX` slides it in sideways instead, for moving between the dashboard and the chat.
+export function Enter({ children, style, from = 16, fromX }: { children: ReactNode; style?: StyleProp<ViewStyle>; from?: number; fromX?: number }) {
   const reduced = useReducedMotion();
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(t, { toValue: 1, duration: reduced ? 0 : 300, easing: Easing.out(Easing.cubic), useNativeDriver: native }).start();
   }, [reduced, t]);
   return (
-    <Animated.View style={[style, { opacity: t, transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [from, 0] }) }] }]}>
+    <Animated.View
+      style={[
+        style,
+        { opacity: t, transform: [fromX !== undefined ? { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [fromX, 0] }) } : { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [from, 0] }) }] },
+      ]}
+    >
       {children}
     </Animated.View>
   );

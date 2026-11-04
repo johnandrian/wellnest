@@ -52,7 +52,7 @@ describe("care circle: invites and joining", () => {
     const mine = await ana.as.query(api.circle.mine, { now: NOW });
     expect(mine).toEqual({ members: [expect.objectContaining({ name: "sam", label: "Sam (son)", alerts: ALL })], invites: [] });
     expect((await messagesOf(t, ana.userId)).filter((m) => m.kind === "circle").map((m) => m.text)).toEqual([
-      expect.stringContaining("**Sam (son)** joined your care circle"),
+      expect.stringContaining("**Sam (son)** joined your Care Circle"),
     ]);
   });
 

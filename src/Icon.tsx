@@ -17,7 +17,9 @@ const ICONS = {
   seizures: ["mci", "brain"],
   symptoms: ["ion", "thermometer-outline"],
   mood: ["ion", "happy-outline"],
+  energy: ["ion", "battery-charging-outline"],
   sleep: ["ion", "moon-outline"],
+  sleepQuality: ["ion", "bed-outline"],
   steps: ["ion", "footsteps-outline"],
   heart: ["ion", "heart-outline"],
   weight: ["mci", "scale-bathroom"],
@@ -38,6 +40,9 @@ const ICONS = {
   forecast: ["ion", "rainy-outline"],
   circle: ["ion", "people-outline"],
   invite: ["ion", "person-add-outline"],
+  guides: ["ion", "checkbox-outline"],
+  medList: ["ion", "list-outline"],
+  scan: ["ion", "scan-outline"],
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -56,8 +61,8 @@ export const METRIC_ICON: Record<string, IconName> = {
   pain: "pain",
   symptom: "symptoms",
   mood: "mood",
-  energy: "mood",
-  sleepQuality: "sleep",
+  energy: "energy",
+  sleepQuality: "sleepQuality",
   sleepHours: "sleep",
   steps: "steps",
   restingHeartRate: "heart",

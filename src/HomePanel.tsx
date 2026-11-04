@@ -1,9 +1,10 @@
-// The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, four
-// weeks of charts for what the user tracks, tomorrow's flare forecast, the strongest pattern, and every tool as a tile.
+// The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, questions
+// to ask at an appointment in the coming week, four weeks of charts for what the user tracks, tomorrow's flare
+// forecast, the strongest pattern, and every tool as a tile. It fills the window: more columns on wider screens.
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
@@ -11,6 +12,11 @@ import { colors, radius, tint, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
 import { TOOLS, type HubTab } from "./HubPanel";
+import { Enter, SwapIcon } from "./Motion";
+import type { Id } from "../convex/_generated/dataModel";
+
+// Questions show on the dashboard in the week before an appointment.
+const QUESTIONS_DAYS = 7;
 
 type Chart = NonNullable<ReturnType<typeof useDashboard>>["charts"][number];
 
@@ -42,6 +48,8 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   const insights = useQuery(api.insights.view, { today: localDate() });
   const { width } = useWindowDimensions();
   const wide = width >= 640;
+  const wider = width >= 1100;
+  const [now] = useState(() => Date.now());
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
   const m = data.meds;
@@ -92,6 +100,8 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
 
       <DailyCard s={s} inChat flush />
 
+      {data.visit && data.visit.startsAt - now < QUESTIONS_DAYS * 86_400_000 && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} />}
+
       <View style={styles.sectionRow}>
         <Text style={styles.section} accessibilityRole="header">
           {s.homeTrends}
@@ -104,7 +114,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
       {data.charts.length ? (
         <View style={styles.grid}>
           {data.charts.map((c) => (
-            <TrendCard key={c.metric} chart={c} s={s} wide={wide} onPress={() => onOpen("journal")} />
+            <TrendCard key={c.metric} chart={c} s={s} wide={wide} wider={wider} onPress={() => onOpen("journal")} />
           ))}
         </View>
       ) : (
@@ -176,6 +186,66 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   );
 }
 
+type Visit = NonNullable<NonNullable<ReturnType<typeof useDashboard>>["visit"]>;
+
+// The next appointment's questions to ask (convex/questions.ts), or a button to write some, and the prep checklist.
+function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen: (t: HubTab) => void }) {
+  const suggest = useAction(api.questions.suggest);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const write = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await suggest({ id: visit._id as Id<"visits"> });
+    } catch (e) {
+      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const c = tint.appointments;
+  return (
+    <Enter style={styles.questions}>
+      <View style={styles.trendHead}>
+        <View style={[styles.iconDot, { backgroundColor: c.bg }]}>
+          <Icon name="appointments" size={18} color={c.fg} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={styles.trendTitle} numberOfLines={1}>
+            {s.homeQuestionsTitle.replace("{title}", visit.title)}
+          </Text>
+          <Text style={styles.small}>{when(visit.startsAt, s.locale)}</Text>
+        </View>
+      </View>
+      {visit.questions.length ? (
+        visit.questions.slice(0, 3).map((q) => (
+          <Text key={q} style={styles.insightText}>
+            • {q}
+          </Text>
+        ))
+      ) : (
+        <Text style={styles.small}>{s.homeQuestionsEmpty}</Text>
+      )}
+      <View style={styles.actions}>
+        {!visit.questions.length && (
+          <Tap style={styles.ask} onPress={() => void write()} disabled={busy} accessibilityRole="button" accessibilityState={{ busy }}>
+            <SwapIcon id={busy ? "busy" : "idle"}>
+              {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
+            </SwapIcon>
+            <Text style={styles.askText}>{s.visitSuggestQuestions}</Text>
+          </Tap>
+        )}
+        <Tap style={styles.ask} onPress={() => onOpen("guides")} accessibilityRole="button">
+          <Icon name="guides" size={16} color={colors.primary} />
+          <Text style={styles.askText}>{s.homeChecklist}</Text>
+        </Tap>
+      </View>
+      {error && <Text style={styles.error}>{error}</Text>}
+    </Enter>
+  );
+}
+
 function Stat(p: {
   icon: IconName;
   tint: keyof typeof tint;
@@ -217,7 +287,7 @@ function Stat(p: {
 // Read when drawing, so it follows the theme.
 const bad = () => ({ better: colors.primary, worse: colors.danger, same: colors.muted });
 
-function TrendCard({ chart, s, wide, onPress }: { chart: Chart; s: Strings; wide: boolean; onPress: () => void }) {
+function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: Strings; wide: boolean; wider: boolean; onPress: () => void }) {
   const t = trend(chart);
   const byDate = new Map(chart.points.map((p) => [p.date, p.value]));
   const dates: string[] = [];
@@ -229,7 +299,7 @@ function TrendCard({ chart, s, wide, onPress }: { chart: Chart; s: Strings; wide
   const recent = dates.slice(-7)[0];
   const label = t && { better: s.homeBetter, worse: s.homeWorse, same: s.homeSame }[t];
   return (
-    <Tap style={[styles.trend, wide ? styles.half2 : styles.full]} onPress={onPress} accessibilityRole="button"
+    <Tap style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]} onPress={onPress} accessibilityRole="button"
       accessibilityLabel={`${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`}>
       <View style={styles.trendHead}>
         <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
@@ -278,7 +348,7 @@ const styles = themed(() => ({
   section: { ...ui.section },
   empty: { ...ui.empty },
   scroll: { flex: 1 },
-  content: { padding: 16, gap: 14, maxWidth: 792, width: "100%", alignSelf: "center", paddingBottom: 40 },
+  content: { padding: 16, gap: 14, width: "100%", paddingBottom: 40 },
   flex: { flex: 1 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
@@ -313,6 +383,9 @@ const styles = themed(() => ({
   axis: { flexDirection: "row", justifyContent: "space-between" },
   axisText: { fontSize: 12, color: colors.muted },
   insight: { ...ui.card, padding: 14, gap: 10, backgroundColor: colors.primarySoft, borderColor: colors.mint },
+  questions: { ...ui.card, padding: 14, gap: 8 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 },
+  error: { color: colors.danger, fontSize: 14 },
   insightRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   insightLabel: { fontSize: 13, fontWeight: "700", color: colors.primary },
   insightText: { fontSize: 15, color: colors.text, lineHeight: 21 },

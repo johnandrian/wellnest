@@ -95,6 +95,7 @@ export const me = query({
       appearance: user.appearance ?? { theme: "system" as const, textSize: 1 },
       notifications: { reminders: user.notifications?.reminders ?? true, appointments: user.notifications?.appointments ?? true },
       onboarded: !!user.onboardedAt,
+      toured: !!user.touredAt,
       name: user.profile?.name ?? null,
       focus: user.focus ?? [],
       checkins: user.checkins ?? true,

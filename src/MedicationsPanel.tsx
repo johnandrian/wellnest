@@ -1,10 +1,11 @@
 // Medications (convex/medications.ts, convex/reminders.ts): the list with status and supply, and each medication's
-// details: generic name, form, prescriber, per-time doses, refills, the eScript photo, side effects and history.
+// details: generic name, form, prescriber, how to take it, per-time doses, refills, the eScript photo, side effects
+// and history. A pill bottle scan fills the add form, and the medication list prints or saves as a PDF (./medList.ts).
 // Reminder messages with Taken / Skip appear in the chat.
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
@@ -12,6 +13,10 @@ import { colors, ui, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
 import { Enter, Reveal, SwapIcon } from "./Motion";
+import { DoseInput } from "./DoseInput";
+import { useLabelScan, timesFor } from "./labelScan";
+import { medListHtml, printHtml } from "./medList";
+import { Icon } from "./Icon";
 
 type Mode = "daily" | "interval";
 type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
@@ -39,8 +44,6 @@ function confirm(title: string, message: string, ok: string, cancel: string): Pr
 }
 
 const parseTimes = (text: string) => text.split(/[,\s]+/).filter(Boolean);
-// "Twice a day" on a label: reminder times to start from, changed in the form if they don't suit.
-const TIMES_FOR = ["08:00", "08:00, 20:00", "08:00, 14:00, 20:00", "08:00, 12:00, 16:00, 20:00"];
 
 // Possible interactions between the user's medications, from the FDA labels (convex/drugs.ts). Looked up when the
 // tab opens; each pair opens to the label's own sentence.
@@ -129,7 +132,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
   const claim = useMutation(api.chat.claimUpload);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<{ genericName: string; prescriber: string; notes: string; dose: string; form: Form | null; timeDoses: Record<string, string> } | null>(null);
+  const [draft, setDraft] = useState<{ genericName: string; prescriber: string; notes: string; directions: string; dose: string; form: Form | null; timeDoses: Record<string, string> } | null>(null);
   const [effect, setEffect] = useState("");
   const [supplyDraft, setSupplyDraft] = useState<{ left: string; perDose: string; warnDays: string } | null>(null);
   const [refillAmount, setRefillAmount] = useState("");
@@ -156,6 +159,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
       genericName: med.genericName ?? "",
       prescriber: med.prescriber ?? "",
       notes: med.notes ?? "",
+      directions: med.directions ?? "",
       dose: med.dose ?? "",
       form: med.form,
       timeDoses: Object.fromEntries(med.timeDoses.map((t) => [t.time, t.dose])),
@@ -171,6 +175,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
         genericName: draft.genericName,
         prescriber: draft.prescriber,
         notes: draft.notes,
+        directions: draft.directions,
         dose: draft.dose,
         ...(draft.form && { form: draft.form }),
         ...(med.rule.kind === "daily" && {
@@ -194,7 +199,8 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
     <View style={styles.detail}>
       {editing && draft ? (
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder={s.dosePlaceholder} placeholderTextColor={colors.muted} value={draft.dose} onChangeText={(dose) => setDraft({ ...draft, dose })} />
+          <DoseInput value={draft.dose} onChange={(dose) => setDraft({ ...draft, dose })} s={s} />
+          <TextInput style={styles.input} placeholder={s.medDirectionsPlaceholder} placeholderTextColor={colors.muted} value={draft.directions} onChangeText={(directions) => setDraft({ ...draft, directions })} maxLength={200} />
           {med.rule.kind === "daily" && med.rule.times.length > 1 && (
             <>
               <Text style={styles.small}>{s.medDosePerTime}</Text>
@@ -233,6 +239,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
             </Text>
           )}
           {med.timeDoses.length > 0 && <Text style={styles.small}>{med.timeDoses.map((t) => `${t.time}: ${t.dose}`).join(" · ")}</Text>}
+          {med.directions && <Text style={styles.line}>{med.directions}</Text>}
           {med.notes && <Text style={styles.small}>{med.notes}</Text>}
           <Tap onPress={startEdit} accessibilityRole="button">
             <Text style={styles.link}>{s.medEditDetails}</Text>
@@ -364,53 +371,57 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   const [form, setForm] = useState<Form | null>(null);
   const [genericName, setGenericName] = useState("");
   const [prescriber, setPrescriber] = useState("");
+  const [directions, setDirections] = useState("");
   const [mode, setMode] = useState<Mode>("daily");
   const [times, setTimes] = useState("08:00");
   const [timeDoses, setTimeDoses] = useState<Record<string, string>>({});
   const [hours, setHours] = useState("8");
   const [days, setDays] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
   const [fromLabel, setFromLabel] = useState<string | null>(null);
-  const uploadUrl = useMutation(api.chat.generateUploadUrl);
-  const claim = useMutation(api.chat.claimUpload);
-  const readLabel = useAction(api.medScan.read);
+  const [printing, setPrinting] = useState(false);
+  const me = useQuery(api.chat.me);
 
   const list = (meds ?? []).filter((m) => showStopped || m.status !== "stopped");
   const stoppedCount = (meds ?? []).filter((m) => m.status === "stopped").length;
+  const current = (meds ?? []).filter((m) => m.status !== "stopped");
   const parsedTimes = parseTimes(times);
 
-  // Fills the add form from a label photo; the user checks it before saving.
-  const scan = async () => {
+  // Fills the add form from a pill bottle photo; the user checks it before saving.
+  const label = useLabelScan(s, (l) => {
+    setName(l.name);
+    setDose(l.dose ?? "");
+    setGenericName(l.genericName ?? "");
+    setPrescriber(l.prescriber ?? "");
+    setForm(l.form ?? null);
+    setDirections(l.instructions ?? "");
+    if (l.everyHours) {
+      setMode("interval");
+      setHours(String(l.everyHours));
+    } else if (l.timesPerDay) {
+      setMode("daily");
+      setTimes(timesFor(l.timesPerDay));
+    }
+    setFromLabel(l.instructions ?? "");
+    setAdding(true);
+  });
+
+  // Medicine, strength / dose, when and how, notes: the current (active and paused) medications.
+  const printList = async () => {
     setError(null);
+    setPrinting(true);
     try {
-      const photo = await pickPhoto(Platform.OS === "web" ? "library" : "camera");
-      if (!photo) return;
-      setScanning(true);
-      const storageId = await uploadPhoto(photo, () => uploadUrl(), (sid) => claim({ storageId: sid as Id<"_storage"> }));
-      const label = await readLabel({ storageId: storageId as Id<"_storage"> });
-      if (!label) {
-        setError(s.medScanNone);
-        return;
-      }
-      setName(label.name);
-      setDose(label.dose ?? "");
-      setGenericName(label.genericName ?? "");
-      setPrescriber(label.prescriber ?? "");
-      setForm(label.form ?? null);
-      if (label.everyHours) {
-        setMode("interval");
-        setHours(String(label.everyHours));
-      } else if (label.timesPerDay) {
-        setMode("daily");
-        setTimes(TIMES_FOR[Math.min(label.timesPerDay, TIMES_FOR.length) - 1]);
-      }
-      setFromLabel(label.instructions ?? "");
-      setAdding(true);
+      const rows = current.map((m) => ({
+        name: [m.name, m.status === "paused" ? `(${s.medListPaused})` : ""].filter(Boolean).join(" "),
+        dose: m.dose ?? "",
+        when: [m.timeDoses.length ? m.timeDoses.map((t) => `${t.time}: ${t.dose}`).join(", ") : describe(m.rule, s), m.directions].filter(Boolean).join("\n"),
+        notes: m.notes ?? "",
+      }));
+      await printHtml(medListHtml(rows, s, me?.name ?? undefined), s, s.medList);
     } catch (e) {
       setError(cleanError(e));
     } finally {
-      setScanning(false);
+      setPrinting(false);
     }
   };
 
@@ -424,6 +435,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
         days: days ? Number(days) : undefined,
         genericName: genericName || undefined,
         prescriber: prescriber || undefined,
+        directions: directions || undefined,
         ...(form && { form }),
         ...(mode === "daily" && {
           timeDoses: parsedTimes.filter((t) => timeDoses[t]?.trim()).map((t) => ({ time: t.padStart(5, "0"), dose: timeDoses[t] })),
@@ -436,6 +448,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       setDays("");
       setGenericName("");
       setPrescriber("");
+      setDirections("");
       setForm(null);
       setTimeDoses({});
       setFromLabel(null);
@@ -448,6 +461,20 @@ export function MedicationsPanel({ s }: { s: Strings }) {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <Text style={styles.note}>{s.medsIntro}</Text>
       <SafetyCard s={s} />
+      {current.length > 0 && (
+        <Tap style={styles.listCard} onPress={() => void printList()} disabled={printing} accessibilityRole="button" accessibilityState={{ busy: printing }}>
+          <View style={styles.listIcon}>
+            <SwapIcon id={printing ? "busy" : "list"}>
+              {printing ? <ActivityIndicator color={colors.primary} /> : <Icon name="medList" size={20} color={colors.primary} />}
+            </SwapIcon>
+          </View>
+          <View style={styles.flex}>
+            <Text style={styles.medName}>{s.medList}</Text>
+            <Text style={styles.small}>{s.medListHint}</Text>
+          </View>
+          <Ionicons name="print-outline" size={20} color={colors.primary} />
+        </Tap>
+      )}
       {meds?.length === 0 && !adding && <Text style={styles.empty}>{s.remindersEmpty}</Text>}
       {list.map((m) => (
         <View key={m._id} style={[styles.med, m.status !== "active" && styles.medInactive]}>
@@ -489,7 +516,8 @@ export function MedicationsPanel({ s }: { s: Strings }) {
             </View>
           )}
           <TextInput style={styles.input} placeholder={s.medPlaceholder} placeholderTextColor={colors.muted} value={name} onChangeText={setName} />
-          <TextInput style={styles.input} placeholder={s.dosePlaceholder} placeholderTextColor={colors.muted} value={dose} onChangeText={setDose} />
+          <DoseInput value={dose} onChange={setDose} s={s} />
+          <TextInput style={styles.input} placeholder={s.medDirectionsPlaceholder} placeholderTextColor={colors.muted} value={directions} onChangeText={setDirections} maxLength={200} />
           <View style={styles.chips}>
             {(["daily", "interval"] as const).map((m) => (
               <Tap key={m} style={[styles.chip, mode === m && styles.chipOn]} onPress={() => setMode(m)} accessibilityRole="radio" accessibilityState={{ selected: mode === m }}>
@@ -543,15 +571,15 @@ export function MedicationsPanel({ s }: { s: Strings }) {
             <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.link}>{s.medAdd}</Text>
           </Tap>
-          <Tap style={[styles.addRow, styles.flex]} onPress={() => void scan()} disabled={scanning} accessibilityRole="button" accessibilityState={{ busy: scanning }}>
-            <SwapIcon id={scanning ? "busy" : "scan"}>
-              {scanning ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="scan-outline" size={20} color={colors.primary} />}
+          <Tap style={[styles.addRow, styles.flex]} onPress={() => void label.scan()} disabled={label.scanning} accessibilityRole="button" accessibilityState={{ busy: label.scanning }}>
+            <SwapIcon id={label.scanning ? "busy" : "scan"}>
+              {label.scanning ? <ActivityIndicator color={colors.primary} /> : <Icon name="scan" size={20} color={colors.primary} />}
             </SwapIcon>
-            <Text style={styles.link}>{scanning ? s.medScanning : s.medScan}</Text>
+            <Text style={styles.link}>{label.scanning ? s.medScanning : s.medScan}</Text>
           </Tap>
         </View>
       )}
-      {error && <Text style={styles.error}>{error}</Text>}
+      {(error || label.error) && <Text style={styles.error}>{error ?? label.error}</Text>}
     </ScrollView>
   );
 }
@@ -589,6 +617,8 @@ const styles = themed(() => ({
   addRow: { ...ui.addButton, minWidth: 200 },
   addRows: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   scanNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: colors.primarySoft, borderRadius: 8, padding: 10 },
+  listCard: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, minHeight: TOUCH },
+  listIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   safety: { ...ui.card, padding: 12, gap: 8 },
   safetyWarn: { backgroundColor: colors.warningSoft, borderColor: colors.amber },
   safetyHead: { flexDirection: "row", alignItems: "center", gap: 8 },

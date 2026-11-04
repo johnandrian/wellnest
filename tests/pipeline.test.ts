@@ -120,6 +120,7 @@ describe("app chat", () => {
       appearance: { theme: "system", textSize: 1 },
       notifications: { reminders: true, appointments: true },
       onboarded: false,
+      toured: false,
       name: null,
       focus: [],
       checkins: true,

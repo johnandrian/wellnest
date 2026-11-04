@@ -36,9 +36,13 @@ import { DailyCard } from "./DailyCard";
 import { ChatHistory } from "./ChatHistory";
 import { JoinPrompt } from "./JoinPrompt";
 import { Icon } from "./Icon";
+import { Tour, TourStop } from "./Tour";
 
-// The panels that open under the header.
-type Panel = "settings" | "hub" | "about";
+// The two screens: the dashboard (Health tools, where the app opens) and the chat. Moving between them slides
+// sideways, the dashboard from the left and the chat from the right.
+type Screen = "hub" | "chat";
+// The panels that drop open under either screen's header.
+type Panel = "settings" | "about";
 
 
 // Camera or library: native asks which; web (and desktop browsers) only have the library.
@@ -64,19 +68,49 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const me = useQuery(api.chat.me);
   const send = useMutation(api.chat.send);
   const newChat = useMutation(api.chats.start);
-  const setTimeZone = useMutation(api.chat.setTimeZone);
+
   const logDose = useMutation(api.reminders.log);
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
   const claimUpload = useMutation(api.chat.claimUpload);
   const [photo, setPhoto] = useState<Picked | null>(null);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
+  const [screen, setScreen] = useState<Screen>("hub");
   const [panel, setPanel] = useState<Panel | null>(null);
   const [hubTab, setHubTab] = useState<HubTab>("home");
   const [history, setHistory] = useState(false);
   const openHub = (tab: HubTab) => {
     setHubTab(tab);
-    setPanel("hub");
+    setScreen("hub");
+    setPanel(null);
+  };
+  const openChat = () => {
+    setScreen("chat");
+    setPanel(null);
+  };
+  // The first-time tour (./Tour.tsx): once after setup, and again from Settings.
+  const [touring, setTouring] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const tourDone = useMutation(api.onboarding.tourDone);
+  const startTour = () => {
+    setTourStep(0);
+    setTouring(true);
+  };
+  useEffect(() => {
+    if (me && !me.toured) startTour();
+  }, [me?.toured === false]);
+  const showStop = (stop: TourStop) => {
+    if (stop.screen === "chat") openChat();
+    else if (stop.screen === "settings") {
+      setScreen("hub");
+      setHubTab("home");
+      setPanel("settings");
+    } else openHub(stop.tab);
+  };
+  const endTour = () => {
+    setTouring(false);
+    openHub("home");
+    if (me && !me.toured) void tourDone().catch(() => {});
   };
   // "about" opens from Settings, so the settings button closes it too.
   const toggle = (p: Panel) => setPanel((open) => (open === p || (p === "settings" && open === "about") ? null : p));
@@ -140,18 +174,13 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
   // The weekly summary and the flare forecast are chat messages, so their notifications just open the chat;
-  // a care circle alert opens the care circle.
+  // a Care Circle alert opens the Care Circle.
   const pushToken = usePush(s, (kind) =>
     kind === "weekly" || kind === "forecast"
-      ? setPanel(null)
+      ? openChat()
       : openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : kind === "circle" ? "circle" : "care"),
   );
 
-  // Medication reminders fire at local times, so the backend needs this device's time zone.
-  useEffect(() => {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    void setTimeZone({ timeZone, utcOffsetMin: -new Date().getTimezoneOffset() }).catch(() => {});
-  }, [setTimeZone]);
 
   const startChat = async () => {
     voice.stopSpeaking();
@@ -160,16 +189,32 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
     await newChat();
   };
 
-  // Health tools take the whole screen; their Chat button comes back here.
-  if (panel === "hub") {
-    return (
-      <Enter style={styles.container} from={24}>
-        <HubPanel tab={hubTab} onTab={setHubTab} onClose={() => setPanel(null)} s={s} />
-      </Enter>
-    );
-  }
+  // Settings and "What Wellnest knows about me", under whichever screen's header.
+  const panels = (
+    <>
+      <Reveal open={panel === "about"} style={styles.aboutWrap}>
+        <AboutPanel s={s} />
+      </Reveal>
+      <Reveal open={panel === "settings" && !!me} style={styles.settingsWrap}>
+        {me && (
+          <Settings
+            me={me}
+            s={s}
+            pushToken={pushToken}
+            health={health}
+            onOpenAbout={() => setPanel("about")}
+            onRedoSetup={onRedoSetup}
+            onTour={() => {
+              setPanel(null);
+              startTour();
+            }}
+          />
+        )}
+      </Reveal>
+    </>
+  );
 
-  return (
+  const chat = (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -224,14 +269,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
         </View>
       </View>
       <ChatHistory open={history} s={s} onClose={() => setHistory(false)} />
-      <JoinPrompt s={s} onOpenCircle={() => openHub("circle")} />
-
-      <Reveal open={panel === "about"} style={styles.aboutWrap}>
-        <AboutPanel s={s} />
-      </Reveal>
-      <Reveal open={panel === "settings" && !!me} style={styles.settingsWrap}>
-        {me && <Settings me={me} s={s} pushToken={pushToken} health={health} onOpenAbout={() => setPanel("about")} onRedoSetup={onRedoSetup} />}
-      </Reveal>
+      {panels}
 
       {panel === null && !!messages?.length && <DailyCard s={s} inChat />}
       {messages === undefined ? (
@@ -430,6 +468,24 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
       )}
     </KeyboardAvoidingView>
   );
+
+  return (
+    <View style={styles.container}>
+      {screen === "hub" ? (
+        <Enter key="hub" style={styles.container} fromX={-28}>
+          <HubPanel tab={hubTab} onTab={setHubTab} onClose={openChat} s={s} settingsOpen={panel !== null} onSettings={() => toggle("settings")}>
+            {panels}
+          </HubPanel>
+        </Enter>
+      ) : (
+        <Enter key="chat" style={styles.container} fromX={28}>
+          {chat}
+        </Enter>
+      )}
+      <JoinPrompt s={s} onOpenCircle={() => openHub("circle")} />
+      <Tour open={touring} step={tourStep} s={s} onStep={setTourStep} onShow={showStop} onEnd={endTour} />
+    </View>
+  );
 }
 
 function Settings({
@@ -439,6 +495,7 @@ function Settings({
   health,
   onOpenAbout,
   onRedoSetup,
+  onTour,
 }: {
   me: {
     email: string | null;
@@ -456,6 +513,7 @@ function Settings({
   health: HealthSync;
   onOpenAbout: () => void;
   onRedoSetup: () => void;
+  onTour: () => void;
 }) {
   const setLanguage = useMutation(api.chat.setLanguage);
   const setAppearance = useMutation(api.chat.setAppearance);
@@ -575,6 +633,9 @@ function Settings({
       </Pressable>
       <Pressable style={styles.settingButton} onPress={onRedoSetup} accessibilityRole="button">
         <Text style={styles.settingButtonText}>{s.redoSetup}</Text>
+      </Pressable>
+      <Pressable style={styles.settingButton} onPress={onTour} accessibilityRole="button">
+        <Text style={styles.settingButtonText}>{s.tourReplay}</Text>
       </Pressable>
       <View style={styles.settingRow}>
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>

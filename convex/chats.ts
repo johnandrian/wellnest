@@ -9,6 +9,7 @@ import { chatMessages, chatTitle, currentChatKey } from "./lib/chats";
 
 const MAX_LISTED = 50;
 const BATCH = 200;
+const SEARCH_HITS = 40;
 
 async function signedIn(ctx: QueryCtx) {
   const userId = await getAuthUserId(ctx);
@@ -54,6 +55,53 @@ export const list = query({
     return rows.map((r) => ({ _id: r._id as Id<"chats"> | null, title: r.title ?? "", lastAt: r.lastAt, current: r._id === user.chatId }));
   },
 });
+
+// The history's search box: chats with a message that matches, best match first, each with the matching line.
+export const search = query({
+  args: { text: v.string() },
+  handler: async (ctx, { text }) => {
+    const term = text.trim().slice(0, 100);
+    const userId = await getAuthUserId(ctx);
+    const user = userId ? await ctx.db.get(userId) : null;
+    if (!user || term.length < 2) return [];
+    const hits = (
+      await ctx.db
+        .query("messages")
+        .withSearchIndex("search_text", (q) => q.search("text", term).eq("userId", user._id))
+        .take(SEARCH_HITS)
+    ).filter((m) => m._creationTime > (user.chatClearedAt ?? 0));
+    // Messages without a chatId are the first chat: its legacy row once there are others, else no row yet.
+    const legacy = user.chatId
+      ? (await ctx.db.query("chats").withIndex("by_user_and_last", (q) => q.eq("userId", user._id)).order("desc").take(MAX_LISTED)).find((r) => r.legacy)
+      : undefined;
+    const out: { _id: Id<"chats"> | null; title: string; lastAt: number; current: boolean; snippet: string }[] = [];
+    const seen = new Set<string>();
+    for (const m of hits) {
+      const key = m.chatId ?? "first";
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const row = m.chatId ? await ctx.db.get(m.chatId) : legacy;
+      const snippet = snippetOf(m.text, term);
+      if (row && row.userId === user._id) {
+        out.push({ _id: row._id, title: row.title ?? "", lastAt: row.lastAt, current: row._id === user.chatId, snippet });
+      } else if (!m.chatId && !user.chatId) {
+        const first = await firstChat(ctx, user);
+        if (first) out.push({ _id: null, ...first, current: true, snippet });
+      }
+    }
+    return out;
+  },
+});
+
+// The words around the first match, on one line.
+export function snippetOf(text: string, term: string) {
+  const line = text.replace(/[*_#`]/g, "").replace(/\s+/g, " ").trim();
+  const word = term.toLowerCase().split(/\s+/)[0];
+  const at = Math.max(0, line.toLowerCase().indexOf(word));
+  const start = Math.max(0, at - 30);
+  const cut = line.slice(start, start + 90);
+  return `${start > 0 ? "…" : ""}${cut}${start + 90 < line.length ? "…" : ""}`;
+}
 
 // "New chat". Nothing happens while the current chat is still empty.
 export const start = mutation({

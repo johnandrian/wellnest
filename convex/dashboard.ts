@@ -105,7 +105,8 @@ export const view = query({
         answered: doses.length,
         lowSupply,
       },
-      visit: visit ? { title: visit.title, startsAt: visit.startsAt, kind: visit.kind } : null,
+      // With its suggested questions (convex/questions.ts), shown on the dashboard in the week before.
+      visit: visit ? { _id: visit._id, title: visit.title, startsAt: visit.startsAt, kind: visit.kind, questions: visit.questions ?? [] } : null,
     };
   },
 });
