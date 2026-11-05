@@ -8,7 +8,7 @@ import { language } from "./lib/language";
 import { entrySource } from "./lib/journal";
 import { slot, urgency as visitUrgency } from "./lib/telehealth";
 import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
-import { asthmaDetails, painDetails, seizureDetails, tracker } from "./lib/trackers";
+import { asthmaDetails, glucoseDetails, painDetails, seizureDetails, tracker } from "./lib/trackers";
 import { section } from "./lib/report";
 import { asthmaPlan, contact, planSection } from "./lib/emergency";
 import { chartValidator } from "./lib/insights";
@@ -351,6 +351,7 @@ export default defineSchema({
     pain: v.optional(painDetails),
     asthma: v.optional(asthmaDetails),
     seizure: v.optional(seizureDetails),
+    glucose: v.optional(glucoseDetails),
     note: v.optional(v.string()),
     source: v.union(v.literal("manual"), v.literal("chat")),
   }).index("by_user_and_date", ["userId", "date"]),

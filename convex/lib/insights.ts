@@ -7,19 +7,19 @@ import type { Entry, DailyLog } from "./journal";
 import type { HealthDay } from "./health";
 import type { TrackerEntry } from "./trackers";
 import type { WeatherDay } from "./weather";
-import { DEFAULT_UNITS, showWeight, type Units } from "./units";
+import { DEFAULT_UNITS, showGlucose, showWeight, type Units } from "./units";
 
 export type Series = Map<string, number>; // date -> value
 
 // What the user wants to get better. `worse`: which direction is bad. `min`: the smallest gap worth a mention.
 // Weight has no bad direction ("none"): it's shown before and after medication changes and in the weekly summary,
 // but never called better or worse, and patterns aren't looked for in it.
-export type OutcomeKey = "pain" | "mood" | "energy" | "sleepQuality" | "peakFlow" | "reliever" | "seizures" | "weight" | `symptom:${string}`;
+export type OutcomeKey = "pain" | "mood" | "energy" | "sleepQuality" | "peakFlow" | "reliever" | "seizures" | "glucose" | "weight" | `symptom:${string}`;
 export type Outcome = { key: OutcomeKey; worse: "high" | "low" | "none"; min: number; values: Series };
 
 // Things that might go with it. `lag` 1 means the day before counts (yesterday's steps, today's pain).
 export const FACTOR_KEYS = [
-  "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period", "weightGain",
+  "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period", "weightGain", "glucose",
   "tempMax", "humidity", "pressureDrop", "rain", "aqi", "pollen",
 ] as const;
 export type FactorKey = (typeof FACTOR_KEYS)[number];
@@ -117,8 +117,22 @@ export function outcomes(input: Inputs, dates: string[]): Outcome[] {
     out.push({ key: "seizures", worse: "high", min: 0.2, values: new Map(dates.filter((d) => d >= first).map((d) => [d, counts.get(d) ?? 0])) });
   }
 
+  const glucose = glucoseSeries(input);
+  if (glucose.size) out.push({ key: "glucose", worse: "high", min: 10, values: glucose });
+
   const weight = weightSeries(input);
   if (weight.size) out.push({ key: "weight", worse: "none", min: WEIGHT_STEP_KG, values: weight });
+  return out;
+}
+
+// The day's average glucose (mg/dL): from a sensor or meter in the phone's health data when there is one, else the
+// average of the readings logged in the glucose tracker.
+function glucoseSeries(input: Inputs): Series {
+  const out: Series = new Map();
+  const logged = new Map<string, number[]>();
+  for (const e of input.trackers) if (e.glucose) logged.set(e.date, [...(logged.get(e.date) ?? []), e.glucose.value]);
+  for (const [date, xs] of logged) out.set(date, mean(xs));
+  for (const d of input.health) if (d.metrics.glucoseAvg !== undefined) out.set(d.date, d.metrics.glucoseAvg);
   return out;
 }
 
@@ -170,6 +184,7 @@ function factors(input: Inputs): Factor[] {
       step: 1,
     },
     { key: "weightGain", values: weightGain(weightSeries(input)), lag: 0, binary: true, step: 1 },
+    { key: "glucose", values: glucoseSeries(input), lag: 0, step: 10 },
     { key: "tempMax", values: weather((w) => w.tempMax), lag: 0, step: 1 },
     { key: "humidity", values: weather((w) => w.humidity), lag: 0, step: 5 },
     { key: "pressureDrop", values: pressureDrop, lag: 0, binary: true, step: 1 },
@@ -294,7 +309,7 @@ export function medEffects(input: Inputs, changes: MedChange[], dates: string[],
 
 export const CHART_METRICS = [
   "pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv",
-  "weightKg", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen",
+  "weightKg", "glucose", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen",
 ] as const;
 export type ChartMetric = (typeof CHART_METRICS)[number];
 
@@ -338,6 +353,7 @@ export function chartMarks(changes: MedChange[], from: string, to: string): Char
 const SCALE: Partial<Record<ChartMetric, number>> = { pain: 10, symptom: 10, mood: 5, energy: 5, sleepQuality: 5 };
 const WORSE: Partial<Record<ChartMetric, "high" | "low">> = {
   pain: "high", symptom: "high", mood: "low", energy: "low", sleepQuality: "low", peakFlow: "low", reliever: "high", seizures: "high", aqi: "high", pollen: "high",
+  glucose: "high",
 };
 
 // One value per day for a chart, oldest first, in the user's units. `symptom` picks a journal symptom by name.
@@ -351,6 +367,8 @@ export function chartSeries(
   let values: Series;
   if (metric === "symptom") {
     values = maxBy(input.entries.flatMap((e): [string, number][] => (e.symptom === symptom && e.severity !== undefined ? [[e.date, e.severity]] : [])));
+  } else if (metric === "glucose") {
+    values = glucoseSeries(input);
   } else if (["pain", "mood", "energy", "sleepQuality", "peakFlow", "reliever", "seizures"].includes(metric)) {
     values = outcomes(input, dates).find((o) => o.key === metric)?.values ?? new Map();
   } else if (metric === "tempMax" || metric === "aqi" || metric === "pollen") {
@@ -359,7 +377,7 @@ export function chartSeries(
     const key = metric === "hrv" ? "hrvMs" : (metric as "sleepHours" | "steps" | "restingHeartRate" | "weightKg");
     values = new Map(input.health.flatMap((d): [string, number][] => (d.metrics[key] === undefined ? [] : [[d.date, d.metrics[key]!]])));
   }
-  const show = (x: number) => (metric === "weightKg" ? showWeight(x, units) : x);
+  const show = (x: number) => (metric === "weightKg" ? showWeight(x, units) : metric === "glucose" ? showGlucose(x, units) : x);
   const points = dates.flatMap((date) => (values.has(date) ? [{ date, value: r1(show(values.get(date)!)) }] : []));
   const top = Math.max(0, ...points.map((p) => p.value));
   const out = { points, max: SCALE[metric] ?? (top || 1), worse: WORSE[metric] ?? ("none" as const) };

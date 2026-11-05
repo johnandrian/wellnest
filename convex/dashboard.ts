@@ -20,11 +20,12 @@ const BY_FOCUS: Record<string, ChartMetric[]> = {
   pain: ["pain"],
   asthma: ["peakFlow", "reliever"],
   seizures: ["seizures"],
+  diabetes: ["glucose", "weightKg"],
   symptoms: ["symptom"],
   mood: ["mood", "sleepQuality"],
   wellness: ["steps", "sleepHours"],
 };
-const FALLBACK: ChartMetric[] = ["symptom", "pain", "mood", "sleepHours", "energy", "steps", "peakFlow", "seizures", "restingHeartRate", "sleepQuality"];
+const FALLBACK: ChartMetric[] = ["symptom", "pain", "glucose", "mood", "sleepHours", "energy", "steps", "peakFlow", "seizures", "weightKg", "restingHeartRate", "sleepQuality"];
 
 const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
 
@@ -59,6 +60,8 @@ export const view = query({
       if (!series.points.length) continue;
       const week = series.points.filter((p) => p.date >= weekStart).map((p) => p.value);
       const prev = series.points.filter((p) => p.date >= prevStart && p.date < weekStart).map((p) => p.value);
+      // Glucose in mg/dL reads as a whole number, like the readings themselves.
+      const whole = (n: number | null) => (n !== null && metric === "glucose" && units.glucose === "mg/dL" ? Math.round(n) : n);
       charts.push({
         metric,
         ...chartName(metric, lang, topSymptom, units),
@@ -67,8 +70,8 @@ export const view = query({
         ...series,
         meds: marks,
         latest: series.points[series.points.length - 1],
-        week: avg(week),
-        prevWeek: week.length >= 2 && prev.length >= 2 ? avg(prev) : null,
+        week: whole(avg(week)),
+        prevWeek: week.length >= 2 && prev.length >= 2 ? whole(avg(prev)) : null,
       });
     }
 

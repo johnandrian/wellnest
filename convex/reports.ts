@@ -5,6 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { buildReport, ReportMed, Section, section } from "./lib/report";
+import { unitsOf } from "./lib/units";
 import { isDate } from "./lib/health";
 import { langOf } from "./lib/language";
 import { describeSchedule } from "./lib/reminders";
@@ -83,6 +84,7 @@ export async function gather(ctx: QueryCtx, userId: Id<"users">, from: string, t
     daily: want("journal") ? (await dailySince(ctx, userId, from)).filter((d) => d.date <= to) : [],
     trackers: want("trackers") ? trackers : [],
     peakFlowBest: user?.peakFlowBest,
+    units: unitsOf(user),
     exercises: want("exercises") ? (await adherence(ctx, userId, from, to)).text : "",
     health: want("health") ? health : [],
     appointments: want("appointments") ? await visitsText(ctx, userId, fromMs, toMs + 60 * DAY_MS, user?.timeZone ?? "UTC") : "",

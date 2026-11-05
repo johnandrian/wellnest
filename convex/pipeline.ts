@@ -14,7 +14,7 @@ import { aboutUserText } from "./lib/onboarding";
 import { localToday } from "./journal";
 import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
-import { unitsOf } from "./lib/units";
+import { glucoseToMgdl, unitsOf } from "./lib/units";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -217,8 +217,8 @@ export const respond = internalAction({
             });
           }
           if (name === "log_condition_event") {
-            const tracker = args.tracker === "pain" || args.tracker === "asthma" || args.tracker === "seizure" ? args.tracker : null;
-            if (!tracker) return Promise.resolve('Tool error: tracker must be "pain", "asthma" or "seizure".');
+            const tracker = args.tracker === "pain" || args.tracker === "asthma" || args.tracker === "seizure" || args.tracker === "glucose" ? args.tracker : null;
+            if (!tracker) return Promise.resolve('Tool error: tracker must be "pain", "asthma", "seizure", or "glucose".');
             const a = args as Record<string, any>;
             return ctx.runMutation(internal.trackers.fromChat, {
               userId,
@@ -237,6 +237,11 @@ export const respond = internalAction({
               seizure: tracker === "seizure" ? {
                 type: a.seizure_type, durationSec: a.duration_seconds, aura: a.aura, triggers: a.triggers,
                 rescueMed: a.rescue_med, recoveryMin: a.recovery_min, witness: a.witness,
+              } : undefined,
+              // Stored in mg/dL; small numbers are mmol/L even when the unit was left out.
+              glucose: tracker === "glucose" && typeof a.glucose_value === "number" ? {
+                value: glucoseToMgdl(a.glucose_value, a.glucose_unit === "mmol/L" || (a.glucose_unit !== "mg/dL" && a.glucose_value < 35) ? "mmol/L" : "mg/dL"),
+                context: a.glucose_context,
               } : undefined,
             });
           }

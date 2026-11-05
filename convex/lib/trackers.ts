@@ -1,6 +1,7 @@
-// Condition trackers: pain / CRPS, asthma and seizures, each with its own fields (convex/trackers.ts).
-// Validation, the option lists the app shows, and the text the model, visit summaries and reports read.
+// Condition trackers: pain / CRPS, asthma, seizures, and glucose, each with its own fields (convex/trackers.ts).
+// Validation, the option lists the app shows, and the text the model, visit summaries, and reports read.
 import { Infer, v } from "convex/values";
+import { DEFAULT_UNITS, fmtGlucose, type Units } from "./units";
 
 export const PAIN_LOCATIONS = [
   "head", "neck", "shoulders", "chest", "upper_back", "lower_back", "abdomen", "hips",
@@ -9,8 +10,9 @@ export const PAIN_LOCATIONS = [
 export const PAIN_TYPES = ["aching", "burning", "stabbing", "throbbing", "shooting", "tingling", "cramping", "pressure"] as const;
 export const ASTHMA_SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathless"] as const;
 export const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] as const;
+export const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
 
-export const tracker = v.union(v.literal("pain"), v.literal("asthma"), v.literal("seizure"));
+export const tracker = v.union(v.literal("pain"), v.literal("asthma"), v.literal("seizure"), v.literal("glucose"));
 export type Tracker = Infer<typeof tracker>;
 
 export const painDetails = v.object({
@@ -44,6 +46,12 @@ export const seizureDetails = v.object({
   recoveryMin: v.optional(v.number()),
   witness: v.optional(v.string()),
 });
+// A finger-stick (or any single) glucose reading, always stored in mg/dL; the app converts from mmol/L.
+export const glucoseDetails = v.object({
+  value: v.number(), // mg/dL
+  context: v.optional(v.string()), // one of GLUCOSE_CONTEXTS
+});
+export type GlucoseDetails = Infer<typeof glucoseDetails>;
 export type PainDetails = Infer<typeof painDetails>;
 export type AsthmaDetails = Infer<typeof asthmaDetails>;
 export type SeizureDetails = Infer<typeof seizureDetails>;
@@ -90,6 +98,12 @@ export function cleanAsthma(a: Partial<AsthmaDetails>): AsthmaDetails | { error:
   return out;
 }
 
+export function cleanGlucose(g: Partial<GlucoseDetails>): GlucoseDetails | { error: string } {
+  const value = num(g.value, 20, 600);
+  if (value === undefined) return { error: "Give a glucose reading between 20 and 600 mg/dL (1.1 to 33.3 mmol/L)." };
+  return { value: Math.round(value), context: (GLUCOSE_CONTEXTS as readonly string[]).includes(g.context ?? "") ? g.context : undefined };
+}
+
 export function cleanSeizure(s: Partial<SeizureDetails>): SeizureDetails {
   return {
     type: (SEIZURE_TYPES as readonly string[]).includes(s.type ?? "") ? s.type : undefined,
@@ -109,6 +123,7 @@ export type TrackerEntry = {
   pain?: PainDetails;
   asthma?: AsthmaDetails;
   seizure?: SeizureDetails;
+  glucose?: GlucoseDetails;
   note?: string;
 };
 
@@ -116,7 +131,10 @@ const human = (s: string) => s.replace(/_/g, " ");
 const flags = (p: PainDetails) =>
   [p.flare && "flare", p.swelling && "swelling", p.colourChange && "color change", p.temperatureChange && "temperature change", p.touchSensitive && "touch-sensitive"].filter(Boolean);
 
-export function entryLine(e: TrackerEntry, peakFlowBest?: number): string {
+export function entryLine(e: TrackerEntry, peakFlowBest?: number, units: Units = DEFAULT_UNITS): string {
+  if (e.tracker === "glucose" && e.glucose) {
+    return `glucose ${fmtGlucose(e.glucose.value, units)}${e.glucose.context ? ` (${human(e.glucose.context)})` : ""}`;
+  }
   if (e.tracker === "pain" && e.pain) {
     const p = e.pain;
     return [
@@ -163,7 +181,7 @@ export function painAsEntries(entries: TrackerEntry[]) {
 }
 
 // Summary lines per tracker, then the entries: for the model, visit summaries and reports.
-export function trackersText(entries: TrackerEntry[], peakFlowBest?: number): string {
+export function trackersText(entries: TrackerEntry[], peakFlowBest?: number, units: Units = DEFAULT_UNITS): string {
   if (!entries.length) return "";
   const out: string[] = [];
   const pain = entries.filter((e) => e.pain);
@@ -187,5 +205,11 @@ export function trackersText(entries: TrackerEntry[], peakFlowBest?: number): st
     const rescue = seizures.filter((e) => e.seizure!.rescueMed).length;
     out.push(`Seizures: ${seizures.length}${rescue ? `, rescue medication ${rescue} times` : ""}.`);
   }
-  return out.join("\n") + "\n" + entries.map((e) => `${e.date}: ${entryLine(e, peakFlowBest)}${e.note ? ` (${e.note})` : ""}`).join("\n");
+  const glucose = entries.flatMap((e) => (e.glucose ? [e.glucose.value] : []));
+  if (glucose.length) {
+    const avg = glucose.reduce((a, b) => a + b, 0) / glucose.length;
+    const range = `${fmtGlucose(Math.min(...glucose), units)} to ${fmtGlucose(Math.max(...glucose), units)}`;
+    out.push(`Glucose: ${glucose.length} readings, average ${fmtGlucose(avg, units)}, ${range}.`);
+  }
+  return out.join("\n") + "\n" + entries.map((e) => `${e.date}: ${entryLine(e, peakFlowBest, units)}${e.note ? ` (${e.note})` : ""}`).join("\n");
 }

@@ -2,6 +2,7 @@
 // usual numbers, and word a gentle question. Never a diagnosis. Used by convex/checkins.ts.
 import type { HealthDay, HealthMetrics } from "./health";
 import type { Lang } from "./language";
+import { DEFAULT_UNITS, fmtGlucose, type Units } from "./units";
 
 export type Signal =
   | { kind: "illness"; hr: number; hrBase: number; temp: number }
@@ -11,7 +12,8 @@ export type Signal =
   | { kind: "oxygen"; spo2: number; base: number }
   | { kind: "sleep"; nights: number; avg: number }
   | { kind: "hrv"; hrv: number; base: number }
-  | { kind: "activity"; steps: number; base: number };
+  | { kind: "activity"; steps: number; base: number }
+  | { kind: "glucose"; avg: number; base: number }; // mg/dL
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined);
 const MIN_BASELINE = 5; // days of history needed before anything counts as "unusual"
@@ -48,6 +50,13 @@ export function detect(days: HealthDay[], today: string): Signal | null {
   }
   if (hrUp >= 7) return { kind: "heart_rate", hr: round(mean(hr.recent)!), hrBase: round(mean(hr.base)!) };
 
+  // Glucose well above their own usual for two days (a sensor or meter in the phone's health data).
+  const glucose = split(days, "glucoseAvg", 2);
+  if (glucose.recent.length === 2 && glucose.base.length >= MIN_BASELINE) {
+    const [now, usual] = [mean(glucose.recent)!, mean(glucose.base)!];
+    if (now >= usual * 1.15 && now - usual >= 20) return { kind: "glucose", avg: round(now), base: round(usual) };
+  }
+
   const sleep = split(days, "sleepHours", 3);
   if (sleep.recent.length === 3 && sleep.recent.every((h) => h < 6)) return { kind: "sleep", nights: 3, avg: round1(mean(sleep.recent)!) };
 
@@ -72,7 +81,8 @@ export function shift(date: string, days: number) {
 const n = (x: number, lang: Lang) => x.toLocaleString(lang === "el" ? "el-GR" : lang === "es" ? "es-ES" : lang === "zh" ? "zh-CN" : "en-US");
 
 // The check-in message. Each one ends by inviting a reply, which the normal chat (and journal) handles.
-export function checkinText(s: Signal, lang: Lang): string {
+export function checkinText(s: Signal, lang: Lang, units: Units = DEFAULT_UNITS): string {
+  const g = (mgdl: number) => fmtGlucose(mgdl, units, lang === "el" ? "el-GR" : lang === "es" ? "es-ES" : lang === "zh" ? "zh-CN" : "en-US");
   const T: Record<Lang, Record<Signal["kind"], (s: any) => string>> = {
     en: {
       illness: (s) => `Your resting heart rate has been ${n(s.hr, lang)} bpm the last two days, up from your usual ${n(s.hrBase, lang)}, and your wrist temperature is ${n(s.temp, lang)}°C above normal. That can happen when your body is fighting something off. How are you feeling?`,
@@ -83,6 +93,7 @@ export function checkinText(s: Signal, lang: Lang): string {
       sleep: (s) => `You've slept under 6 hours three nights in a row (about ${n(s.avg, lang)} hours on average). How are you feeling? I can share a few things that help with sleep if you'd like.`,
       hrv: (s) => `Your heart rate variability has dropped to about ${n(s.hrv, lang)} ms from your usual ${n(s.base, lang)}. That often goes with stress, short sleep or getting sick. How are you feeling?`,
       activity: (s) => `You've been a lot less active the last few days (about ${n(s.steps, lang)} steps a day, versus your usual ${n(s.base, lang)}). Just checking in: how are you feeling?`,
+      glucose: (s) => `Your glucose has averaged ${g(s.avg)} the last two days, higher than your usual ${g(s.base)}. Short sleep, stress, a missed dose, or getting sick can all push it up. How are you doing?`,
     },
     es: {
       illness: (s) => `Tu frecuencia cardiaca en reposo ha estado en ${n(s.hr, lang)} lpm los últimos dos días, más que tu habitual ${n(s.hrBase, lang)}, y la temperatura de tu muñeca está ${n(s.temp, lang)} °C por encima de lo normal. Puede pasar cuando el cuerpo combate algo. ¿Cómo te sientes?`,
@@ -93,6 +104,7 @@ export function checkinText(s: Signal, lang: Lang): string {
       sleep: (s) => `Has dormido menos de 6 horas tres noches seguidas (unas ${n(s.avg, lang)} horas de media). ¿Cómo te sientes? Si quieres, te comparto algunas cosas que ayudan a dormir.`,
       hrv: (s) => `Tu variabilidad de la frecuencia cardiaca bajó a unos ${n(s.hrv, lang)} ms desde tu habitual ${n(s.base, lang)}. Suele ir con estrés, poco sueño o enfermarse. ¿Cómo te sientes?`,
       activity: (s) => `Has estado mucho menos activo estos días (unos ${n(s.steps, lang)} pasos al día, frente a tus ${n(s.base, lang)} habituales). Solo quería saber: ¿cómo te sientes?`,
+      glucose: (s) => `Tu glucosa ha estado en ${g(s.avg)} de media los últimos dos días, más alta que tu habitual ${g(s.base)}. Dormir poco, el estrés, olvidar una dosis o enfermarse pueden subirla. ¿Cómo estás?`,
     },
     el: {
       illness: (s) => `Οι παλμοί σου σε ηρεμία είναι ${n(s.hr, lang)} bpm τις τελευταίες δύο μέρες, πάνω από τους συνηθισμένους ${n(s.hrBase, lang)}, και η θερμοκρασία στον καρπό σου είναι ${n(s.temp, lang)}°C πάνω από το κανονικό. Συμβαίνει όταν ο οργανισμός παλεύει με κάτι. Πώς νιώθεις;`,
@@ -103,6 +115,7 @@ export function checkinText(s: Signal, lang: Lang): string {
       sleep: (s) => `Κοιμήθηκες λιγότερο από 6 ώρες τρεις νύχτες στη σειρά (περίπου ${n(s.avg, lang)} ώρες κατά μέσο όρο). Πώς νιώθεις; Αν θέλεις, σου λέω μερικά πράγματα που βοηθούν στον ύπνο.`,
       hrv: (s) => `Η μεταβλητότητα των παλμών σου έπεσε περίπου στα ${n(s.hrv, lang)} ms από τα συνηθισμένα ${n(s.base, lang)}. Συχνά συνδέεται με άγχος, λίγο ύπνο ή αρρώστια. Πώς νιώθεις;`,
       activity: (s) => `Ήσουν πολύ λιγότερο δραστήριος/α τις τελευταίες μέρες (περίπου ${n(s.steps, lang)} βήματα τη μέρα, έναντι των συνηθισμένων ${n(s.base, lang)}). Απλώς ρωτάω: πώς νιώθεις;`,
+      glucose: (s) => `Η γλυκόζη σου ήταν κατά μέσο όρο ${g(s.avg)} τις τελευταίες δύο μέρες, πάνω από τη συνηθισμένη ${g(s.base)}. Ο λίγος ύπνος, το άγχος, μια δόση που ξεχάστηκε ή μια αρρώστια μπορούν να την ανεβάσουν. Πώς είσαι;`,
     },
     zh: {
       illness: (s) => `过去两天你的静息心率是 ${n(s.hr, lang)} 次/分，高于你平常的 ${n(s.hrBase, lang)}，手腕温度也比平时高 ${n(s.temp, lang)}°C。身体在对抗病菌时可能会这样。你感觉怎么样？`,
@@ -113,6 +126,7 @@ export function checkinText(s: Signal, lang: Lang): string {
       sleep: (s) => `你已经连续三晚睡眠不足 6 小时（平均约 ${n(s.avg, lang)} 小时）。你感觉怎么样？如果需要，我可以分享一些有助于睡眠的方法。`,
       hrv: (s) => `你的心率变异性已降至约 ${n(s.hrv, lang)} 毫秒，而平常是 ${n(s.base, lang)} 毫秒。这通常与压力、睡眠不足或生病有关。你感觉怎么样？`,
       activity: (s) => `最近几天你的活动量少了很多（每天约 ${n(s.steps, lang)} 步，平常是 ${n(s.base, lang)} 步）。想问问你：感觉怎么样？`,
+      glucose: (s) => `过去两天你的血糖平均为 ${g(s.avg)}，高于你平常的 ${g(s.base)}。睡眠不足、压力、漏服药物或生病都可能使血糖升高。你还好吗？`,
     },
   };
   return `🩺 ${T[lang][s.kind](s)}`;

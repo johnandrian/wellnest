@@ -64,8 +64,8 @@ export const healthDataTool: ToolDef = {
     name: "get_health_data",
     description:
       "Read the user's daily health summaries from Apple Health or Health Connect (steps, resting heart rate, HRV, sleep, breathing rate, SpO2, wrist " +
-      "temperature, weight, logged periods) with averages and recent changes. Use when their metrics could help answer, " +
-      "e.g. tiredness, sleep, possible illness, heart rate, cycle questions.",
+      "temperature, weight, glucose from a sensor or meter, logged periods) with averages and recent changes. Use when their metrics could help answer, " +
+      "e.g. tiredness, sleep, possible illness, heart rate, glucose, weight, or cycle questions.",
     parameters: {
       type: "object",
       properties: { days: { type: "integer", description: "How many days back, 1-90 (default 14; use 90 for cycle questions)" } },
@@ -219,13 +219,14 @@ export const journalTools: ToolDef[] = [
     function: {
       name: "log_condition_event",
       description:
-        "Log a pain / CRPS episode, an asthma reading or attack, or a seizure in the user's condition trackers when they " +
-        "describe one. Fill in only what they said. Several entries a day are fine. Mention briefly that you logged it. " +
-        "For a seizure that's happening now or lasted over 5 minutes, tell them to call emergency services first.",
+        "Log a pain / CRPS episode, an asthma reading or attack, a seizure, or a blood glucose reading in the user's condition " +
+        "trackers when they describe one. Fill in only what they said. Several entries a day are fine. Mention briefly that you logged it. " +
+        "For a seizure that's happening now or lasted over 5 minutes, tell them to call emergency services first. For a glucose " +
+        "reading under 70 mg/dL (3.9 mmol/L) with symptoms, or one they say is very high with vomiting or confusion, give the urgent advice first.",
       parameters: {
         type: "object",
         properties: {
-          tracker: { type: "string", enum: ["pain", "asthma", "seizure"] },
+          tracker: { type: "string", enum: ["pain", "asthma", "seizure", "glucose"] },
           date: { type: "string", description: "YYYY-MM-DD if not today" },
           note: { type: "string" },
           severity: { type: "integer", description: "pain: 0-10" },
@@ -254,6 +255,9 @@ export const journalTools: ToolDef[] = [
           rescue_med: { type: "boolean" },
           recovery_min: { type: "number" },
           witness: { type: "string", description: "what someone who saw it said" },
+          glucose_value: { type: "number", description: "glucose: the reading as they said it" },
+          glucose_unit: { type: "string", enum: ["mg/dL", "mmol/L"], description: "glucose: the reading's unit; values under 35 are almost always mmol/L" },
+          glucose_context: { type: "string", enum: ["fasting", "before_meal", "after_meal", "bedtime", "other"] },
         },
         required: ["tracker"],
       },
@@ -383,9 +387,9 @@ export const insightTools: ToolDef[] = [
       name: "find_patterns",
       description:
         "Find what goes with the user's worse days, from their own logs over the last 90 days: pain, symptoms, mood, " +
-        "energy, peak flow and seizures against sleep, activity, resting heart rate, HRV, periods, and local weather, " +
-        "air pressure, humidity, air quality and pollen. Also how things changed after they started a medication or " +
-        "changed its dose, and today's and tomorrow's local weather. Use when they ask what triggers something, why " +
+        "energy, peak flow, seizures, and glucose against sleep, activity, resting heart rate, HRV, periods, weight gain, glucose, " +
+        "and local weather, air pressure, humidity, air quality, and pollen. Also how things (including weight) changed after they " +
+        "started a medication or changed its dose, and today's and tomorrow's local weather. Use when they ask what triggers something, why " +
         "they feel worse, whether a medication is working, or what to watch out for. These are associations; say so.",
       parameters: { type: "object", properties: {} },
     },
@@ -403,7 +407,7 @@ export const insightTools: ToolDef[] = [
         properties: {
           metric: {
             type: "string",
-            enum: ["pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv", "weightKg", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen"],
+            enum: ["pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv", "weightKg", "glucose", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen"],
           },
           symptom: { type: "string", description: "For metric symptom: which one, e.g. 'headache'" },
           days: { type: "integer", description: "7-180, default 30" },

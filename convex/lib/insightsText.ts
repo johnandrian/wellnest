@@ -3,17 +3,17 @@
 import type { Lang } from "./language";
 import type { ChartMetric, FactorKey, ForecastMatch, MedEffect, OutcomeKey, Pattern, WEATHER_FACTORS, WeekStat } from "./insights";
 import { aqiBand, pollenBand, type WeatherDay } from "./weather";
-import { DEFAULT_UNITS, fmtWeight, type Units } from "./units";
+import { DEFAULT_UNITS, fmtGlucose, fmtWeight, type Units } from "./units";
 
 const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-ES", el: "el-GR", zh: "zh-CN" };
 const num = (n: number, lang: Lang) => n.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const OUTCOMES: Record<Lang, Record<Exclude<OutcomeKey, `symptom:${string}`>, string>> = {
-  en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures", weight: "weight" },
-  es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis", weight: "peso" },
-  el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις", weight: "βάρος" },
-  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作", weight: "体重" },
+  en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures", glucose: "glucose", weight: "weight" },
+  es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis", glucose: "glucosa", weight: "peso" },
+  el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις", glucose: "γλυκόζη", weight: "βάρος" },
+  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作", glucose: "血糖", weight: "体重" },
 };
 
 export function outcomeName(key: OutcomeKey, lang: Lang): string {
@@ -24,6 +24,7 @@ export function outcomeName(key: OutcomeKey, lang: Lang): string {
 export function outcomeValue(key: OutcomeKey, n: number, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const perDay = { en: "a day", es: "al día", el: "τη μέρα", zh: "次/天" }[lang];
   if (key === "weight") return fmtWeight(n, units, LOCALE[lang]);
+  if (key === "glucose") return fmtGlucose(n, units, LOCALE[lang]);
   if (key === "pain" || key.startsWith("symptom:")) return `${num(n, lang)}/10`;
   if (key === "mood" || key === "energy" || key === "sleepQuality") return `${num(n, lang)}/5`;
   if (key === "peakFlow") return `${num(n, lang)} L/min`;
@@ -40,6 +41,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     hrv: { below: "HRV under {t} ms", atLeast: "HRV of {t}+ ms" },
     period: { yes: "a period" },
     weightGain: { yes: "a weight gain of {g} or more over 3 days" },
+    glucose: { below: "average glucose under {t}", atLeast: "average glucose of {t} or more" },
     tempMax: { below: "highs under {t}°C", atLeast: "highs of {t}°C or more" },
     humidity: { below: "humidity under {t}%", atLeast: "humidity of {t}% or more" },
     pressureDrop: { yes: "a drop in air pressure" },
@@ -55,6 +57,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     hrv: { below: "VFC menor de {t} ms", atLeast: "VFC de {t} ms o más" },
     period: { yes: "regla" },
     weightGain: { yes: "un aumento de peso de {g} o más en 3 días" },
+    glucose: { below: "glucosa media menor de {t}", atLeast: "glucosa media de {t} o más" },
     tempMax: { below: "máximas de menos de {t} °C", atLeast: "máximas de {t} °C o más" },
     humidity: { below: "humedad menor del {t} %", atLeast: "humedad del {t} % o más" },
     pressureDrop: { yes: "una bajada de la presión atmosférica" },
@@ -70,6 +73,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     hrv: { below: "HRV κάτω από {t} ms", atLeast: "HRV {t}+ ms" },
     period: { yes: "περίοδο" },
     weightGain: { yes: "αύξηση βάρους {g} ή περισσότερο μέσα σε 3 μέρες" },
+    glucose: { below: "μέση γλυκόζη κάτω από {t}", atLeast: "μέση γλυκόζη {t} ή παραπάνω" },
     tempMax: { below: "μέγιστη θερμοκρασία κάτω από {t}°C", atLeast: "μέγιστη θερμοκρασία {t}°C ή παραπάνω" },
     humidity: { below: "υγρασία κάτω από {t}%", atLeast: "υγρασία {t}% ή παραπάνω" },
     pressureDrop: { yes: "πτώση της ατμοσφαιρικής πίεσης" },
@@ -85,6 +89,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     hrv: { below: "HRV 低于 {t} 毫秒", atLeast: "HRV {t} 毫秒或以上" },
     period: { yes: "经期" },
     weightGain: { yes: "3 天内体重增加 {g} 或以上" },
+    glucose: { below: "平均血糖低于 {t}", atLeast: "平均血糖 {t} 或以上" },
     tempMax: { below: "最高气温低于 {t}°C", atLeast: "最高气温 {t}°C 或以上" },
     humidity: { below: "湿度低于 {t}%", atLeast: "湿度 {t}% 或以上" },
     pressureDrop: { yes: "气压下降" },
@@ -95,7 +100,14 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
 };
 
 export function conditionText(p: Pick<Pattern, "factor" | "side" | "threshold">, lang: Lang, units: Units = DEFAULT_UNITS): string {
-  const t = p.threshold === undefined ? "" : p.factor === "steps" ? Math.round(p.threshold).toLocaleString(LOCALE[lang]) : num(p.threshold, lang);
+  const t =
+    p.threshold === undefined
+      ? ""
+      : p.factor === "steps"
+        ? Math.round(p.threshold).toLocaleString(LOCALE[lang])
+        : p.factor === "glucose"
+          ? fmtGlucose(p.threshold, units, LOCALE[lang])
+          : num(p.threshold, lang);
   // The weight gain step (1 kg) in the user's unit, rounded: "2 lb" or "1 kg".
   const g = units.weight === "lb" ? "2 lb" : "1 kg";
   return (FACTORS[lang][p.factor][p.side] ?? "").replace("{t}", t).replace("{g}", g);
@@ -175,25 +187,25 @@ export function weatherLine(w: WeatherDay, lang: Lang): string {
 const CHART_NAMES: Record<Lang, Record<Exclude<ChartMetric, "symptom">, [string, string]>> = {
   en: {
     pain: ["Pain", "/10"], mood: ["Mood", "/5"], energy: ["Energy", "/5"], sleepQuality: ["Sleep quality", "/5"], sleepHours: ["Sleep", "h"],
-    steps: ["Steps", ""], restingHeartRate: ["Resting heart rate", "bpm"], hrv: ["HRV", "ms"], weightKg: ["Weight", "kg"],
+    steps: ["Steps", ""], restingHeartRate: ["Resting heart rate", "bpm"], hrv: ["HRV", "ms"], weightKg: ["Weight", "kg"], glucose: ["Glucose", "mg/dL"],
     peakFlow: ["Peak flow", "L/min"], reliever: ["Reliever puffs", ""], seizures: ["Seizures", ""], tempMax: ["Daily high", "°C"],
     aqi: ["Air quality index", ""], pollen: ["Pollen", "grains/m³"],
   },
   es: {
     pain: ["Dolor", "/10"], mood: ["Ánimo", "/5"], energy: ["Energía", "/5"], sleepQuality: ["Calidad del sueño", "/5"], sleepHours: ["Sueño", "h"],
-    steps: ["Pasos", ""], restingHeartRate: ["Pulso en reposo", "lpm"], hrv: ["VFC", "ms"], weightKg: ["Peso", "kg"],
+    steps: ["Pasos", ""], restingHeartRate: ["Pulso en reposo", "lpm"], hrv: ["VFC", "ms"], weightKg: ["Peso", "kg"], glucose: ["Glucosa", "mg/dL"],
     peakFlow: ["Flujo máximo", "L/min"], reliever: ["Inhalaciones de rescate", ""], seizures: ["Crisis", ""], tempMax: ["Máxima", "°C"],
     aqi: ["Índice de calidad del aire", ""], pollen: ["Polen", "granos/m³"],
   },
   el: {
     pain: ["Πόνος", "/10"], mood: ["Διάθεση", "/5"], energy: ["Ενέργεια", "/5"], sleepQuality: ["Ποιότητα ύπνου", "/5"], sleepHours: ["Ύπνος", "ώρες"],
-    steps: ["Βήματα", ""], restingHeartRate: ["Παλμοί ηρεμίας", "bpm"], hrv: ["HRV", "ms"], weightKg: ["Βάρος", "kg"],
+    steps: ["Βήματα", ""], restingHeartRate: ["Παλμοί ηρεμίας", "bpm"], hrv: ["HRV", "ms"], weightKg: ["Βάρος", "kg"], glucose: ["Γλυκόζη", "mg/dL"],
     peakFlow: ["Μέγιστη ροή", "L/min"], reliever: ["Εισπνοές ανακουφιστικού", ""], seizures: ["Κρίσεις", ""], tempMax: ["Μέγιστη", "°C"],
     aqi: ["Δείκτης ποιότητας αέρα", ""], pollen: ["Γύρη", "κόκκοι/m³"],
   },
   zh: {
     pain: ["疼痛", "/10"], mood: ["心情", "/5"], energy: ["精力", "/5"], sleepQuality: ["睡眠质量", "/5"], sleepHours: ["睡眠", "小时"],
-    steps: ["步数", ""], restingHeartRate: ["静息心率", "次/分"], hrv: ["HRV", "毫秒"], weightKg: ["体重", "公斤"],
+    steps: ["步数", ""], restingHeartRate: ["静息心率", "次/分"], hrv: ["HRV", "毫秒"], weightKg: ["体重", "公斤"], glucose: ["血糖", "mg/dL"],
     peakFlow: ["峰流速", "L/min"], reliever: ["缓解药吸入次数", ""], seizures: ["癫痫发作", ""], tempMax: ["最高气温", "°C"],
     aqi: ["空气质量指数", ""], pollen: ["花粉", "粒/立方米"],
   },
@@ -203,6 +215,7 @@ export function chartName(metric: ChartMetric, lang: Lang, symptom?: string, uni
   if (metric === "symptom") return { title: cap(symptom ?? ""), unit: "/10" };
   const [title, unit] = CHART_NAMES[lang][metric];
   if (metric === "weightKg") return { title, unit: units.weight };
+  if (metric === "glucose") return { title, unit: units.glucose };
   return { title, unit };
 }
 

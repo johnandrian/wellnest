@@ -1,7 +1,7 @@
 // Apple Health daily summaries: validation of what the phone sends, and the text the model and CREAO read.
 // The phone sends one summary per local calendar day (convex/health.ts sync); raw samples never leave the phone.
 import { Infer, v } from "convex/values";
-import { DEFAULT_UNITS, fmtWeight, type Units } from "./units";
+import { DEFAULT_UNITS, fmtGlucose, fmtWeight, type Units } from "./units";
 
 export const menstrualFlow = v.union(
   v.literal("none"),
@@ -25,6 +25,13 @@ export const healthMetrics = v.object({
   oxygenSaturation: v.optional(v.number()), // percent
   wristTempC: v.optional(v.number()), // Apple Watch sleeping wrist temperature
   weightKg: v.optional(v.number()),
+  // Blood glucose for the day, from a sensor (Dexcom, Libre) or a meter that writes to the phone's health data:
+  // the average, lowest and highest reading (mg/dL), the share of readings in 70-180 mg/dL, and how many there were.
+  glucoseAvg: v.optional(v.number()),
+  glucoseMin: v.optional(v.number()),
+  glucoseMax: v.optional(v.number()),
+  glucoseInRange: v.optional(v.number()), // percent
+  glucoseReadings: v.optional(v.number()),
   menstrualFlow: v.optional(menstrualFlow),
 });
 
@@ -44,7 +51,29 @@ const RANGES: Record<NumericKey, [number, number]> = {
   oxygenSaturation: [50, 100],
   wristTempC: [25, 45],
   weightKg: [2, 650],
+  glucoseAvg: [20, 600],
+  glucoseMin: [20, 600],
+  glucoseMax: [20, 600],
+  glucoseInRange: [0, 100],
+  glucoseReadings: [1, 5000],
 };
+
+// The usual target range for glucose readings, mg/dL.
+export const GLUCOSE_RANGE = [70, 180] as const;
+
+// A day of glucose readings (mg/dL) -> the day's summary. The phone does this, so single readings never leave it.
+export function glucoseDay(readings: number[]): HealthMetrics {
+  const xs = readings.filter((x) => Number.isFinite(x) && x > 0);
+  if (!xs.length) return {};
+  const inRange = xs.filter((x) => x >= GLUCOSE_RANGE[0] && x <= GLUCOSE_RANGE[1]).length;
+  return {
+    glucoseAvg: xs.reduce((a, b) => a + b, 0) / xs.length,
+    glucoseMin: Math.min(...xs),
+    glucoseMax: Math.max(...xs),
+    glucoseInRange: (inRange / xs.length) * 100,
+    glucoseReadings: xs.length,
+  };
+}
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const MAX_SYNC_DAYS = 90;
@@ -66,7 +95,9 @@ export function cleanMetrics(m: HealthMetrics): HealthMetrics | null {
     if (typeof value !== "number" || !Number.isFinite(value)) continue;
     const [lo, hi] = RANGES[key];
     if (value < lo || value > hi) continue;
-    out[key] = key === "steps" || key === "activeEnergyKcal" ? Math.round(value) : Math.round(value * 10) / 10;
+    out[key] = ["steps", "activeEnergyKcal", "glucoseAvg", "glucoseMin", "glucoseMax", "glucoseInRange", "glucoseReadings"].includes(key)
+      ? Math.round(value)
+      : Math.round(value * 10) / 10;
   }
   if (m.menstrualFlow) out.menstrualFlow = m.menstrualFlow;
   return Object.keys(out).length ? out : null;
@@ -98,6 +129,14 @@ export function formatDays(days: HealthDay[], units: Units = DEFAULT_UNITS): str
         parts.push(`wrist temp ${delta >= 0 ? "+" : "−"}${fmt(Math.abs(delta), 1)}°C vs average`);
       }
       if (m.weightKg !== undefined) parts.push(`weight ${fmtWeight(m.weightKg, units)}`);
+      if (m.glucoseAvg !== undefined) {
+        const extra = [
+          m.glucoseMin !== undefined && m.glucoseMax !== undefined && `${fmtGlucose(m.glucoseMin, units)} to ${fmtGlucose(m.glucoseMax, units)}`,
+          m.glucoseInRange !== undefined && `${m.glucoseInRange}% in range`,
+          m.glucoseReadings !== undefined && `${m.glucoseReadings} readings`,
+        ].filter(Boolean);
+        parts.push(`glucose average ${fmtGlucose(m.glucoseAvg, units)}${extra.length ? ` (${extra.join(", ")})` : ""}`);
+      }
       if (bleeding(m)) parts.push(`period (${m.menstrualFlow === "unspecified" ? "flow not given" : m.menstrualFlow})`);
       return parts.length ? `${date}: ${parts.join(" · ")}` : null;
     })
@@ -105,8 +144,9 @@ export function formatDays(days: HealthDay[], units: Units = DEFAULT_UNITS): str
     .join("\n");
 }
 
-// Averages across the range, and how the last 3 days compare, for the metrics that shift when someone gets sick.
-export function summarize(days: HealthDay[]): string {
+// Averages across the range, and how the last 3 days compare, for the metrics that shift when someone gets sick
+// (and glucose, when there is any).
+export function summarize(days: HealthDay[], units: Units = DEFAULT_UNITS): string {
   const lines: string[] = [];
   const recent = days.slice(-3);
   const earlier = days.slice(0, -3);
@@ -126,6 +166,11 @@ export function summarize(days: HealthDay[]): string {
     const e = mean(pick(earlier, key));
     if (r !== undefined && e !== undefined && earlier.length >= 4) line += `; last 3 days ${fmt(r, digits)} vs ${fmt(e, digits)} before`;
     lines.push(line);
+  }
+  const glucose = mean(pick(days, "glucoseAvg"));
+  if (glucose !== undefined) {
+    const inRange = mean(pick(days, "glucoseInRange"));
+    lines.push(`Glucose: average ${fmtGlucose(glucose, units)}${inRange !== undefined ? `, ${fmt(inRange)}% of readings in range (70-180 mg/dL)` : ""}`);
   }
   return lines.join("\n");
 }
@@ -162,7 +207,7 @@ export function cycleSummary(days: HealthDay[], today: string): { text: string; 
 export function healthReport(days: HealthDay[], today: string, units: Units = DEFAULT_UNITS): string {
   if (!days.length) return "No health data for that period yet. The phone app syncs when Wellnest is opened.";
   const out = [`Health data, ${days[0].date} to ${days[days.length - 1].date}:`];
-  const summary = summarize(days);
+  const summary = summarize(days, units);
   if (summary) out.push(summary);
   const cycle = cycleSummary(days, today);
   if (cycle) out.push(`Cycle: ${cycle.text}`);

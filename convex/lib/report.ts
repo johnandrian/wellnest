@@ -8,6 +8,10 @@ import type { DailyLog, Entry } from "./journal";
 import { dailySeverity, dailySummary, patterns, summaries } from "./journal";
 import type { TrackerEntry } from "./trackers";
 import { entryLine, trackersText } from "./trackers";
+import { DEFAULT_UNITS, showGlucose, type Units } from "./units";
+
+// Glucose bars: red under 70 or over 250 mg/dL, amber over 180, green in range.
+const glucoseBar = (mgdl: number) => (mgdl < 70 || mgdl > 250 ? "#B91C1C" : mgdl > 180 ? "#D97706" : "#81C9AA");
 import type { Lang } from "./language";
 
 export const SECTIONS = ["facts", "medications", "journal", "trackers", "exercises", "health", "appointments", "emergency"] as const;
@@ -57,6 +61,8 @@ export type ReportData = {
   daily: DailyLog[];
   trackers: TrackerEntry[];
   peakFlowBest?: number;
+  // Units for glucose and weight; US units when left out.
+  units?: Units;
   exercises: string;
   health: HealthDay[];
   appointments: string;
@@ -107,6 +113,14 @@ export function dateRange(from: string, to: string): string[] {
 }
 
 // A small bar chart: one bar per day, value / max of the height.
+// Glucose per day (mg/dL in), drawn in the user's unit and colored by range. `label` gets the unit and a ")" added.
+function glucoseBars(days: string[], mgdl: Map<string, number>, units: Units, label: string): string {
+  const shown = new Map([...mgdl].map(([day, x]) => [day, showGlucose(x, units)]));
+  const max = showGlucose(Math.max(250, ...mgdl.values()), units);
+  const colorOf = new Map([...mgdl].map(([day, x]) => [showGlucose(x, units), glucoseBar(x)]));
+  return svgBars(days, shown, max, (v) => colorOf.get(v) ?? "#0B5D57", `${label}, ${units.glucose})`);
+}
+
 export function svgBars(days: string[], values: Map<string, number>, max: number, color: (v: number) => string, label: string): string {
   const w = 640;
   const h = 70;
@@ -133,6 +147,7 @@ const sev = (n: number) => (n >= 7 ? "#B91C1C" : n >= 4 ? "#D97706" : "#81C9AA")
 export function buildReport(d: ReportData): string {
   const H = HEAD[d.lang];
   const days = dateRange(d.from, d.to);
+  const units = d.units ?? DEFAULT_UNITS;
   const parts: string[] = [];
   const empty = `<p class="muted">${H.none}</p>`;
 
@@ -190,8 +205,11 @@ export function buildReport(d: ReportData): string {
         const best = d.peakFlowBest ?? Math.max(...flow.values());
         parts.push(svgBars(days, flow, best, (v) => (v / best >= 0.8 ? "#81C9AA" : v / best >= 0.5 ? "#D97706" : "#B91C1C"), `Peak flow (lowest each day, L/min${d.peakFlowBest ? `, best ${d.peakFlowBest}` : ""})`));
       }
-      parts.push(`<p>${lines(trackersText(d.trackers, d.peakFlowBest).split("\n").slice(0, 3).join("\n"))}</p>`);
-      parts.push(`<ul class="log">${d.trackers.slice(-60).map((e) => `<li>${esc(e.date)}: ${esc(entryLine(e, d.peakFlowBest))}${e.note ? ` (${esc(e.note)})` : ""}</li>`).join("")}</ul>`);
+      const readings = new Map<string, number[]>();
+      for (const e of d.trackers) if (e.glucose) readings.set(e.date, [...(readings.get(e.date) ?? []), e.glucose.value]);
+      if (readings.size) parts.push(glucoseBars(days, new Map([...readings].map(([day, xs]) => [day, xs.reduce((a, b) => a + b, 0) / xs.length])), units, "Glucose (average of readings each day"));
+      parts.push(`<p>${lines(trackersText(d.trackers, d.peakFlowBest, units).split("\n").slice(0, 4).join("\n"))}</p>`);
+      parts.push(`<ul class="log">${d.trackers.slice(-60).map((e) => `<li>${esc(e.date)}: ${esc(entryLine(e, d.peakFlowBest, units))}${e.note ? ` (${esc(e.note)})` : ""}</li>`).join("")}</ul>`);
     }
     if (s === "exercises") {
       if (!d.exercises) continue;
@@ -199,9 +217,11 @@ export function buildReport(d: ReportData): string {
     }
     if (s === "health") {
       if (!d.health.length) continue;
-      parts.push(`<h2>${H.health}</h2><p>${lines(summarize(d.health))}</p>`);
+      parts.push(`<h2>${H.health}</h2><p>${lines(summarize(d.health, units))}</p>`);
       const sleep = new Map(d.health.flatMap((h) => (h.metrics.sleepHours !== undefined ? [[h.date, h.metrics.sleepHours] as [string, number]] : [])));
       if (sleep.size) parts.push(svgBars(days, sleep, 10, (v) => (v < 6 ? "#4338CA" : "#A5B4FC"), H.sleep));
+      const glucose = new Map(d.health.flatMap((h) => (h.metrics.glucoseAvg !== undefined ? [[h.date, h.metrics.glucoseAvg] as [string, number]] : [])));
+      if (glucose.size) parts.push(glucoseBars(days, glucose, units, "Glucose (daily average from a sensor or meter"));
     }
     if (s === "appointments") {
       if (!d.appointments && !d.team.length) continue;

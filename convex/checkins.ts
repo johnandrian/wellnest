@@ -7,6 +7,7 @@ import { internalMutation, mutation, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
 import { checkinText, detect, shift } from "./lib/checkins";
+import { unitsOf } from "./lib/units";
 import { langOf } from "./lib/language";
 import { zoneOffsetMin } from "./lib/reminders";
 import { insertMessage } from "./lib/chats";
@@ -63,7 +64,7 @@ async function maybeCheckIn(ctx: MutationCtx, user: Doc<"users">, now: number) {
     role: "assistant",
     channel: "app",
     kind: "checkin",
-    text: checkinText(signal, langOf(user)),
+    text: checkinText(signal, langOf(user), unitsOf(user)),
     urgent: signal.kind === "oxygen",
   });
   await ctx.db.insert("checkins", { userId: user._id, kind: signal.kind, messageId });

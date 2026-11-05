@@ -1,4 +1,5 @@
-// Condition trackers (convex/lib/trackers.ts): pain / CRPS, asthma (with a personal-best peak flow) and seizures.
+// Condition trackers (convex/lib/trackers.ts): pain / CRPS, asthma (with a personal-best peak flow), seizures, and
+// glucose readings (stored in mg/dL).
 // Several entries a day are fine. Logged from the Journal tab or by the model (log_condition_event), charted in the
 // Journal tab, and included in visit summaries, reports and the model's journal reads. Pain feeds the journal's
 // patterns as the "pain" symptom.
@@ -10,8 +11,11 @@ import {
   asthmaDetails,
   AsthmaDetails,
   cleanAsthma,
+  cleanGlucose,
   cleanPain,
   cleanSeizure,
+  glucoseDetails,
+  GlucoseDetails,
   painDetails,
   PainDetails,
   seizureDetails,
@@ -32,6 +36,7 @@ type AddArgs = {
   pain?: Partial<PainDetails>;
   asthma?: Partial<AsthmaDetails>;
   seizure?: Partial<SeizureDetails>;
+  glucose?: Partial<GlucoseDetails>;
   note?: string;
 };
 
@@ -52,6 +57,11 @@ async function addEntry(ctx: MutationCtx, userId: Id<"users">, a: AddArgs, sourc
     if ("error" in asthma) throw new Error(asthma.error);
     return { id: await ctx.db.insert("trackerEntries", { ...base, asthma }), date };
   }
+  if (a.tracker === "glucose") {
+    const glucose = cleanGlucose(a.glucose ?? {});
+    if ("error" in glucose) throw new Error(glucose.error);
+    return { id: await ctx.db.insert("trackerEntries", { ...base, glucose }), date };
+  }
   return { id: await ctx.db.insert("trackerEntries", { ...base, seizure: cleanSeizure(a.seizure ?? {}) }), date };
 }
 
@@ -63,6 +73,7 @@ export const add = mutation({
     pain: v.optional(painDetails),
     asthma: v.optional(asthmaDetails),
     seizure: v.optional(seizureDetails),
+    glucose: v.optional(glucoseDetails),
     note: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
@@ -95,7 +106,7 @@ export const setPeakFlowBest = mutation({
 export async function trackersSince(ctx: QueryCtx, userId: Id<"users">, since: string): Promise<TrackerEntry[]> {
   const rows = await ctx.db.query("trackerEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since)).take(1000);
   return rows
-    .map(({ date, at, tracker, pain, asthma, seizure, note }) => ({ date, at, tracker, pain, asthma, seizure, note }))
+    .map(({ date, at, tracker, pain, asthma, seizure, glucose, note }) => ({ date, at, tracker, pain, asthma, seizure, glucose, note }))
     .sort((a, b) => a.at - b.at);
 }
 
@@ -121,6 +132,7 @@ export const view = query({
       pain: of("pain").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.pain! })),
       asthma: of("asthma").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.asthma! })),
       seizure: of("seizure").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.seizure! })),
+      glucose: of("glucose").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.glucose! })),
     };
   },
 });
@@ -134,6 +146,7 @@ export const fromChat = internalMutation({
     pain: v.optional(v.any()),
     asthma: v.optional(v.any()),
     seizure: v.optional(v.any()),
+    glucose: v.optional(v.any()),
     note: v.optional(v.string()),
   },
   handler: async (ctx, { userId, ...a }) => {
