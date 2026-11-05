@@ -3,7 +3,7 @@
 import { v } from "convex/values";
 import type { Lang } from "./language";
 
-export const FOCUS = ["symptoms", "pain", "asthma", "seizures", "medications", "mood", "wellness", "caregiver"] as const;
+export const FOCUS = ["symptoms", "pain", "asthma", "seizures", "diabetes", "medications", "mood", "wellness", "caregiver"] as const;
 export type Focus = (typeof FOCUS)[number];
 export const focus = v.union(...FOCUS.map((f) => v.literal(f)));
 
@@ -23,6 +23,7 @@ const FOCUS_EN: Record<Focus, string> = {
   pain: "chronic pain / CRPS",
   asthma: "asthma",
   seizures: "epilepsy / seizures",
+  diabetes: "diabetes / blood sugar",
   medications: "managing medications",
   mood: "mood and sleep",
   wellness: "general wellness",
@@ -56,6 +57,7 @@ const TIPS: Record<Lang, Record<Focus, string>> = {
     pain: "Rate your pain in chat or in Health tools → Journal → Pain; I'll look for what makes it worse.",
     asthma: "Log peak flow and reliever puffs; I'll watch air quality and pollen for you.",
     seizures: "Log a seizure with how long it lasted and what came before; set up your emergency plan in Health tools → Care.",
+    diabetes: "Tell me a reading (\"fasting 128\") or connect your sensor through your phone's health app; I'll look for what moves your glucose.",
     medications: "Your reminders come with Taken / Skip buttons; tell me about side effects any time.",
     mood: "Answer the daily check-in (mood, energy, sleep) and I'll spot what helps.",
     wellness: "Ask me anything about sleep, food, movement or stress.",
@@ -66,6 +68,7 @@ const TIPS: Record<Lang, Record<Focus, string>> = {
     pain: "Puntúa tu dolor en el chat o en Herramientas de salud → Diario → Dolor; buscaré qué lo empeora.",
     asthma: "Anota tu flujo máximo y las inhalaciones de rescate; vigilaré la calidad del aire y el polen.",
     seizures: "Anota cada crisis con su duración y lo que pasó antes; prepara tu plan de emergencia en Herramientas de salud → Atención.",
+    diabetes: "Dime una lectura («en ayunas 128») o conecta tu sensor a través de la app de salud del teléfono; buscaré qué mueve tu glucosa.",
     medications: "Tus recordatorios traen botones Tomada / Omitir; cuéntame cualquier efecto secundario.",
     mood: "Responde el control diario (ánimo, energía, sueño) y veré qué te ayuda.",
     wellness: "Pregúntame lo que quieras sobre sueño, comida, ejercicio o estrés.",
@@ -76,6 +79,7 @@ const TIPS: Record<Lang, Record<Focus, string>> = {
     pain: "Βαθμολόγησε τον πόνο σου στη συνομιλία ή στα Εργαλεία υγείας → Ημερολόγιο → Πόνος· θα ψάξω τι τον χειροτερεύει.",
     asthma: "Κατέγραψε τη μέγιστη ροή και τις εισπνοές ανακουφιστικού· θα παρακολουθώ την ποιότητα του αέρα και τη γύρη.",
     seizures: "Κατέγραψε κάθε κρίση με τη διάρκεια και τι προηγήθηκε· φτιάξε το σχέδιο έκτακτης ανάγκης στα Εργαλεία υγείας → Φροντίδα.",
+    diabetes: "Πες μου μια μέτρηση («νηστεία 128») ή σύνδεσε τον αισθητήρα σου μέσω της εφαρμογής υγείας του κινητού· θα ψάξω τι επηρεάζει τη γλυκόζη σου.",
     medications: "Οι υπενθυμίσεις έχουν κουμπιά Το πήρα / Παράλειψη· πες μου για οποιαδήποτε παρενέργεια.",
     mood: "Απάντα στο καθημερινό check-in (διάθεση, ενέργεια, ύπνος) και θα δω τι σε βοηθά.",
     wellness: "Ρώτα με ό,τι θέλεις για ύπνο, διατροφή, κίνηση ή άγχος.",
@@ -86,6 +90,7 @@ const TIPS: Record<Lang, Record<Focus, string>> = {
     pain: "在聊天中或在 健康工具 → 日志 → 疼痛 中给疼痛打分；我会找出是什么让它加重。",
     asthma: "记录峰流速和缓解药吸入次数；我会帮你留意空气质量和花粉。",
     seizures: "记录每次发作的时长和发作前的情况；在 健康工具 → 就医 中设置你的紧急预案。",
+    diabetes: "告诉我一次读数（“空腹 7.1”），或通过手机的健康应用连接你的血糖仪；我会找出影响你血糖的因素。",
     medications: "你的提醒带有“已服用 / 跳过”按钮；有任何副作用随时告诉我。",
     mood: "回答每日签到（心情、精力、睡眠），我会找出对你有帮助的事情。",
     wellness: "关于睡眠、饮食、运动或压力，随时问我。",

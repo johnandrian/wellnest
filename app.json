@@ -28,6 +28,7 @@
         "android.permission.health.READ_RESPIRATORY_RATE",
         "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_BLOOD_GLUCOSE",
         "android.permission.health.READ_MENSTRUATION"
       ]
     },
@@ -43,7 +44,7 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "Wellnest reads daily summaries of your sleep, activity, heart rate, breathing, temperature, weight and cycle so it can use them when answering your health questions.",
+          "NSHealthShareUsageDescription": "Wellnest reads daily summaries of your sleep, activity, heart rate, breathing, temperature, weight, glucose, and cycle so it can use them when answering your health questions.",
           "NSHealthUpdateUsageDescription": false,
           "background": false
         }

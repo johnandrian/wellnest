@@ -3,7 +3,7 @@
 // synced (convex/health.ts). Needs a development build; Health Connect isn't available in Expo Go.
 import { getSdkStatus, initialize, readRecords, requestPermission, SdkAvailabilityStatus } from "react-native-health-connect";
 import type { RecordType, RecordResult } from "react-native-health-connect";
-import type { HealthDay, HealthMetrics } from "../convex/lib/health";
+import { glucoseDay, type HealthDay, type HealthMetrics } from "../convex/lib/health";
 
 export const healthSource = "health_connect" as const;
 export const healthName = "Health Connect";
@@ -19,6 +19,7 @@ const TYPES = [
   "RespiratoryRate",
   "OxygenSaturation",
   "Weight",
+  "BloodGlucose",
   "MenstruationFlow",
 ] as const satisfies readonly RecordType[];
 
@@ -75,6 +76,7 @@ export async function readDays(days: number): Promise<HealthDay[]> {
   const sums = new Map<string, Partial<Record<"steps" | "activeEnergyKcal" | "sleepMs", number>>>();
   const lists = new Map<string, Partial<Record<"restingHeartRate" | "hrvMs" | "respiratoryRate" | "oxygenSaturation" | "weightKg", number[]>>>();
   const flows = new Map<string, HealthMetrics["menstrualFlow"]>();
+  const glucose = new Map<string, number[]>();
   const add = (date: string, key: "steps" | "activeEnergyKcal" | "sleepMs", v: number) => {
     const day = sums.get(date) ?? {};
     day[key] = (day[key] ?? 0) + v;
@@ -115,6 +117,13 @@ export async function readDays(days: number): Promise<HealthDay[]> {
     safely("weight", async () => {
       for (const r of await readAll("Weight", start, end)) push(localDate(new Date(r.time)), "weightKg", r.weight.inKilograms);
     }),
+    // Every reading from a sensor (Dexcom, Libre) or meter, summed up per day on the phone.
+    safely("glucose", async () => {
+      for (const r of await readAll("BloodGlucose", start, end)) {
+        const date = localDate(new Date(r.time));
+        glucose.set(date, [...(glucose.get(date) ?? []), r.level.inMilligramsPerDeciliter]);
+      }
+    }),
     // Sleep counts toward the day the night ends on. Awake stages (1) and out of bed (3) don't count.
     safely("sleep", async () => {
       const from = new Date(start.getTime() - 12 * 3_600_000);
@@ -138,7 +147,7 @@ export async function readDays(days: number): Promise<HealthDay[]> {
   ]);
 
   const avg = (xs?: number[]) => (xs?.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined);
-  const dates = new Set([...sums.keys(), ...lists.keys(), ...flows.keys()]);
+  const dates = new Set([...sums.keys(), ...lists.keys(), ...flows.keys(), ...glucose.keys()]);
   return [...dates]
     .sort()
     .map((date) => {
@@ -153,6 +162,7 @@ export async function readDays(days: number): Promise<HealthDay[]> {
         respiratoryRate: avg(l.respiratoryRate),
         oxygenSaturation: avg(l.oxygenSaturation),
         weightKg: l.weightKg?.at(-1),
+        ...(glucose.has(date) && glucoseDay(glucose.get(date)!)),
         menstrualFlow: flows.get(date),
       };
       for (const k of Object.keys(metrics) as (keyof HealthMetrics)[]) if (metrics[k] === undefined) delete metrics[k];

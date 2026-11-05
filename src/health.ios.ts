@@ -3,10 +3,11 @@
 import {
   isHealthDataAvailable,
   queryCategorySamples,
+  queryQuantitySamples,
   queryStatisticsCollectionForQuantity,
   requestAuthorization,
 } from "@kingstinct/react-native-healthkit";
-import type { HealthDay, HealthMetrics } from "../convex/lib/health";
+import { glucoseDay, type HealthDay, type HealthMetrics } from "../convex/lib/health";
 
 export const healthSource = "apple_health" as const;
 export const healthName = "Apple Health";
@@ -23,6 +24,7 @@ const QUANTITIES = [
   { id: "HKQuantityTypeIdentifierBodyMass", key: "weightKg", stat: "discreteAverage", unit: "kg" },
 ] as const;
 
+const GLUCOSE = "HKQuantityTypeIdentifierBloodGlucose";
 const SLEEP = "HKCategoryTypeIdentifierSleepAnalysis";
 const FLOW = "HKCategoryTypeIdentifierMenstrualFlow";
 
@@ -35,7 +37,7 @@ const FLOW_RANK = ["none", "unspecified", "light", "medium", "heavy"];
 export async function connectHealth(): Promise<void> {
   if (!healthSupported) throw new Error("Health data isn't available on this device.");
   // iOS shows its own sheet once; it never says which types were allowed (reads of denied types just come back empty).
-  await requestAuthorization({ toRead: [...QUANTITIES.map((q) => q.id), SLEEP, FLOW] });
+  await requestAuthorization({ toRead: [...QUANTITIES.map((q) => q.id), GLUCOSE, SLEEP, FLOW] });
 }
 
 // The phone's local calendar date.
@@ -91,6 +93,19 @@ export async function readDays(days: number): Promise<HealthDay[]> {
     }
   } catch (e) {
     console.warn("HealthKit sleep failed", e);
+  }
+
+  // Glucose: every reading from a sensor (Dexcom, Libre) or meter, summed up per day on the phone.
+  try {
+    const samples = await queryQuantitySamples(GLUCOSE, { limit: 0, unit: "mg/dL", filter: { date: { startDate: start, endDate: end } } });
+    const byDay = new Map<string, number[]>();
+    for (const s of samples) {
+      const date = localDate(s.startDate);
+      byDay.set(date, [...(byDay.get(date) ?? []), s.quantity]);
+    }
+    for (const [date, readings] of byDay) put(date, glucoseDay(readings));
+  } catch (e) {
+    console.warn("HealthKit glucose failed", e);
   }
 
   // Cycle tracking: Flo, Clue and the Health app write flow logs here.

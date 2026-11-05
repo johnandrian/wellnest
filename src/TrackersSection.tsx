@@ -1,5 +1,5 @@
-// Condition trackers in the Journal tab (convex/trackers.ts): pain / CRPS, asthma and seizures, each with a quick
-// form, a chart over the chosen days and the recent entries. Most people will log by just telling Wellnest in chat.
+// Condition trackers in the Journal tab (convex/trackers.ts): pain / CRPS, asthma, seizures, and glucose, each with a
+// quick form, a chart over the chosen days, and the recent entries. Most people will log by just telling Wellnest in chat.
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
@@ -10,8 +10,12 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
+import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } from "../convex/lib/units";
 
-type Tracker = "pain" | "asthma" | "seizure";
+type Tracker = "pain" | "asthma" | "seizure" | "glucose";
+const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
+// Under 70 mg/dL is low; over 180 high, over 250 very high.
+const glucoseColor = (mgdl: number) => (mgdl < 70 || mgdl > 250 ? colors.danger : mgdl > 180 ? colors.amber : colors.mint);
 const LOCATIONS = ["head", "neck", "shoulders", "chest", "upper_back", "lower_back", "abdomen", "hips", "left_arm", "right_arm", "left_hand", "right_hand", "left_leg", "right_leg", "left_foot", "right_foot", "whole_body"] as const;
 const TYPES = ["aching", "burning", "stabbing", "throbbing", "shooting", "tingling", "cramping", "pressure"] as const;
 const SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathless"] as const;
@@ -51,8 +55,8 @@ function DayBars({ days, values, max, color }: { days: string[]; values: Map<str
   );
 }
 
-const TRACKERS = ["pain", "asthma", "seizure"] as const;
-const FOCUS_OF: Record<Tracker, string> = { pain: "pain", asthma: "asthma", seizure: "seizures" };
+const TRACKERS = ["pain", "asthma", "seizure", "glucose"] as const;
+const FOCUS_OF: Record<Tracker, string> = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "diabetes" };
 
 // The trackers someone picked in setup, plus any they've already used; all three when they picked none of them.
 function visibleTrackers(focus: string[], data: Partial<Record<Tracker, unknown[]>> | null | undefined, showAll: boolean): Tracker[] {
@@ -94,12 +98,17 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const [rescue, setRescue] = useState<boolean | null>(null);
   const [recovery, setRecovery] = useState("");
   const [witness, setWitness] = useState("");
+  // Glucose form
+  const [reading, setReading] = useState("");
+  const [glucoseContext, setGlucoseContext] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const units: Units = me?.units ?? DEFAULT_UNITS;
 
   const reset = () => {
     setSeverity(null); setLocations([]); setTypes([]); setFlags([]); setDuration(""); setTriggers(""); setHelped("");
     setPeakFlow(""); setPuffs(""); setPreventer(null); setSymptoms([]); setNight(false); setAttack(false);
     setSeizureType(null); setSeconds(""); setAura(""); setRescue(null); setRecovery(""); setWitness(""); setNote("");
+    setReading(""); setGlucoseContext(null);
   };
 
   const save = async () => {
@@ -127,6 +136,10 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           note: note || undefined,
           asthma: { peakFlow: numOrUndef(peakFlow), reliever: numOrUndef(puffs), ...(preventer !== null && { preventer }), symptoms, night: night || undefined, attack: attack || undefined, triggers: triggers || undefined },
         });
+      } else if (tracker === "glucose") {
+        const value = numOrUndef(reading.replace(",", "."));
+        if (value === undefined) return setError(s.trkGlucoseNeed);
+        await add({ tracker, note: note || undefined, glucose: { value: glucoseToMgdl(value, units.glucose), ...(glucoseContext && { context: glucoseContext }) } });
       } else {
         await add({
           tracker,
@@ -162,10 +175,15 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   for (const a of data?.asthma ?? []) if (a.reliever) puffsByDay.set(a.date, (puffsByDay.get(a.date) ?? 0) + a.reliever);
   const seizuresByDay = new Map<string, number>();
   for (const z of data?.seizure ?? []) seizuresByDay.set(z.date, (seizuresByDay.get(z.date) ?? 0) + 1);
+  // The day's average reading, in mg/dL (colored by mg/dL, drawn in the unit shown).
+  const glucoseLists = new Map<string, number[]>();
+  for (const g of data?.glucose ?? []) glucoseLists.set(g.date, [...(glucoseLists.get(g.date) ?? []), g.value]);
+  const glucoseByDay = new Map([...glucoseLists].map(([d, xs]) => [d, xs.reduce((a, b) => a + b, 0) / xs.length]));
 
   const line = (t: Tracker, e: any) => {
     if (t === "pain") return [`${e.severity}/10`, e.locations.map((l: string) => s[`loc_${l}` as "loc_head"]).join(", "), e.types.map((x: string) => s[`ptype_${x}` as "ptype_aching"]).join(", "), e.flare && s.trk_flare].filter(Boolean).join(" · ");
     if (t === "asthma") return [e.attack && `⚠️ ${s.trkAttack}`, e.peakFlow && `${e.peakFlow} L/min${bestFlow ? ` (${Math.round((e.peakFlow / bestFlow) * 100)}%)` : ""}`, e.reliever !== undefined && `${e.reliever} ${s.trkPuffs}`, e.symptoms.map((x: string) => s[`asym_${x}` as "asym_wheeze"]).join(", ")].filter(Boolean).join(" · ");
+    if (t === "glucose") return [fmtGlucose(e.value, units), e.context && s[`gctx_${e.context}` as "gctx_other"]].filter(Boolean).join(" · ");
     return [e.type ? s[`stype_${e.type}` as "stype_unknown"] : s.trkSeizure, e.durationSec && `${e.durationSec} s`, e.rescueMed && s.trkRescueTaken].filter(Boolean).join(" · ");
   };
 
@@ -272,6 +290,30 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           <TextInput style={styles.input} placeholder={s.trkAura} placeholderTextColor={colors.muted} value={aura} onChangeText={setAura} />
           <TextInput style={styles.input} placeholder={s.trkTriggers} placeholderTextColor={colors.muted} value={triggers} onChangeText={setTriggers} />
           <TextInput style={[styles.input, styles.multi]} placeholder={s.trkWitness} placeholderTextColor={colors.muted} value={witness} onChangeText={setWitness} multiline />
+        </View>
+      )}
+
+      {tracker === "glucose" && (
+        <View style={styles.form}>
+          {glucoseByDay.size > 0 && (
+            <>
+              <Text style={styles.small}>{s.trkGlucoseChart} ({units.glucose})</Text>
+              <DayBars
+                days={days}
+                values={new Map([...glucoseByDay].map(([d, v]) => [d, showGlucose(v, units)]))}
+                max={showGlucose(Math.max(250, ...glucoseByDay.values()), units)}
+                color={(v) => glucoseColor(units.glucose === "mmol/L" ? glucoseToMgdl(v, "mmol/L") : v)}
+              />
+            </>
+          )}
+          <View style={styles.inline}>
+            <TextInput style={[styles.input, styles.short]} value={reading} onChangeText={setReading} keyboardType="decimal-pad" placeholder={units.glucose} placeholderTextColor={colors.muted} accessibilityLabel={`${s.trkGlucoseReading} (${units.glucose})`} />
+            <Text style={styles.label}>
+              {s.trkGlucoseReading} ({units.glucose})
+            </Text>
+          </View>
+          <Chips items={GLUCOSE_CONTEXTS} selected={glucoseContext ? [glucoseContext as (typeof GLUCOSE_CONTEXTS)[number]] : []} onToggle={(x) => setGlucoseContext(glucoseContext === x ? null : x)} label={(x) => s[`gctx_${x}`]} />
+          <Text style={styles.small}>{s.trkGlucoseNote}</Text>
         </View>
       )}
 

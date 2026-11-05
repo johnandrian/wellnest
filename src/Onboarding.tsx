@@ -17,7 +17,7 @@ import { Icon } from "./Icon";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 
-const FOCUS = ["symptoms", "pain", "asthma", "seizures", "medications", "mood", "wellness", "caregiver"] as const;
+const FOCUS = ["symptoms", "pain", "asthma", "seizures", "diabetes", "medications", "mood", "wellness", "caregiver"] as const;
 const AGES = ["under_18", "18_29", "30_44", "45_64", "65_plus"] as const;
 const SEXES = ["female", "male", "other", "unspecified"] as const;
 type Focus = (typeof FOCUS)[number];
