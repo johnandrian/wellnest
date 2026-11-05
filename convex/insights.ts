@@ -6,8 +6,8 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalQuery, query, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { CHART_METRICS, ChartMetric, chartMarks, chartSeries, Chart, dateList, findPatterns, forecastMatches, ForecastMatch, Inputs, MedChange, medEffects, shiftDate, sliceInputs, WEATHER_FACTORS } from "./lib/insights";
-import { chartName, forecastLine, medEffectText, patternText, weatherLine } from "./lib/insightsText";
+import { CHART_METRICS, ChartMetric, chartMarks, chartSeries, Chart, dateList, findPatterns, forecastMatches, ForecastMatch, Inputs, labEffects, LabPoint, MedChange, medEffects, shiftDate, sliceInputs, WEATHER_FACTORS } from "./lib/insights";
+import { chartName, forecastLine, labEffectText, medEffectText, patternText, weatherLine } from "./lib/insightsText";
 import { isDate } from "./lib/health";
 import { Lang, langOf } from "./lib/language";
 import { zoneOffsetMin } from "./lib/reminders";
@@ -20,6 +20,8 @@ import { unitsOf } from "./lib/units";
 
 export const LOOKBACK_DAYS = 90;
 const MED_LOOKBACK_DAYS = 120;
+// Lab results come every few months, so their medication changes look back a year (and the results 6 months more).
+const LAB_LOOKBACK_DAYS = 365;
 
 export async function gatherInputs(ctx: QueryCtx, userId: Id<"users">, from: string, to: string): Promise<Inputs> {
   const inRange = <T extends { date: string }>(xs: T[]) => xs.filter((x) => x.date >= from && x.date <= to);
@@ -62,6 +64,12 @@ export async function medChanges(ctx: QueryCtx, userId: Id<"users">, from: strin
   return out.filter((c) => c.date >= from);
 }
 
+// Numeric lab results from uploaded reports since `from`, oldest first.
+export async function labPoints(ctx: QueryCtx, userId: Id<"users">, from: string): Promise<LabPoint[]> {
+  const rows = await ctx.db.query("labResults").withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", from)).take(1000);
+  return rows.flatMap((r) => (r.value === undefined ? [] : [{ key: r.key, test: r.test, date: r.date, value: r.value, unit: r.unit, low: r.low, high: r.high }]));
+}
+
 // The flare forecast: tomorrow's weather against the user's own weather patterns (none without a saved location).
 export async function tomorrowMatches(ctx: QueryCtx, userId: Id<"users">, today: string): Promise<ForecastMatch[]> {
   const tomorrow = shiftDate(today, 1);
@@ -77,9 +85,11 @@ async function computed(ctx: QueryCtx, userId: Id<"users">, today: string) {
   // Medication changes look back further (and two weeks before the oldest one) than patterns do.
   const medFrom = shiftDate(today, -(MED_LOOKBACK_DAYS + 14));
   const input = await gatherInputs(ctx, userId, medFrom, today);
+  const labFrom = shiftDate(today, -LAB_LOOKBACK_DAYS);
   return {
     patterns: findPatterns(sliceInputs(input, from), dates),
     effects: medEffects(input, await medChanges(ctx, userId, shiftDate(today, -MED_LOOKBACK_DAYS)), dateList(medFrom, today), today),
+    labs: labEffects(await labPoints(ctx, userId, shiftDate(labFrom, -180)), await medChanges(ctx, userId, labFrom), input, dateList(medFrom, today)),
     weatherToday: input.weather.find((w) => w.date === today),
   };
 }
@@ -101,10 +111,12 @@ export const view = query({
     const user = await ctx.db.get(userId);
     const lang = langOf(user);
     const units = unitsOf(user);
-    const { patterns, effects, weatherToday } = await computed(ctx, userId, today);
+    const { patterns, effects, labs, weatherToday } = await computed(ctx, userId, today);
     return {
       patterns: patterns.map((p) => patternText(p, lang, units)),
       medEffects: effects.map((e) => medEffectText(e, lang, units)),
+      // Lab results that moved after a medication change.
+      labEffects: labs.map((e) => labEffectText(e, lang, units)),
       weather: weatherToday ? weatherLine(weatherToday, lang) : null,
       // Where that weather is for: the looked-up place name, else the location as they typed it.
       weatherPlace: weatherToday ? placeOf(user) : null,
@@ -122,7 +134,7 @@ export const forModel = internalQuery({
     const user = await ctx.db.get(userId);
     const today = localToday(user);
     const units = unitsOf(user);
-    const { patterns, effects, weatherToday } = await computed(ctx, userId, today);
+    const { patterns, effects, labs, weatherToday } = await computed(ctx, userId, today);
     const tomorrow = (await weatherSince(ctx, userId, shiftDate(today, 1), shiftDate(today, 1)))[0];
     const flare = await tomorrowMatches(ctx, userId, today);
     return [
@@ -131,6 +143,9 @@ export const forModel = internalQuery({
         : `No clear patterns yet in the last ${LOOKBACK_DAYS} days (needs about 10 days with both a symptom score and the factor).`,
       effects.length
         ? `Before and after medication changes (other things may have changed too):\n${effects.map((e) => `- ${medEffectText(e, "en", units)}`).join("\n")}`
+        : "",
+      labs.length
+        ? `Lab results before and after medication changes (from their uploaded reports; a few results, so a hint, not proof):\n${labs.map((e) => `- ${labEffectText(e, "en", units)}`).join("\n")}`
         : "",
       weatherToday ? `Today's local weather: ${weatherLine(weatherToday, "en")}` : "No local weather (no saved location).",
       tomorrow ? `Tomorrow's forecast: ${weatherLine(tomorrow, "en")}` : "",

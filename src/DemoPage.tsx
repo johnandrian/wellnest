@@ -88,6 +88,7 @@ export function demoData(s: Strings, now: number): { data: DashboardData; insigh
     insights: {
       patterns: [s.demoPattern],
       medEffects: [],
+      labEffects: [],
       weather: s.demoWeather,
       weatherPlace: s.demoPlace,
       tomorrow: [s.demoTomorrow],

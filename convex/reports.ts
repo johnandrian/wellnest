@@ -16,6 +16,9 @@ import { trackersSince } from "./trackers";
 import { adherence } from "./exercises";
 import { visitsText } from "./visits";
 import { emergencyData } from "./emergency";
+import { labPoints, medChanges } from "./insights";
+import { labEffects, shiftDate } from "./lib/insights";
+import { labEffectText } from "./lib/insightsText";
 
 const DAY_MS = 86_400_000;
 const TITLES = { en: "Health report", es: "Informe de salud", el: "Αναφορά υγείας", zh: "健康报告" } as const;
@@ -92,7 +95,19 @@ export async function gather(ctx: QueryCtx, userId: Id<"users">, from: string, t
       ? (await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(50)).map(({ name, role, clinic, phone, email }) => ({ name, role, clinic, phone, email }))
       : [],
     emergency: want("emergency") ? await emergencyData(ctx, userId) : null,
+    labChanges: want("medications") ? await labChangesFor(ctx, userId, from, to) : [],
   };
+}
+
+// Lab results from the report's dates that moved after a medication change in the year before, in the user's words.
+async function labChangesFor(ctx: QueryCtx, userId: Id<"users">, from: string, to: string): Promise<string[]> {
+  const user = await ctx.db.get(userId);
+  const changes = await medChanges(ctx, userId, shiftDate(from, -365));
+  if (!changes.length) return [];
+  const labs = (await labPoints(ctx, userId, shiftDate(from, -365 - 180))).filter((p) => p.date <= to);
+  return labEffects(labs, changes)
+    .filter((e) => e.afterDate >= from)
+    .map((e) => labEffectText(e, langOf(user), unitsOf(user)));
 }
 
 export const MAX_DAYS = 366;

@@ -1,7 +1,7 @@
 // Wording for insights (./insights.ts) in the user's language: patterns, medication before/after, today's weather,
 // chart titles and the weekly summary. The model reads the English; the app and the summary use the user's language.
 import type { Lang } from "./language";
-import type { ChartMetric, FactorKey, ForecastMatch, MedEffect, OutcomeKey, Pattern, WEATHER_FACTORS, WeekStat } from "./insights";
+import type { ChartMetric, FactorKey, ForecastMatch, LabEffect, MedEffect, OutcomeKey, Pattern, WEATHER_FACTORS, WeekStat } from "./insights";
 import { aqiBand, pollenBand, type WeatherDay } from "./weather";
 import { DEFAULT_UNITS, fmtGlucose, fmtWeight, type Units } from "./units";
 
@@ -322,4 +322,39 @@ export function forecastText(matches: ForecastMatch[], lang: Lang, name?: string
   });
   const footer = name ? L.footerFor.replace("{name}", name) : L.footer;
   return { title, text: [`🌦️ **${title}**`, "", ...lines, "", footer].join("\n") };
+}
+
+// ---------- Lab results before and after a medication change ----------
+
+// "A1C went from 8.1% to 7.2% in the 3 months after starting metformin (Mar 3), back in the normal range."
+export function labEffectText(e: LabEffect, lang: Lang, units: Units = DEFAULT_UNITS): string {
+  const v = (x: number) => `${num(x, lang)}${e.unit ? (e.unit === "%" ? "%" : ` ${e.unit}`) : ""}`;
+  const [b, a, d, m] = [v(e.before), v(e.after), shortDate(e.date, lang), e.months];
+  const side = e.alongside && {
+    o: outcomeName(e.alongside.outcome, lang),
+    before: outcomeValue(e.alongside.outcome, e.alongside.before, lang, units),
+    after: outcomeValue(e.alongside.outcome, e.alongside.after, lang, units),
+  };
+  if (lang === "es") {
+    const what = e.kind === "started" ? `empezar ${e.name}` : `cambiar la dosis de ${e.name}`;
+    const range = e.range === "back_in" ? ", de nuevo en el rango normal" : e.range === "now_out" ? ", ahora fuera del rango normal" : "";
+    const also = side ? ` ${cap(side.o)}: ${side.after} de media el mes antes del análisis más reciente, frente a ${side.before} antes del anterior.` : "";
+    return `${e.test} pasó de ${b} a ${a} en ${m} ${m === 1 ? "mes" : "meses"} después de ${what} (${d})${range}.${also}`;
+  }
+  if (lang === "el") {
+    const what = e.kind === "started" ? `την έναρξη του ${e.name}` : `την αλλαγή δόσης του ${e.name}`;
+    const range = e.range === "back_in" ? ", ξανά στα φυσιολογικά όρια" : e.range === "now_out" ? ", πλέον εκτός φυσιολογικών ορίων" : "";
+    const also = side ? ` ${cap(side.o)}: μέσος όρος ${side.after} τον μήνα πριν την πιο πρόσφατη εξέταση, έναντι ${side.before} πριν την προηγούμενη.` : "";
+    return `${e.test}: από ${b} σε ${a} ${m} ${m === 1 ? "μήνα" : "μήνες"} μετά ${what} (${d})${range}.${also}`;
+  }
+  if (lang === "zh") {
+    const what = e.kind === "started" ? `开始服用 ${e.name}` : `调整 ${e.name} 的剂量`;
+    const range = e.range === "back_in" ? "，已回到正常范围" : e.range === "now_out" ? "，现已超出正常范围" : "";
+    const also = side ? `${side.o}在最近一次检查前一个月平均为 ${side.after}，之前一次检查前为 ${side.before}。` : "";
+    return `${e.test}：在${what}（${d}）后的 ${m} 个月内，从 ${b} 变为 ${a}${range}。${also}`;
+  }
+  const what = e.kind === "started" ? `starting ${e.name}` : `changing the dose of ${e.name}`;
+  const range = e.range === "back_in" ? ", back in the normal range" : e.range === "now_out" ? ", now outside the normal range" : "";
+  const also = side ? ` ${cap(side.o)} averaged ${side.after} in the month before the later test, vs ${side.before} before the earlier one.` : "";
+  return `${e.test} went from ${b} to ${a} in the ${m === 1 ? "month" : `${m} months`} after ${what} (${d})${range}.${also}`;
 }

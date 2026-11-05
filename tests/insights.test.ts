@@ -160,7 +160,7 @@ describe("insights in the app and for the model", () => {
     expect(view.hasLocation).toBe(true);
     // Not looked up yet: the location as typed.
     expect(view.weatherPlace).toBe("Berkeley");
-    expect(await other.as.query(api.insights.view, { today: TODAY })).toEqual({ patterns: [], medEffects: [], weather: null, weatherPlace: null, tomorrow: [], hasLocation: false });
+    expect(await other.as.query(api.insights.view, { today: TODAY })).toEqual({ patterns: [], medEffects: [], labEffects: [], weather: null, weatherPlace: null, tomorrow: [], hasLocation: false });
   });
 
   test("the weather says where it's for: the place name from the map lookup, looked up again for older points", async () => {

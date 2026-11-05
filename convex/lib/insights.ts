@@ -413,3 +413,65 @@ export function weekStats(input: Inputs, dates: string[], today: string): WeekSt
   }
   return out;
 }
+
+// ---------- Lab results: before and after a medication change ----------
+
+// A numeric lab result (convex/records.ts reads them from uploaded reports). `key` lines the same test up across reports.
+export type LabPoint = { key: string; test: string; date: string; value: number; unit?: string; low?: number; high?: number };
+export type LabEffect = MedChange & {
+  test: string;
+  unit?: string;
+  before: number;
+  after: number;
+  beforeDate: string;
+  afterDate: string;
+  months: number; // from the change to the later result
+  range?: "back_in" | "now_out"; // when the later result crossed the report's normal range
+  // The person's main measure (pain, glucose, …) in the 30 days before each result, when both have enough days.
+  alongside?: { outcome: OutcomeKey; before: number; after: number };
+};
+
+const LAB_BEFORE_DAYS = 180; // the earlier result: the latest one up to 6 months before the change
+const LAB_AFTER = [21, 200] as const; // the later one: the latest from 3 weeks to about 6 months after
+const ALONGSIDE_DAYS = 30;
+
+const outOfRange = (x: number, p: LabPoint) => (p.low !== undefined && x < p.low) || (p.high !== undefined && x > p.high);
+
+// Labs are tested every few months, so no day-by-day pattern can be claimed. Instead: for each medication start or
+// dose change, each test with a result before it and another a few weeks to months after, when the value moved.
+export function labEffects(labs: LabPoint[], changes: MedChange[], input?: Inputs, dates?: string[]): LabEffect[] {
+  const byKey = new Map<string, LabPoint[]>();
+  for (const p of [...labs].sort((a, b) => a.date.localeCompare(b.date))) byKey.set(p.key, [...(byKey.get(p.key) ?? []), p]);
+  // The measure shown alongside: the first one with a bad direction (pain, symptoms, mood, glucose, …).
+  const main = input && dates ? outcomes(input, dates).find((o) => o.worse !== "none") : undefined;
+  const avgBefore = (date: string) => {
+    if (!main) return undefined;
+    const xs = [...main.values].filter(([d]) => d < date && d >= shiftDate(date, -ALONGSIDE_DAYS)).map(([, y]) => y);
+    return xs.length >= MIN_SIDE ? r1(mean(xs)) : undefined;
+  };
+  const out: LabEffect[] = [];
+  for (const c of changes) {
+    for (const points of byKey.values()) {
+      const before = points.filter((p) => p.date <= c.date && p.date >= shiftDate(c.date, -LAB_BEFORE_DAYS)).at(-1);
+      const after = points.filter((p) => p.date >= shiftDate(c.date, LAB_AFTER[0]) && p.date <= shiftDate(c.date, LAB_AFTER[1])).at(-1);
+      if (!before || !after || before.value === after.value) continue;
+      const wasOut = outOfRange(before.value, before);
+      const isOut = outOfRange(after.value, after);
+      const days = Math.round((Date.parse(`${after.date}T00:00:00Z`) - Date.parse(`${c.date}T00:00:00Z`)) / 86_400_000);
+      const [a, b] = [avgBefore(before.date), avgBefore(after.date)];
+      out.push({
+        ...c,
+        test: after.test,
+        unit: after.unit,
+        before: before.value,
+        after: after.value,
+        beforeDate: before.date,
+        afterDate: after.date,
+        months: Math.max(1, Math.round(days / 30.4)),
+        ...(wasOut && !isOut ? { range: "back_in" as const } : !wasOut && isOut ? { range: "now_out" as const } : {}),
+        ...(main && a !== undefined && b !== undefined && { alongside: { outcome: main.key, before: a, after: b } }),
+      });
+    }
+  }
+  return out.sort((a, b) => b.afterDate.localeCompare(a.afterDate)).slice(0, 6);
+}

@@ -1,9 +1,9 @@
-// Weight and glucose as pattern inputs, units, and medication markers on charts.
+// Weight, glucose, and lab results as pattern inputs; units; and medication markers on charts.
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
-import { chartMarks, chartSeries, dateList, findPatterns, Inputs, medEffects, shiftDate, weekStats } from "../convex/lib/insights";
-import { medEffectText, patternText, weekStatLine } from "../convex/lib/insightsText";
+import { chartMarks, chartSeries, dateList, findPatterns, Inputs, labEffects, medEffects, shiftDate, weekStats } from "../convex/lib/insights";
+import { labEffectText, medEffectText, patternText, weekStatLine } from "../convex/lib/insightsText";
 import { cleanMetrics, formatDays, glucoseDay } from "../convex/lib/health";
 import { cleanGlucose, trackersText } from "../convex/lib/trackers";
 import { checkinText, detect } from "../convex/lib/checkins";
@@ -200,5 +200,52 @@ describe("medication markers on charts", () => {
     expect([dash!.charts[0].week, dash!.charts[0].prevWeek]).toEqual([151, 151]);
     const chart = await t.query(internal.insights.chartFor, { userId, metric: "glucose", days: 30 });
     expect(chart).toMatchObject({ meds: [{ date: "2026-10-20", name: "Metformin" }] });
+  });
+});
+
+describe("lab results before and after a medication change", () => {
+  const a1c = (date: string, value: number) => ({ key: "a1c", test: "HbA1c", date, value, unit: "%", high: 5.6 });
+
+  test("a result before the change and one a few months after, with the range it crossed", () => {
+    const [e] = labEffects([a1c("2026-05-10", 8.1), a1c("2026-06-01", 8.3), a1c("2026-09-15", 7.2)], [{ name: "metformin", kind: "dose_changed", date: "2026-06-12" }]);
+    expect(e).toMatchObject({ test: "HbA1c", before: 8.3, after: 7.2, beforeDate: "2026-06-01", afterDate: "2026-09-15", months: 3 });
+    expect(e.range).toBeUndefined();
+    expect(labEffectText(e, "en")).toBe("HbA1c went from 8.3% to 7.2% in the 3 months after changing the dose of metformin (Jun 12).");
+    const [back] = labEffects([a1c("2026-06-01", 6.1), a1c("2026-07-20", 5.4)], [{ name: "metformin", kind: "started", date: "2026-06-12" }]);
+    expect(labEffectText(back, "en")).toBe("HbA1c went from 6.1% to 5.4% in the month after starting metformin (Jun 12), back in the normal range.");
+    expect(labEffectText(back, "es")).toBe("HbA1c pasó de 6,1% a 5,4% en 1 mes después de empezar metformin (12 jun), de nuevo en el rango normal.");
+  });
+
+  test("nothing without a result on both sides, too soon after, or when the value didn't move", () => {
+    const change = [{ name: "metformin", kind: "started" as const, date: "2026-06-12" }];
+    expect(labEffects([a1c("2026-09-15", 7.2)], change)).toEqual([]);
+    expect(labEffects([a1c("2026-06-01", 8.1), a1c("2026-06-20", 7.2)], change)).toEqual([]);
+    expect(labEffects([a1c("2026-06-01", 8.1), a1c("2026-09-15", 8.1)], change)).toEqual([]);
+  });
+
+  test("the main measure is shown alongside when there are days to compare", () => {
+    const days = lastDays(200);
+    const input: Inputs = { ...empty(), trackers: days.map((d) => glucose(d, d < "2026-06-12" ? 180 : 140)) };
+    const [e] = labEffects([a1c("2026-06-01", 8.1), a1c("2026-09-15", 7.2)], [{ name: "metformin", kind: "started", date: "2026-06-12" }], input, days);
+    expect(e.alongside).toEqual({ outcome: "glucose", before: 180, after: 140 });
+    expect(labEffectText(e, "en")).toMatch(/ Glucose averaged 140 mg\/dL in the month before the later test, vs 180 mg\/dL before the earlier one\.$/);
+  });
+
+  test("the Journal card and the model get them from uploaded reports", async () => {
+    const t = setup();
+    const { userId, as } = await createAppUser(t);
+    await t.run(async (ctx) => {
+      await ctx.db.patch(userId, { timeZone: "UTC" });
+      const medicationId = await ctx.db.insert("medications", { userId, name: "Metformin", schedule: { kind: "daily", times: ["08:00"] }, timeZone: "UTC", utcOffsetMin: 0, active: true });
+      await ctx.db.insert("medicationEvents", { userId, medicationId, kind: "started", at: Date.parse("2026-06-12T09:00:00Z") });
+      for (const [date, value] of [["2026-06-01", 8.1], ["2026-09-15", 7.2]] as const) {
+        const recordId = await ctx.db.insert("records", { userId, status: "done", fileType: "pdf", kind: "lab", date });
+        await ctx.db.insert("labResults", { userId, recordId, date, test: "HbA1c", key: "hba1c", value, unit: "%", high: 5.6, explanation: "" });
+      }
+    });
+    expect((await as.query(api.insights.view, { today: TODAY }))!.labEffects).toEqual([
+      "HbA1c went from 8.1% to 7.2% in the 3 months after starting Metformin (Jun 12).",
+    ]);
+    expect(await t.query(internal.insights.forModel, { userId })).toContain("Lab results before and after medication changes");
   });
 });

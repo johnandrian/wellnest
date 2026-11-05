@@ -68,6 +68,8 @@ export type ReportData = {
   appointments: string;
   team: { name: string; role?: string; clinic?: string; phone?: string; email?: string }[];
   emergency: EmergencyPlanData | null;
+  // Lab results that moved after a medication change (already worded), shown under the medications.
+  labChanges?: string[];
 };
 
 const HEAD: Record<Lang, Record<string, string>> = {
@@ -75,28 +77,28 @@ const HEAD: Record<Lang, Record<string, string>> = {
     period: "Period", generated: "Generated", facts: "Key facts", medications: "Medications", journal: "Symptoms and daily check-ins",
     trackers: "Condition trackers", exercises: "Exercises and physical therapy", health: "Health data", appointments: "Appointments and care team",
     emergency: "Emergency plan", none: "Nothing recorded for this period.", name: "Name", dose: "Dose", schedule: "Schedule", status: "Status",
-    taken: "Taken", sideEffects: "Side effects", changes: "Changes", careTeam: "Care team", role: "Role", phone: "Phone", patterns: "Patterns (associations, not causes)",
+    taken: "Taken", sideEffects: "Side effects", changes: "Changes", labChanges: "Lab results since medication changes", careTeam: "Care team", role: "Role", phone: "Phone", patterns: "Patterns (associations, not causes)",
     sleep: "Sleep (hours)", contacts: "Emergency contacts", asthmaPlan: "Asthma action plan", disclaimer: "Made by Wellnest from what the person recorded. It isn't a diagnosis or a medical record.",
   },
   es: {
     period: "Periodo", generated: "Generado", facts: "Datos clave", medications: "Medicamentos", journal: "Síntomas y registros diarios",
     trackers: "Seguimiento de condiciones", exercises: "Ejercicio y fisioterapia", health: "Datos de salud", appointments: "Citas y equipo de atención",
     emergency: "Plan de emergencia", none: "Nada registrado en este periodo.", name: "Nombre", dose: "Dosis", schedule: "Horario", status: "Estado",
-    taken: "Tomadas", sideEffects: "Efectos secundarios", changes: "Cambios", careTeam: "Equipo de atención", role: "Función", phone: "Teléfono", patterns: "Patrones (asociaciones, no causas)",
+    taken: "Tomadas", sideEffects: "Efectos secundarios", changes: "Cambios", labChanges: "Análisis desde los cambios de medicación", careTeam: "Equipo de atención", role: "Función", phone: "Teléfono", patterns: "Patrones (asociaciones, no causas)",
     sleep: "Sueño (horas)", contacts: "Contactos de emergencia", asthmaPlan: "Plan de acción para el asma", disclaimer: "Hecho por Wellnest con lo que la persona registró. No es un diagnóstico ni un historial clínico.",
   },
   el: {
     period: "Περίοδος", generated: "Δημιουργήθηκε", facts: "Βασικά στοιχεία", medications: "Φάρμακα", journal: "Συμπτώματα και ημερήσιες καταγραφές",
     trackers: "Παρακολούθηση παθήσεων", exercises: "Άσκηση και φυσικοθεραπεία", health: "Δεδομένα υγείας", appointments: "Ραντεβού και ομάδα φροντίδας",
     emergency: "Σχέδιο έκτακτης ανάγκης", none: "Τίποτα καταγεγραμμένο αυτή την περίοδο.", name: "Όνομα", dose: "Δόση", schedule: "Πρόγραμμα", status: "Κατάσταση",
-    taken: "Ελήφθησαν", sideEffects: "Παρενέργειες", changes: "Αλλαγές", careTeam: "Ομάδα φροντίδας", role: "Ρόλος", phone: "Τηλέφωνο", patterns: "Μοτίβα (συσχετίσεις, όχι αιτίες)",
+    taken: "Ελήφθησαν", sideEffects: "Παρενέργειες", changes: "Αλλαγές", labChanges: "Εξετάσεις μετά από αλλαγές φαρμάκων", careTeam: "Ομάδα φροντίδας", role: "Ρόλος", phone: "Τηλέφωνο", patterns: "Μοτίβα (συσχετίσεις, όχι αιτίες)",
     sleep: "Ύπνος (ώρες)", contacts: "Επαφές έκτακτης ανάγκης", asthmaPlan: "Πλάνο δράσης για το άσθμα", disclaimer: "Δημιουργήθηκε από το Wellnest με όσα κατέγραψε το άτομο. Δεν είναι διάγνωση ούτε ιατρικός φάκελος.",
   },
   zh: {
     period: "期间", generated: "生成于", facts: "关键信息", medications: "药物", journal: "症状和每日签到",
     trackers: "病情记录", exercises: "运动和理疗", health: "健康数据", appointments: "预约和医护团队",
     emergency: "紧急预案", none: "此期间没有记录。", name: "名称", dose: "剂量", schedule: "时间安排", status: "状态",
-    taken: "已服用", sideEffects: "副作用", changes: "变更", careTeam: "医护团队", role: "角色", phone: "电话", patterns: "规律（相关性，并非因果）",
+    taken: "已服用", sideEffects: "副作用", changes: "变更", labChanges: "用药调整后的化验结果", careTeam: "医护团队", role: "角色", phone: "电话", patterns: "规律（相关性，并非因果）",
     sleep: "睡眠（小时）", contacts: "紧急联系人", asthmaPlan: "哮喘行动计划", disclaimer: "由 Wellnest 根据本人的记录生成。这不是诊断，也不是病历。",
   },
 };
@@ -176,6 +178,7 @@ export function buildReport(d: ReportData): string {
             `</table>`,
         );
       }
+      if (d.labChanges?.length) parts.push(`<h3>${H.labChanges}</h3><ul>${d.labChanges.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`);
     }
     if (s === "journal") {
       parts.push(`<h2>${H.journal}</h2>`);

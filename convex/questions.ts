@@ -10,11 +10,11 @@ import { Id } from "./_generated/dataModel";
 import { complete, CORE_MODEL } from "./lib/cortex";
 import { journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
-import { dateList, findPatterns, medEffects, shiftDate, sliceInputs } from "./lib/insights";
-import { medEffectText, patternText } from "./lib/insightsText";
+import { dateList, findPatterns, labEffects, medEffects, shiftDate, sliceInputs } from "./lib/insights";
+import { labEffectText, medEffectText, patternText } from "./lib/insightsText";
 import { LANGUAGES, langOf } from "./lib/language";
 import { localToday } from "./journal";
-import { gatherInputs, medChanges } from "./insights";
+import { gatherInputs, labPoints, medChanges } from "./insights";
 
 const DAY_MS = 86_400_000;
 const DEFAULT_DAYS = 60;
@@ -67,6 +67,9 @@ export const context = internalQuery({
       trackersText(recent.trackers, user?.peakFlowBest),
       ...findPatterns(recent, dateList(from, today)).map((p) => `Pattern: ${patternText(p, "en", unitsOf(user))}`),
       ...medEffects(input, changes, dateList(shiftDate(from, -14), today), today).map((e) => `Medication before/after: ${medEffectText(e, "en", unitsOf(user))}`),
+      ...labEffects(await labPoints(ctx, visit.userId, shiftDate(today, -365 - 180)), await medChanges(ctx, visit.userId, shiftDate(today, -365))).map(
+        (e) => `Lab result before/after a medication change: ${labEffectText(e, "en", unitsOf(user))}`,
+      ),
     ]
       .filter(Boolean)
       .join("\n\n");

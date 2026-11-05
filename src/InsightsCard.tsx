@@ -25,10 +25,10 @@ export function InsightsCard({ today, s }: { today: string; s: Strings }) {
       ) : (
         <Text style={styles.muted}>{s.insightsEmpty}</Text>
       )}
-      {!!data.medEffects.length && (
+      {(!!data.medEffects.length || !!data.labEffects.length) && (
         <>
           <Text style={styles.subtitle}>{s.insightsMeds}</Text>
-          {data.medEffects.map((m) => (
+          {[...data.medEffects, ...data.labEffects].map((m) => (
             <Text key={m} style={styles.line}>
               • {m}
             </Text>
@@ -42,7 +42,7 @@ export function InsightsCard({ today, s }: { today: string; s: Strings }) {
       ) : (
         !data.hasLocation && <Text style={styles.muted}>{s.insightsNoLocation}</Text>
       )}
-      {(!!data.patterns.length || !!data.medEffects.length) && <Text style={styles.small}>{s.insightsNote}</Text>}
+      {(!!data.patterns.length || !!data.medEffects.length || !!data.labEffects.length) && <Text style={styles.small}>{s.insightsNote}</Text>}
     </View>
   );
 }
