@@ -271,7 +271,7 @@ const styles = themed(() => ({
   headlineLarge: { fontSize: 66, lineHeight: 72, letterSpacing: -2.2 },
   sub: { ...font.regular, fontSize: 18, lineHeight: 28, color: colors.muted },
   subWide: { fontSize: 19, lineHeight: 30, maxWidth: 560 },
-  previewWide: { flex: 1, minWidth: 0, maxWidth: 460 },
+  previewWide: { flex: 1, minWidth: 0, maxWidth: 540 },
   ctas: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 },
 
   section: { gap: 32 },

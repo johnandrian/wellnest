@@ -1,8 +1,8 @@
 // The welcome page's example, next to the headline: a made-up person's four weeks, told in four beats that play in
-// as the page opens. Wellnest finds the pattern (the bars, with the weather days marked), warns about tomorrow, writes
-// the question for the doctor, and shows the change after a medicine. Two stories, picked with the tabs above:
-// rheumatoid arthritis and air pressure, and asthma and pollen. Every beat is something the app really does.
-// With reduced motion it shows the finished picture straight away.
+// as the page opens. Wellnest finds the pattern (the bars, with the factor's days marked), warns ahead, writes the
+// question for the doctor, and shows the change after a medicine (marked in green on its day). Three stories, picked
+// with the tabs above: rheumatoid arthritis and air pressure, asthma and pollen, and type 2 diabetes and short sleep.
+// Every beat is something the app really does. With reduced motion it shows the finished picture straight away.
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Animated, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +13,7 @@ import { Bezel } from "./soft";
 import { colors, isSoft, kicker, pillish, radius, severityColor, tint, themed, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { STORIES, type Story } from "./landing";
+import { MedBand } from "./ChartMarks";
 
 const BEATS: { icon: IconName; key: "pattern" | "forecast" | "doctor" | "proven"; tint: keyof typeof tint }[] = [
   { icon: "insights", key: "pattern", tint: "journal" },
@@ -65,6 +66,8 @@ function Played({ s, story, text }: { s: Strings; story: Story; text: Strings["l
 
   const n = story.values.length;
   const marked = new Set(story.marked);
+  const floor = story.floor ?? 0;
+  const share = (v: number) => Math.max(0, (v - floor) / (story.max - floor));
   return (
     <View style={styles.body}>
       <View style={styles.legend}>
@@ -76,24 +79,34 @@ function Played({ s, story, text }: { s: Strings; story: Story; text: Strings["l
           <Ionicons name={story.mark} size={13} color={tint.appointments.fg} />
           <Text style={styles.legendText}>{text.mark}</Text>
         </View>
+        <View style={styles.legendItem}>
+          <Icon name="medications" size={13} color={tint.guides.fg} />
+          <Text style={styles.legendText}>{text.med}</Text>
+        </View>
       </View>
-      <View style={styles.chart} accessible accessibilityLabel={`${text.bars}, ${text.mark}. ${text.pattern}`}>
+      <View style={styles.chart} accessible accessibilityLabel={`${text.bars}, ${text.mark}, ${text.med}. ${text.pattern} ${text.proven}`}>
         {story.values.map((v, i) => {
           // Each bar starts a little after the one before it.
           const start = (i / n) * 0.55;
           const grow = bars.interpolate({ inputRange: [start, start + 0.45], outputRange: [0, 1], extrapolate: "clamp" });
           const hit = marked.has(i);
+          const med = i === story.med;
           return (
             <View key={i} style={styles.slot}>
               {hit && <Animated.View style={[styles.band, { opacity: marks }]} />}
-              <Animated.View style={[styles.marker, { opacity: hit ? marks : 0 }]}>
-                <Ionicons name={story.mark} size={11} color={tint.appointments.fg} />
+              {med && (
+                <Animated.View style={[styles.fill, { opacity: marks }]}>
+                  <MedBand />
+                </Animated.View>
+              )}
+              <Animated.View style={[styles.marker, { opacity: hit || med ? marks : 0 }]}>
+                {med ? <Icon name="medications" size={12} color={tint.guides.fg} /> : <Ionicons name={story.mark} size={11} color={tint.appointments.fg} />}
               </Animated.View>
               <View style={styles.barArea}>
                 <Animated.View
                   style={[
-                    v > 0 ? styles.bar : styles.stub,
-                    v > 0 && { height: `${(v / story.max) * 100}%`, backgroundColor: severityColor((v / story.max) * 10) },
+                    v > floor ? styles.bar : styles.stub,
+                    v > floor && { height: `${share(v) * 100}%`, backgroundColor: severityColor(share(v) * 10) },
                     { transform: [{ scaleY: grow }], transformOrigin: "bottom" },
                   ]}
                 />
@@ -103,7 +116,7 @@ function Played({ s, story, text }: { s: Strings; story: Story; text: Strings["l
         })}
       </View>
       {BEATS.map((b, i) => (
-        <Beat key={b.key} t={beats[i]} icon={b.icon} tintKey={b.tint} label={s.landStoryBeats[i]}>
+        <Beat key={b.key} t={beats[i]} icon={b.key === "forecast" ? (story.warnIcon ?? b.icon) : b.icon} tintKey={b.tint} label={s.landStoryBeats[i]}>
           {text[b.key]}
         </Beat>
       ))}
@@ -129,7 +142,7 @@ const styles = themed(() => ({
   card: { ...ui.card, padding: 16, gap: 12, borderRadius: radius.lg },
   core: { padding: 20, gap: 12 },
   tabs: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: pillish(radius.md), borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface },
+  tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: pillish(radius.md), borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface },
   tabOn: { backgroundColor: colors.primary },
   tabText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
   tabTextOn: { color: colors.onPrimary },
@@ -142,6 +155,7 @@ const styles = themed(() => ({
   slot: { flex: 1, minWidth: 0, alignItems: "center" },
   // The marked days get a faint column, so they line up with the tall bars at a glance.
   band: { position: "absolute", top: 0, bottom: 0, left: -1, right: -1, borderRadius: 4, backgroundColor: tint.appointments.bg },
+  fill: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   marker: { height: 16, justifyContent: "center" },
   barArea: { flex: 1, width: "100%", justifyContent: "flex-end", paddingHorizontal: 1 },
   bar: { width: "100%", borderRadius: 3 },

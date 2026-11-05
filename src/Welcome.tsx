@@ -224,7 +224,7 @@ const styles = themed(() => ({
   secondaryText: { color: colors.text, fontSize: 16, fontWeight: "600" },
   demo: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8, minHeight: TOUCH, marginTop: 4, paddingHorizontal: 4 },
   demoText: { color: colors.primary, fontSize: 16, fontWeight: "700", textDecorationLine: "underline" },
-  previewWide: { width: 400 },
+  previewWide: { width: 500 },
   sectionSub: { fontSize: 15, color: colors.muted, marginTop: -8 },
   tool: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.lg },
 

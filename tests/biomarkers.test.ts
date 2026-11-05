@@ -1,4 +1,5 @@
-// Weight, glucose, and lab results as pattern inputs; units; medication markers on charts; and air quality alerts.
+// Weight, glucose, and lab results as pattern inputs; units; medication markers on charts; air quality alerts;
+// and the welcome page's example stories matching their own numbers.
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
@@ -8,6 +9,8 @@ import { cleanMetrics, formatDays, glucoseDay } from "../convex/lib/health";
 import { cleanGlucose, trackersText } from "../convex/lib/trackers";
 import { checkinText, detect } from "../convex/lib/checkins";
 import { fmtGlucose, fmtWeight, glucoseToMgdl } from "../convex/lib/units";
+import { STORIES } from "../src/landing";
+import { strings } from "../src/i18n";
 import { createAppUser, messagesOf, mockApis, pushSends, setEnv, setup } from "./helpers";
 
 const NOW = Date.parse("2026-11-02T19:15:00Z"); // 7:15 PM in UTC
@@ -295,5 +298,38 @@ describe("air quality alerts", () => {
     await t.mutation(internal.forecast.scan, {});
     await settle(t);
     expect((await messagesOf(t, u.userId)).filter((m) => m.kind === "forecast")).toHaveLength(1);
+  });
+});
+
+describe("the welcome page's example stories", () => {
+  const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const split = (i: number) => {
+    const s = STORIES[i];
+    const on = s.marked.map((d) => s.values[d]);
+    const off = s.values.filter((_, d) => !s.marked.includes(d));
+    const before = s.values.filter((_, d) => d < s.med && d >= s.med - 14);
+    const after = s.values.filter((_, d) => d > s.med && d <= s.med + 14);
+    return { on: avg(on), off: avg(off), before: avg(before), after: avg(after), offDays: off.length, flares: on.filter((x) => x >= 7).length };
+  };
+  const en = strings("en").landStories;
+
+  test("the text says what the bars show", () => {
+    const ra = split(0);
+    expect([ra.flares, ra.on.toFixed(1), ra.off.toFixed(1), ra.before.toFixed(1), ra.after.toFixed(1)]).toEqual([4, "7.0", "4.4", "6.1", "3.7"]);
+    expect(en[0].pattern).toContain("4 of the 5 days air pressure dropped (joint pain 7/10, vs 4.4/10");
+    expect(en[0].proven).toContain("3.7/10, down from 6.1/10");
+    const asthma = split(1);
+    expect([asthma.on.toFixed(1), Math.round(asthma.off), asthma.offDays, Math.round(asthma.before), Math.round(asthma.after)]).toEqual(["3.3", 1, 21, 3, 1]);
+    expect(en[1].pattern).toBe("Reliever puffs averaged 3.3 a day on the 7 high-pollen days, vs 1 a day on the other 21.");
+    const t2d = split(2);
+    expect([Math.round(t2d.on), Math.round(t2d.off), Math.round(t2d.before), Math.round(t2d.after)]).toEqual([191, 150, 174, 139]);
+    expect(en[2].pattern).toContain("191 mg/dL, vs 150");
+    expect(en[2].proven).toContain("139 mg/dL, down from 174");
+    // The Chinese story is in mmol/L.
+    expect(strings("zh").landStories[2].pattern).toContain(`${(191 / 18.0182).toFixed(1)} mmol/L`);
+  });
+
+  test("the medicine day is never one of the marked days", () => {
+    for (const s of STORIES) expect(s.marked).not.toContain(s.med);
   });
 });

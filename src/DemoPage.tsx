@@ -33,19 +33,40 @@ function seeded(seed: number) {
   };
 }
 
-// Four weeks of joint pain, mood, energy and sleep quality for someone with rheumatoid arthritis: the welcome page's
-// first story (src/landing.ts), where joint pain flares on the days air pressure drops.
+// Four weeks of joint pain, mood, energy, and sleep quality for someone with rheumatoid arthritis: the welcome page's
+// first story (src/landing.ts), where joint pain flares on the days air pressure drops and eases after a dose change.
+// The pattern and before/after numbers are worked out here from the days shown, as the app would.
 export function demoData(s: Strings, now: number): { data: DashboardData; insights: InsightsData } {
   const rand = seeded(7);
   const today = new Date(now);
   const dates = Array.from({ length: DAYS }, (_, i) => isoDate(new Date(now - (DAYS - 1 - i) * DAY_MS)));
-  const pain = STORIES[0].values.slice(-DAYS);
+  const story = STORIES[0];
+  const pain = story.values.slice(-DAYS);
   // A flare costs a night's sleep, and mood and energy follow pain.
   const sleep = dates.map((_, i) => Math.max(1, Math.min(5, Math.round(4.2 - (pain[i] - 4) / 2.5 + (rand() - 0.5) * 1.6))));
   const mood = dates.map((_, i) => Math.max(1, Math.min(5, Math.round(3.6 - (pain[i] - 4) / 2.5 + (rand() - 0.5) * 1.6))));
   const energy = dates.map((_, i) => Math.max(1, Math.min(5, Math.round((sleep[i] + mood[i]) / 2 + (rand() - 0.5)))));
   // A few days without an answer, as in real life.
   const skip = (i: number) => i === 5 || i === 16;
+  const shown = pain.map((_, i) => i).filter((i) => !skip(i));
+  const num = (n: number | null) => (n ?? 0).toLocaleString(s.locale, { maximumFractionDigits: 1 });
+  const onDrop = shown.filter((i) => story.marked.includes(i));
+  const offDrop = shown.filter((i) => !story.marked.includes(i));
+  const pattern = (text: string) =>
+    text
+      .replace("{a}", num(avg(onDrop.map((i) => pain[i]))))
+      .replace("{b}", num(avg(offDrop.map((i) => pain[i]))))
+      .replace("{n}", String(onDrop.length))
+      .replace("{m}", String(offDrop.length));
+  // The dose change and the two weeks either side of it.
+  const before = shown.filter((i) => i < story.med && i >= story.med - 14).map((i) => pain[i]);
+  const after = shown.filter((i) => i > story.med && i <= story.med + 14).map((i) => pain[i]);
+  const doseDate = dates[story.med];
+  const medEffect = s.demoMedEffect
+    .replace("{date}", new Date(`${doseDate}T12:00:00`).toLocaleDateString(s.locale, { month: "short", day: "numeric" }))
+    .replace("{after}", num(avg(after)))
+    .replace("{before}", num(avg(before)));
+  const doseMark = { date: doseDate, name: s.demoDoseMed, kind: "dose_changed" as const };
 
   const chart = (metric: DashboardData["charts"][number]["metric"], title: string, unit: string, max: number, values: number[]) => {
     const points = dates.flatMap((date, i) => (skip(i) ? [] : [{ date, value: values[i] }]));
@@ -60,7 +81,8 @@ export function demoData(s: Strings, now: number): { data: DashboardData; insigh
       points,
       max,
       worse: (metric === "pain" ? "high" : "low") as "high" | "low",
-      meds: [] as { date: string; name: string; kind: "started" | "dose_changed" }[],
+      // The dose change is marked on every chart, as on a real dashboard.
+      meds: [doseMark],
       latest: points[points.length - 1],
       week: avg(week),
       prevWeek: avg(prev),
@@ -86,12 +108,12 @@ export function demoData(s: Strings, now: number): { data: DashboardData; insigh
       visit: { _id: "demo" as Id<"visits">, title: s.demoVisit, startsAt: visitAt.getTime(), kind: "in_person", questions: s.demoQuestions },
     },
     insights: {
-      patterns: [s.demoPattern],
-      medEffects: [],
+      patterns: [pattern(s.demoPattern)],
+      medEffects: [medEffect],
       labEffects: [],
       weather: s.demoWeather,
       weatherPlace: s.demoPlace,
-      tomorrow: [s.demoTomorrow],
+      tomorrow: [pattern(s.demoTomorrow)],
       hasLocation: true,
     },
   };
