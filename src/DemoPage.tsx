@@ -1,5 +1,5 @@
 // /demo, open to everyone from the welcome page: the real dashboard (DashboardView) filled with four weeks of sample
-// data for a made-up person, made here in the browser. Nothing is sent to the server or saved; the check-in faces
+// data for a made-up person with rheumatoid arthritis, made here in the browser. Nothing is sent to the server or saved; the check-in faces
 // can be tapped, and the tools and chat say they open once you have an account.
 import { useMemo, useRef, useState } from "react";
 import { Animated, Text, useWindowDimensions, View } from "react-native";
@@ -12,6 +12,7 @@ import type { Strings } from "./i18n";
 import { DashboardView, type DashboardData, type InsightsData } from "./HomePanel";
 import { DailyCardView, type DailyKey } from "./DailyCard";
 import { greeting, TOOLS, type HubTab } from "./HubPanel";
+import { STORIES } from "./landing";
 import type { Id } from "../convex/_generated/dataModel";
 
 const DAYS = 28;
@@ -32,14 +33,15 @@ function seeded(seed: number) {
   };
 }
 
-// Four weeks of pain, mood, energy and sleep quality: pain flares after short nights and eases this week.
+// Four weeks of joint pain, mood, energy and sleep quality for someone with rheumatoid arthritis: the welcome page's
+// first story (src/landing.ts), where joint pain flares on the days air pressure drops.
 export function demoData(s: Strings, now: number): { data: DashboardData; insights: InsightsData } {
   const rand = seeded(7);
   const today = new Date(now);
   const dates = Array.from({ length: DAYS }, (_, i) => isoDate(new Date(now - (DAYS - 1 - i) * DAY_MS)));
-  const sleep = dates.map(() => (rand() < 0.35 ? 2 : rand() < 0.5 ? 3 : 4 + Math.round(rand())));
-  const easing = (i: number) => (i >= DAYS - 7 ? -1 : 0);
-  const pain = dates.map((_, i) => Math.max(2, Math.min(9, Math.round(4.5 + (sleep[i] <= 2 ? 2.5 : 0) + easing(i) + (rand() - 0.5) * 2.5))));
+  const pain = STORIES[0].values.slice(-DAYS);
+  // A flare costs a night's sleep, and mood and energy follow pain.
+  const sleep = dates.map((_, i) => Math.max(1, Math.min(5, Math.round(4.2 - (pain[i] - 4) / 2.5 + (rand() - 0.5) * 1.6))));
   const mood = dates.map((_, i) => Math.max(1, Math.min(5, Math.round(3.6 - (pain[i] - 4) / 2.5 + (rand() - 0.5) * 1.6))));
   const energy = dates.map((_, i) => Math.max(1, Math.min(5, Math.round((sleep[i] + mood[i]) / 2 + (rand() - 0.5)))));
   // A few days without an answer, as in real life.
