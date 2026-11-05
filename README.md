@@ -118,7 +118,7 @@ flowchart LR
 
 ## Layout
 - `App.tsx`, `src/` — the Expo app.
-  - `Welcome.tsx` — the welcome page before sign-in; `SignIn.tsx`; `Privacy.tsx` — the privacy page (`/privacy`); `route.ts` — that address.
+  - `Welcome.tsx` — the welcome page before sign-in (`WelcomeSoft.tsx` — its soft look, `soft.tsx` — that look's cards and buttons, `design.ts` — which look shows, `landing.ts` — what both show); `SignIn.tsx`; `Privacy.tsx` — the privacy page (`/privacy`); `route.ts` — that address.
   - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** screen (dashboard home in `HomePanel.tsx`, then one screen per tool); `ChatHistory.tsx` — the chat history drawer; `Icon.tsx` — one icon per idea.
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
@@ -294,6 +294,7 @@ At 7 PM local time (`convex/forecast.ts`, hourly cron), Wellnest compares **tomo
 ## Welcome page and privacy
 Signed out, `src/Welcome.tsx` leads with the tracker (with a preview of a week of pain and sleep and the pattern found in it), then what else Wellnest does, how it works, the free tools and how data stays the user's, in the browser's or phone's language (with a switch), then sign-in or a new account. `/privacy` (`src/Privacy.tsx`) lists what's kept, the services that process it and the choices people have; it's open signed in or not and linked from "What Wellnest knows about me". `public/index.html` adds the description and link-preview tags for the site and invites.
 - **Free tools** (`src/PublicPages.tsx`), open to everyone: `/medication-list` (type medicines, then print or save a PDF; kept only in that browser's storage) and `/appointment-checklist` (the prep checklist, ticks kept in the browser). Each ends with "Create an account", which opens sign-up.
+- **Two looks** (`src/design.ts`): the welcome page and the free tools come in a **soft** look (the default: Plus Jakarta Sans bundled with the app, cards set in a faint tray, pill buttons with the arrow in its own circle, small capital tags over headings, more space, and sections that rise in as they scroll into view, `Rise` in `src/Motion.tsx`) and the **classic** one. Add `?design=classic` or `?design=soft` to the address to switch; the browser remembers it. `DEFAULT_DESIGN` sets what everyone else sees. Both use the same words, links, colours, dark mode and text size. The soft look follows the "soft" style from Taste Skill (`.claude/skills/soft-skill/`, MIT).
 - **Example dashboard** (`/demo`, `src/DemoPage.tsx`): **See an example dashboard** on the welcome page opens the real dashboard (`DashboardView` in `src/HomePanel.tsx`) with four weeks of sample data for a made-up person, made in the browser: charts, the next dose and appointment with questions, today's check-in (the faces can be tapped), a pattern, tomorrow's heads-up and the weather. Nothing is sent to the server or saved; tapping a tool or the chat says it opens with a free account.
 
 ## Charts in chat
