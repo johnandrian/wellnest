@@ -32,7 +32,6 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png",
       "name": "Wellnest",
       "shortName": "Wellnest",
       "description": "Wellnest is an AI health companion you can talk to. It remembers what matters, finds your patterns, keeps track of your medicines and keeps the people who care for you in the loop.",
