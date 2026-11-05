@@ -190,8 +190,10 @@ const FAMILY: [number, string][] = [
   [0, "PlusJakartaSans_400Regular"],
 ];
 
+// Only text styles that set a weight, or a size and a colour (a whole text style, as every Text has one), get a
+// font file. A style that only changes the size (headlineWide) is laid over one of those and keeps its file.
 function softFont(s: Record<string, unknown>) {
-  if (s.fontFamily || (typeof s.fontSize !== "number" && s.fontWeight === undefined)) return;
+  if (s.fontFamily || (s.fontWeight === undefined && (typeof s.fontSize !== "number" || s.color === undefined))) return;
   const w = s.fontWeight === "bold" ? 700 : Number(s.fontWeight) || 400;
   s.fontFamily = FAMILY.find(([min]) => w >= min)![1];
   s.fontWeight = "normal";
