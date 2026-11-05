@@ -1,9 +1,9 @@
-// Weight, glucose, and lab results as pattern inputs; units; and medication markers on charts.
+// Weight, glucose, and lab results as pattern inputs; units; medication markers on charts; and air quality alerts.
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { chartMarks, chartSeries, dateList, findPatterns, Inputs, labEffects, medEffects, shiftDate, weekStats } from "../convex/lib/insights";
-import { labEffectText, medEffectText, patternText, weekStatLine } from "../convex/lib/insightsText";
+import { airAlertText, labEffectText, medEffectText, patternText, weekStatLine } from "../convex/lib/insightsText";
 import { cleanMetrics, formatDays, glucoseDay } from "../convex/lib/health";
 import { cleanGlucose, trackersText } from "../convex/lib/trackers";
 import { checkinText, detect } from "../convex/lib/checkins";
@@ -247,5 +247,53 @@ describe("lab results before and after a medication change", () => {
       "HbA1c went from 8.1% to 7.2% in the 3 months after starting Metformin (Jun 12).",
     ]);
     expect(await t.query(internal.insights.forModel, { userId })).toContain("Lab results before and after medication changes");
+  });
+});
+
+describe("air quality alerts", () => {
+  async function seed(t: ReturnType<typeof setup>, userId: Id<"users">, aqi: number) {
+    await t.run(async (ctx) => {
+      await ctx.db.patch(userId, { timeZone: "UTC", location: "Berkeley, CA" });
+      await ctx.db.insert("weatherDays", { userId, date: TOMORROW, aqi });
+    });
+  }
+
+  test("the wording follows the band", () => {
+    const sensitive = airAlertText(130, "en");
+    expect(sensitive.title).toBe("Air quality alert for tomorrow");
+    expect(sensitive.text).toBe(
+      "😷 **Air quality alert for tomorrow**\n\nTomorrow's air quality index is forecast to reach 130 (unhealthy for sensitive groups). People with asthma or other lung or heart conditions, older adults, and children should cut back on long or hard time outdoors. If you use a reliever inhaler, keep it with you.",
+    );
+    expect(airAlertText(180, "en").text).toContain("(unhealthy). Everyone should cut back");
+    expect(airAlertText(180, "es").title).toBe("Alerta de calidad del aire para mañana");
+  });
+
+  test("everyone with a location gets one at 7 PM for an index of 101 or more, with a push; not below, and not when off", async () => {
+    const t = setup();
+    const { calls } = mockApis();
+    const bad = await createAppUser(t);
+    const fine = await createAppUser(t, "b@example.com");
+    const off = await createAppUser(t, "c@example.com");
+    await bad.as.mutation(api.push.register, { token: "ExponentPushToken[aaaaaaaaaaaaaaaaaaaaaa]", platform: "ios" });
+    await seed(t, bad.userId, 135);
+    await seed(t, fine.userId, 80);
+    await seed(t, off.userId, 160);
+    await off.as.mutation(api.forecast.setAirAlerts, { enabled: false });
+    await t.mutation(internal.forecast.scan, {});
+    await settle(t);
+    expect((await messagesOf(t, bad.userId)).filter((m) => m.kind === "forecast").map((m) => m.text)).toEqual([expect.stringMatching(/^😷 \*\*Air quality alert for tomorrow\*\*/)]);
+    expect(pushSends(calls)).toEqual([expect.objectContaining({ title: "Air quality alert for tomorrow", body: expect.stringContaining("reach 135") })]);
+    for (const u of [fine, off]) expect((await messagesOf(t, u.userId)).filter((m) => m.kind === "forecast")).toEqual([]);
+  });
+
+  test("still sent with the flare forecast switched off", async () => {
+    const t = setup();
+    mockApis();
+    const u = await createAppUser(t);
+    await seed(t, u.userId, 155);
+    await u.as.mutation(api.forecast.setEnabled, { enabled: false });
+    await t.mutation(internal.forecast.scan, {});
+    await settle(t);
+    expect((await messagesOf(t, u.userId)).filter((m) => m.kind === "forecast")).toHaveLength(1);
   });
 });

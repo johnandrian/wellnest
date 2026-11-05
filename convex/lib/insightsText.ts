@@ -299,6 +299,47 @@ const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; 
 };
 type ForecastFactor = (typeof WEATHER_FACTORS)[number];
 
+// ---------- Air quality alerts ----------
+
+// The US AQI from which tomorrow's air gets an alert: 101 is "unhealthy for sensitive groups".
+export const AIR_ALERT_AQI = 101;
+
+const AIR: Record<Lang, { title: string; head: string; sensitive: string; everyone: string }> = {
+  en: {
+    title: "Air quality alert for tomorrow",
+    head: "Tomorrow's air quality index is forecast to reach {v} ({band}).",
+    sensitive: "People with asthma or other lung or heart conditions, older adults, and children should cut back on long or hard time outdoors. If you use a reliever inhaler, keep it with you.",
+    everyone: "Everyone should cut back on long or hard time outdoors, and people with asthma or lung or heart conditions should avoid it. Keep windows closed if you can, and keep your reliever inhaler with you if you use one.",
+  },
+  es: {
+    title: "Alerta de calidad del aire para mañana",
+    head: "Se prevé que mañana el índice de calidad del aire llegue a {v} ({band}).",
+    sensitive: "Las personas con asma u otras enfermedades pulmonares o cardiacas, las personas mayores y los niños deberían reducir el tiempo largo o intenso al aire libre. Si usas un inhalador de rescate, llévalo contigo.",
+    everyone: "Todos deberían reducir el tiempo largo o intenso al aire libre, y las personas con asma o enfermedades pulmonares o cardiacas deberían evitarlo. Si puedes, mantén las ventanas cerradas y lleva tu inhalador de rescate si lo usas.",
+  },
+  el: {
+    title: "Ειδοποίηση για την ποιότητα του αέρα αύριο",
+    head: "Ο δείκτης ποιότητας αέρα αύριο αναμένεται να φτάσει το {v} ({band}).",
+    sensitive: "Όσοι έχουν άσθμα ή άλλα προβλήματα στους πνεύμονες ή στην καρδιά, οι ηλικιωμένοι και τα παιδιά καλό είναι να περιορίσουν τον πολύωρο ή έντονο χρόνο έξω. Αν χρησιμοποιείς ανακουφιστικό εισπνεόμενο, έχε το μαζί σου.",
+    everyone: "Όλοι καλό είναι να περιορίσουν τον πολύωρο ή έντονο χρόνο έξω, και όσοι έχουν άσθμα ή προβλήματα στους πνεύμονες ή στην καρδιά να τον αποφύγουν. Αν μπορείς, κράτα τα παράθυρα κλειστά και έχε μαζί σου το ανακουφιστικό εισπνεόμενο αν το χρησιμοποιείς.",
+  },
+  zh: {
+    title: "明日空气质量提醒",
+    head: "预计明天的空气质量指数将达到 {v}（{band}）。",
+    sensitive: "哮喘或其他肺部、心脏疾病患者、老年人和儿童应减少长时间或剧烈的户外活动。如果你使用缓解吸入器，请随身携带。",
+    everyone: "所有人都应减少长时间或剧烈的户外活动，哮喘或肺部、心脏疾病患者应避免户外活动。如果可以，请关好窗户；如果你使用缓解吸入器，请随身携带。",
+  },
+};
+
+// The evening alert for bad air tomorrow, for everyone with a location. `body` is the push notification's text.
+export function airAlertText(aqi: number, lang: Lang): { title: string; text: string; body: string } {
+  const L = AIR[lang];
+  const band = aqiBand(aqi);
+  const head = L.head.replace("{v}", num(Math.round(aqi), lang)).replace("{band}", AQI_WORDS[lang][band]);
+  const advice = band === "unhealthy" ? L.everyone : L.sensitive;
+  return { title: L.title, text: `😷 **${L.title}**\n\n${head} ${advice}`, body: head };
+}
+
 // "Forecast: a drop in air pressure", and the pattern it falls on.
 function forecastParts(m: ForecastMatch, lang: Lang, units: Units) {
   const L = FORECAST[lang];

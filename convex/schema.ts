@@ -116,6 +116,8 @@ export default defineSchema({
     weeklySentAt: v.optional(v.number()),
     // The evening flare forecast (convex/forecast.ts); on when unset. `forecastSentAt` stops a second one that day.
     flareForecast: v.optional(v.boolean()),
+    // Evening alerts when tomorrow's air quality is forecast to be unhealthy (convex/forecast.ts); on when unset.
+    airAlerts: v.optional(v.boolean()),
     forecastSentAt: v.optional(v.number()),
     // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
     notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),

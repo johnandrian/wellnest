@@ -521,6 +521,7 @@ function Settings({
     checkins: boolean;
     weeklySummary: boolean;
     flareForecast: boolean;
+    airAlerts: boolean;
     units: { glucose: "mg/dL" | "mmol/L"; weight: "lb" | "kg" };
   };
   s: Strings;
@@ -538,6 +539,7 @@ function Settings({
   const setWeekly = useMutation(api.weekly.setEnabled);
   const setForecast = useMutation(api.forecast.setEnabled);
   const setUnits = useMutation(api.chat.setUnits);
+  const setAirAlerts = useMutation(api.forecast.setAirAlerts);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -694,6 +696,13 @@ function Settings({
           <Text style={styles.settingHint}>{s.flareForecastHint}</Text>
         </View>
         <Switch value={me.flareForecast} onValueChange={(enabled) => void setForecast({ enabled })} />
+      </View>
+      <View style={styles.settingRow}>
+        <View style={styles.settingLabelWrap}>
+          <Text style={styles.settingLabel}>{s.airAlerts}</Text>
+          <Text style={styles.settingHint}>{s.airAlertsHint}</Text>
+        </View>
+        <Switch value={me.airAlerts} onValueChange={(enabled) => void setAirAlerts({ enabled })} />
       </View>
       {pushSupported &&
         (["reminders", "appointments"] as const).map((kind) => (

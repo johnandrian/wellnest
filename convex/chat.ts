@@ -102,6 +102,7 @@ export const me = query({
       checkins: user.checkins ?? true,
       weeklySummary: user.weeklySummary ?? true,
       flareForecast: user.flareForecast ?? true,
+      airAlerts: user.airAlerts ?? true,
       units: unitsOf(user),
       location: user.location ?? "",
       telegramLinked: !!user.telegramChatId,
