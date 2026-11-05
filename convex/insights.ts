@@ -6,7 +6,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalQuery, query, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { CHART_METRICS, ChartMetric, chartSeries, Chart, dateList, findPatterns, forecastMatches, ForecastMatch, Inputs, MedChange, medEffects, shiftDate, sliceInputs, WEATHER_FACTORS } from "./lib/insights";
+import { CHART_METRICS, ChartMetric, chartMarks, chartSeries, Chart, dateList, findPatterns, forecastMatches, ForecastMatch, Inputs, MedChange, medEffects, shiftDate, sliceInputs, WEATHER_FACTORS } from "./lib/insights";
 import { chartName, forecastLine, medEffectText, patternText, weatherLine } from "./lib/insightsText";
 import { isDate } from "./lib/health";
 import { Lang, langOf } from "./lib/language";
@@ -16,6 +16,7 @@ import { dailySince, entriesSince, localToday } from "./journal";
 import { trackersSince } from "./trackers";
 import { weatherSince } from "./weather";
 import { parseCoords } from "./lib/places";
+import { unitsOf } from "./lib/units";
 
 export const LOOKBACK_DAYS = 90;
 const MED_LOOKBACK_DAYS = 120;
@@ -99,15 +100,16 @@ export const view = query({
     if (!userId || !isDate(today)) return null;
     const user = await ctx.db.get(userId);
     const lang = langOf(user);
+    const units = unitsOf(user);
     const { patterns, effects, weatherToday } = await computed(ctx, userId, today);
     return {
-      patterns: patterns.map((p) => patternText(p, lang)),
-      medEffects: effects.map((e) => medEffectText(e, lang)),
+      patterns: patterns.map((p) => patternText(p, lang, units)),
+      medEffects: effects.map((e) => medEffectText(e, lang, units)),
       weather: weatherToday ? weatherLine(weatherToday, lang) : null,
       // Where that weather is for: the looked-up place name, else the location as they typed it.
       weatherPlace: weatherToday ? placeOf(user) : null,
       // The flare forecast: tomorrow's weather on the worse side of one of their weather patterns.
-      tomorrow: (await tomorrowMatches(ctx, userId, today)).map((m) => forecastLine(m, lang)),
+      tomorrow: (await tomorrowMatches(ctx, userId, today)).map((m) => forecastLine(m, lang, units)),
       hasLocation: !!user?.location?.trim(),
     };
   },
@@ -117,21 +119,23 @@ export const view = query({
 export const forModel = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<string> => {
-    const today = localToday(await ctx.db.get(userId));
+    const user = await ctx.db.get(userId);
+    const today = localToday(user);
+    const units = unitsOf(user);
     const { patterns, effects, weatherToday } = await computed(ctx, userId, today);
     const tomorrow = (await weatherSince(ctx, userId, shiftDate(today, 1), shiftDate(today, 1)))[0];
     const flare = await tomorrowMatches(ctx, userId, today);
     return [
       patterns.length
-        ? `Patterns over the last ${LOOKBACK_DAYS} days (associations in their own logs, not proof of cause):\n${patterns.map((p) => `- ${patternText(p, "en")}`).join("\n")}`
+        ? `Patterns over the last ${LOOKBACK_DAYS} days (associations in their own logs, not proof of cause):\n${patterns.map((p) => `- ${patternText(p, "en", units)}`).join("\n")}`
         : `No clear patterns yet in the last ${LOOKBACK_DAYS} days (needs about 10 days with both a symptom score and the factor).`,
       effects.length
-        ? `Before and after medication changes (other things may have changed too):\n${effects.map((e) => `- ${medEffectText(e, "en")}`).join("\n")}`
+        ? `Before and after medication changes (other things may have changed too):\n${effects.map((e) => `- ${medEffectText(e, "en", units)}`).join("\n")}`
         : "",
       weatherToday ? `Today's local weather: ${weatherLine(weatherToday, "en")}` : "No local weather (no saved location).",
       tomorrow ? `Tomorrow's forecast: ${weatherLine(tomorrow, "en")}` : "",
       flare.length
-        ? `Flare forecast (tomorrow's weather matches their own patterns; a heads-up, not a prediction):\n${flare.map((m) => `- ${forecastLine(m, "en")}`).join("\n")}`
+        ? `Flare forecast (tomorrow's weather matches their own patterns; a heads-up, not a prediction):\n${flare.map((m) => `- ${forecastLine(m, "en", units)}`).join("\n")}`
         : "",
     ]
       .filter(Boolean)
@@ -151,8 +155,10 @@ export const chartFor = internalQuery({
     const name = metric === "symptom" ? normalizeSymptom(symptom ?? "") : undefined;
     if (metric === "symptom" && !name) return { error: "say which symptom" };
     const input = await gatherInputs(ctx, userId, from, to);
-    const series = chartSeries(input, metric as ChartMetric, dateList(from, to), name);
+    const units = unitsOf(user);
+    const series = chartSeries(input, metric as ChartMetric, dateList(from, to), name, units);
     if (!series.points.length) return { error: `nothing logged for ${name ?? metric} in that time` };
-    return { metric, ...chartName(metric as ChartMetric, lang, name), from, to, ...series };
+    const meds = chartMarks(await medChanges(ctx, userId, from), from, to);
+    return { metric, ...chartName(metric as ChartMetric, lang, name, units), from, to, ...series, ...(meds.length && { meds }) };
   },
 });

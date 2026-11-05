@@ -3,12 +3,13 @@
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query } from "./_generated/server";
-import { ChartMetric, chartSeries, dateList, shiftDate } from "./lib/insights";
+import { ChartMetric, chartMarks, chartSeries, dateList, shiftDate } from "./lib/insights";
 import { chartName } from "./lib/insightsText";
 import { isDate } from "./lib/health";
 import { langOf } from "./lib/language";
 import { daysLeft } from "./lib/meds";
-import { gatherInputs } from "./insights";
+import { unitsOf } from "./lib/units";
+import { gatherInputs, medChanges } from "./insights";
 
 const DAYS = 28;
 const MAX_CHARTS = 4;
@@ -35,6 +36,7 @@ export const view = query({
     const user = userId ? await ctx.db.get(userId) : null;
     if (!user || !isDate(today)) return null;
     const lang = langOf(user);
+    const units = unitsOf(user);
     const from = shiftDate(today, -(DAYS - 1));
     const dates = dateList(from, today);
     const input = await gatherInputs(ctx, user._id, from, today);
@@ -44,6 +46,8 @@ export const view = query({
     for (const e of input.entries) if (e.severity !== undefined) counts.set(e.symptom, (counts.get(e.symptom) ?? 0) + 1);
     const topSymptom = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 
+    // Medication starts and dose changes, marked on every chart.
+    const marks = chartMarks(await medChanges(ctx, user._id, from), from, today);
     const order = [...new Set([...(user.focus ?? []).flatMap((f) => BY_FOCUS[f] ?? []), ...FALLBACK])];
     const weekStart = shiftDate(today, -6);
     const prevStart = shiftDate(today, -13);
@@ -51,16 +55,17 @@ export const view = query({
     for (const metric of order) {
       if (charts.length >= MAX_CHARTS) break;
       if (metric === "symptom" && !topSymptom) continue;
-      const series = chartSeries(input, metric, dates, topSymptom);
+      const series = chartSeries(input, metric, dates, topSymptom, units);
       if (!series.points.length) continue;
       const week = series.points.filter((p) => p.date >= weekStart).map((p) => p.value);
       const prev = series.points.filter((p) => p.date >= prevStart && p.date < weekStart).map((p) => p.value);
       charts.push({
         metric,
-        ...chartName(metric, lang, topSymptom),
+        ...chartName(metric, lang, topSymptom, units),
         from,
         to: today,
         ...series,
+        meds: marks,
         latest: series.points[series.points.length - 1],
         week: avg(week),
         prevWeek: week.length >= 2 && prev.length >= 2 ? avg(prev) : null,

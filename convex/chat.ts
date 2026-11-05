@@ -1,5 +1,6 @@
 // App/web entry points: send + list messages, user settings.
 import { v } from "convex/values";
+import { units, unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { DAILY_LIMIT, enqueueUserMessage } from "./pipeline";
@@ -101,6 +102,7 @@ export const me = query({
       checkins: user.checkins ?? true,
       weeklySummary: user.weeklySummary ?? true,
       flareForecast: user.flareForecast ?? true,
+      units: unitsOf(user),
       location: user.location ?? "",
       telegramLinked: !!user.telegramChatId,
     };
@@ -124,6 +126,15 @@ export const setAppearance = mutation({
     if (!userId) throw new Error("Not signed in");
     if (!TEXT_SIZES.includes(appearance.textSize)) throw new Error("Pick one of the text sizes.");
     await ctx.db.patch(userId, { appearance });
+  },
+});
+
+export const setUnits = mutation({
+  args: { units },
+  handler: async (ctx, { units }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    await ctx.db.patch(userId, { units });
   },
 });
 

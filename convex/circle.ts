@@ -3,6 +3,7 @@
 // full report), and get the alerts the person picked for each of them: missed doses and the evening flare forecast.
 // The person can change a member's alerts or remove them; a member can leave. Invites expire after a week.
 import { v } from "convex/values";
+import { unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
@@ -223,9 +224,9 @@ export const person = query({
       alerts: row.alerts,
       doses: doses.sort((a, b) => a.at - b.at),
       meds,
-      week: weekStats(input, dateList(from, today), today).map((s) => weekStatLine(s, lang)),
+      week: weekStats(input, dateList(from, today), today).map((s) => weekStatLine(s, lang, unitsOf(owner))),
       lastLogged: logged[logged.length - 1] ?? null,
-      forecast: (await tomorrowMatches(ctx, ownerId, today)).map((x) => forecastLine(x, lang)),
+      forecast: (await tomorrowMatches(ctx, ownerId, today)).map((x) => forecastLine(x, lang, unitsOf(owner))),
       contacts: plan?.contacts ?? [],
     };
   },

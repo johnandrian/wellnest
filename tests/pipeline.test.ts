@@ -126,6 +126,7 @@ describe("app chat", () => {
       checkins: true,
       weeklySummary: true,
       flareForecast: true,
+      units: { glucose: "mg/dL", weight: "lb" },
       location: "",
       telegramLinked: false,
     });

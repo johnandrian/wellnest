@@ -3,6 +3,7 @@
 // any medication change worth noting (convex/lib/insights.ts). Only when there's something logged this week, and
 // a Settings switch turns it off.
 import { v } from "convex/values";
+import { unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation } from "./_generated/server";
@@ -76,7 +77,7 @@ export const send = internalMutation({
     const pattern = findPatterns(sliceInputs(input, from), dateList(from, today), 1)[0];
     // A medication change from the last month whose before/after is clear.
     const medEffect = medEffects(input, await medChanges(ctx, userId, shiftDate(today, -30)), dateList(from, today), today)[0];
-    const text = weeklyText({ lang, from: weekStart, to: today, stats, doses, pattern, medEffect });
+    const text = weeklyText({ lang, from: weekStart, to: today, stats, doses, pattern, medEffect, units: unitsOf(user) });
     const channel = user.telegramChatId ? "telegram" : "app";
     await saveAssistantReply(ctx, { userId, text, channel, urgent: false, kind: "summary" });
     const [title, ...rest] = plain(text).split("\n").filter(Boolean);

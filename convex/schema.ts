@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { units } from "./lib/units";
 import { healthMetrics, healthSource } from "./lib/health";
 import { schedule } from "./lib/reminders";
 import { language } from "./lib/language";
@@ -100,6 +101,8 @@ export default defineSchema({
     appearance: v.optional(appearance),
     // Reply and voice language (convex/lib/language.ts); English when unset.
     language: v.optional(language),
+    // Units shown for glucose and weight (convex/lib/units.ts); mg/dL and lb when unset.
+    units: v.optional(units),
     // Proactive check-ins from Apple Health changes (convex/checkins.ts); on when unset.
     checkins: v.optional(v.boolean()),
     // Account setup (convex/onboarding.ts): when it was finished, what to call them, and what they use Wellnest for.

@@ -14,6 +14,7 @@ import { aboutUserText } from "./lib/onboarding";
 import { localToday } from "./journal";
 import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
+import { unitsOf } from "./lib/units";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -340,7 +341,7 @@ export const respond = internalAction({
         },
         healthConnected: !!user?.health,
         healthInAnalysis: !!user?.health?.shareWithAnalysis,
-        getHealthData: async (days) => healthReport(await healthDays(ctx, userId, days), dateDaysAgo(Date.now(), 0)),
+        getHealthData: async (days) => healthReport(await healthDays(ctx, userId, days), dateDaysAgo(Date.now(), 0), unitsOf(user)),
         analyzeSymptoms: async (rawArgs) => {
           const parsed = parseInputs(rawArgs);
           if ("error" in parsed) return `Tool error: ${parsed.error}`;

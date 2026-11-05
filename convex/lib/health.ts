@@ -1,6 +1,7 @@
 // Apple Health daily summaries: validation of what the phone sends, and the text the model and CREAO read.
 // The phone sends one summary per local calendar day (convex/health.ts sync); raw samples never leave the phone.
 import { Infer, v } from "convex/values";
+import { DEFAULT_UNITS, fmtWeight, type Units } from "./units";
 
 export const menstrualFlow = v.union(
   v.literal("none"),
@@ -80,7 +81,7 @@ function mean(values: number[]) {
 const fmt = (n: number, digits = 0) => n.toLocaleString("en-US", { maximumFractionDigits: digits });
 
 // One line per day, oldest first. Wrist temperature is shown as the change from the range's average, like the Health app.
-export function formatDays(days: HealthDay[]): string {
+export function formatDays(days: HealthDay[], units: Units = DEFAULT_UNITS): string {
   const tempBase = mean(days.flatMap((d) => (d.metrics.wristTempC === undefined ? [] : [d.metrics.wristTempC])));
   return days
     .map(({ date, metrics: m }) => {
@@ -96,7 +97,7 @@ export function formatDays(days: HealthDay[]): string {
         const delta = m.wristTempC - tempBase;
         parts.push(`wrist temp ${delta >= 0 ? "+" : "−"}${fmt(Math.abs(delta), 1)}°C vs average`);
       }
-      if (m.weightKg !== undefined) parts.push(`weight ${fmt(m.weightKg, 1)} kg`);
+      if (m.weightKg !== undefined) parts.push(`weight ${fmtWeight(m.weightKg, units)}`);
       if (bleeding(m)) parts.push(`period (${m.menstrualFlow === "unspecified" ? "flow not given" : m.menstrualFlow})`);
       return parts.length ? `${date}: ${parts.join(" · ")}` : null;
     })
@@ -158,14 +159,14 @@ export function cycleSummary(days: HealthDay[], today: string): { text: string; 
 }
 
 // Everything the model gets from get_health_data.
-export function healthReport(days: HealthDay[], today: string): string {
+export function healthReport(days: HealthDay[], today: string, units: Units = DEFAULT_UNITS): string {
   if (!days.length) return "No health data for that period yet. The phone app syncs when Wellnest is opened.";
   const out = [`Health data, ${days[0].date} to ${days[days.length - 1].date}:`];
   const summary = summarize(days);
   if (summary) out.push(summary);
   const cycle = cycleSummary(days, today);
   if (cycle) out.push(`Cycle: ${cycle.text}`);
-  out.push("Daily:\n" + formatDays(days));
+  out.push("Daily:\n" + formatDays(days, units));
   return out.join("\n\n");
 }
 

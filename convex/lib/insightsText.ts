@@ -3,25 +3,27 @@
 import type { Lang } from "./language";
 import type { ChartMetric, FactorKey, ForecastMatch, MedEffect, OutcomeKey, Pattern, WEATHER_FACTORS, WeekStat } from "./insights";
 import { aqiBand, pollenBand, type WeatherDay } from "./weather";
+import { DEFAULT_UNITS, fmtWeight, type Units } from "./units";
 
 const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-ES", el: "el-GR", zh: "zh-CN" };
 const num = (n: number, lang: Lang) => n.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const OUTCOMES: Record<Lang, Record<Exclude<OutcomeKey, `symptom:${string}`>, string>> = {
-  en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures" },
-  es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis" },
-  el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις" },
-  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作" },
+  en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures", weight: "weight" },
+  es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis", weight: "peso" },
+  el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις", weight: "βάρος" },
+  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作", weight: "体重" },
 };
 
 export function outcomeName(key: OutcomeKey, lang: Lang): string {
   return key.startsWith("symptom:") ? key.slice(8) : OUTCOMES[lang][key as keyof (typeof OUTCOMES)["en"]];
 }
 
-// "4.2/10", "3.1/5", "410 L/min", "2.5 puffs a day", "0.3 a day".
-export function outcomeValue(key: OutcomeKey, n: number, lang: Lang): string {
+// "4.2/10", "3.1/5", "410 L/min", "2.5 puffs a day", "0.3 a day", "182.4 lb".
+export function outcomeValue(key: OutcomeKey, n: number, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const perDay = { en: "a day", es: "al día", el: "τη μέρα", zh: "次/天" }[lang];
+  if (key === "weight") return fmtWeight(n, units, LOCALE[lang]);
   if (key === "pain" || key.startsWith("symptom:")) return `${num(n, lang)}/10`;
   if (key === "mood" || key === "energy" || key === "sleepQuality") return `${num(n, lang)}/5`;
   if (key === "peakFlow") return `${num(n, lang)} L/min`;
@@ -37,6 +39,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     restingHeartRate: { below: "a resting heart rate under {t}", atLeast: "a resting heart rate of {t}+" },
     hrv: { below: "HRV under {t} ms", atLeast: "HRV of {t}+ ms" },
     period: { yes: "a period" },
+    weightGain: { yes: "a weight gain of {g} or more over 3 days" },
     tempMax: { below: "highs under {t}°C", atLeast: "highs of {t}°C or more" },
     humidity: { below: "humidity under {t}%", atLeast: "humidity of {t}% or more" },
     pressureDrop: { yes: "a drop in air pressure" },
@@ -51,6 +54,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     restingHeartRate: { below: "pulso en reposo menor de {t}", atLeast: "pulso en reposo de {t} o más" },
     hrv: { below: "VFC menor de {t} ms", atLeast: "VFC de {t} ms o más" },
     period: { yes: "regla" },
+    weightGain: { yes: "un aumento de peso de {g} o más en 3 días" },
     tempMax: { below: "máximas de menos de {t} °C", atLeast: "máximas de {t} °C o más" },
     humidity: { below: "humedad menor del {t} %", atLeast: "humedad del {t} % o más" },
     pressureDrop: { yes: "una bajada de la presión atmosférica" },
@@ -65,6 +69,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     restingHeartRate: { below: "παλμούς ηρεμίας κάτω από {t}", atLeast: "παλμούς ηρεμίας {t}+" },
     hrv: { below: "HRV κάτω από {t} ms", atLeast: "HRV {t}+ ms" },
     period: { yes: "περίοδο" },
+    weightGain: { yes: "αύξηση βάρους {g} ή περισσότερο μέσα σε 3 μέρες" },
     tempMax: { below: "μέγιστη θερμοκρασία κάτω από {t}°C", atLeast: "μέγιστη θερμοκρασία {t}°C ή παραπάνω" },
     humidity: { below: "υγρασία κάτω από {t}%", atLeast: "υγρασία {t}% ή παραπάνω" },
     pressureDrop: { yes: "πτώση της ατμοσφαιρικής πίεσης" },
@@ -79,6 +84,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     restingHeartRate: { below: "静息心率低于 {t}", atLeast: "静息心率 {t} 或以上" },
     hrv: { below: "HRV 低于 {t} 毫秒", atLeast: "HRV {t} 毫秒或以上" },
     period: { yes: "经期" },
+    weightGain: { yes: "3 天内体重增加 {g} 或以上" },
     tempMax: { below: "最高气温低于 {t}°C", atLeast: "最高气温 {t}°C 或以上" },
     humidity: { below: "湿度低于 {t}%", atLeast: "湿度 {t}% 或以上" },
     pressureDrop: { yes: "气压下降" },
@@ -88,16 +94,18 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
   },
 };
 
-export function conditionText(p: Pick<Pattern, "factor" | "side" | "threshold">, lang: Lang): string {
+export function conditionText(p: Pick<Pattern, "factor" | "side" | "threshold">, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const t = p.threshold === undefined ? "" : p.factor === "steps" ? Math.round(p.threshold).toLocaleString(LOCALE[lang]) : num(p.threshold, lang);
-  return (FACTORS[lang][p.factor][p.side] ?? "").replace("{t}", t);
+  // The weight gain step (1 kg) in the user's unit, rounded: "2 lb" or "1 kg".
+  const g = units.weight === "lb" ? "2 lb" : "1 kg";
+  return (FACTORS[lang][p.factor][p.side] ?? "").replace("{t}", t).replace("{g}", g);
 }
 
-export function patternText(p: Pattern, lang: Lang): string {
+export function patternText(p: Pattern, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const o = outcomeName(p.outcome, lang);
-  const a = outcomeValue(p.outcome, p.worse, lang);
-  const b = outcomeValue(p.outcome, p.other, lang);
-  const c = conditionText(p, lang);
+  const a = outcomeValue(p.outcome, p.worse, lang, units);
+  const b = outcomeValue(p.outcome, p.other, lang, units);
+  const c = conditionText(p, lang, units);
   if (lang === "es") return `${cap(o)}: media de ${a} los días con ${c} (${p.worseDays} días), frente a ${b} el resto (${p.otherDays}).`;
   if (lang === "zh") return `${o}：在${c}的日子里平均为 ${a}（${p.worseDays} 天），其他日子为 ${b}（${p.otherDays} 天）。`;
   if (lang === "el") return `${cap(o)}: μέσος όρος ${a} τις μέρες με ${c} (${p.worseDays} μέρες), έναντι ${b} τις υπόλοιπες (${p.otherDays}).`;
@@ -107,25 +115,27 @@ export function patternText(p: Pattern, lang: Lang): string {
 const shortDate = (date: string, lang: Lang) =>
   new Date(`${date}T12:00:00Z`).toLocaleDateString(LOCALE[lang], { month: "short", day: "numeric", timeZone: "UTC" });
 
-export function medEffectText(e: MedEffect, lang: Lang): string {
+export function medEffectText(e: MedEffect, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const o = outcomeName(e.outcome, lang);
-  const before = outcomeValue(e.outcome, e.before, lang);
-  const after = outcomeValue(e.outcome, e.after, lang);
+  const before = outcomeValue(e.outcome, e.before, lang, units);
+  const after = outcomeValue(e.outcome, e.after, lang, units);
   const d = shortDate(e.date, lang);
+  // Weight is never called better or worse.
+  const verdict = (better: string, worse: string, open: string, close: string) => (e.better === undefined ? "" : `${open}${e.better ? better : worse}${close}`);
   if (lang === "es") {
     const what = e.kind === "started" ? `empezar ${e.name}` : `cambiar la dosis de ${e.name}`;
-    return `${cap(o)} desde ${what} (${d}): ${after}, frente a ${before} las 2 semanas anteriores (${e.better ? "mejor" : "peor"}).`;
+    return `${cap(o)} desde ${what} (${d}): ${after}, frente a ${before} las 2 semanas anteriores${verdict("mejor", "peor", " (", ")")}.`;
   }
   if (lang === "zh") {
     const what = e.kind === "started" ? `开始服用 ${e.name}` : `调整 ${e.name} 的剂量`;
-    return `${o}：自 ${d} ${what}以来为 ${after}，之前两周为 ${before}（${e.better ? "好转" : "变差"}）。`;
+    return `${o}：自 ${d} ${what}以来为 ${after}，之前两周为 ${before}${verdict("好转", "变差", "（", "）")}。`;
   }
   if (lang === "el") {
     const what = e.kind === "started" ? `την έναρξη του ${e.name}` : `την αλλαγή δόσης του ${e.name}`;
-    return `${cap(o)} μετά ${what} (${d}): ${after}, έναντι ${before} τις 2 εβδομάδες πριν (${e.better ? "καλύτερα" : "χειρότερα"}).`;
+    return `${cap(o)} μετά ${what} (${d}): ${after}, έναντι ${before} τις 2 εβδομάδες πριν${verdict("καλύτερα", "χειρότερα", " (", ")")}.`;
   }
   const what = e.kind === "started" ? `starting ${e.name}` : `changing the dose of ${e.name}`;
-  return `${cap(o)} since ${what} on ${d}: ${after}, vs ${before} in the 2 weeks before (${e.better ? "better" : "worse"}).`;
+  return `${cap(o)} since ${what} on ${d}: ${after}, vs ${before} in the 2 weeks before${verdict("better", "worse", " (", ")")}.`;
 }
 
 const AQI_WORDS: Record<Lang, Record<ReturnType<typeof aqiBand>, string>> = {
@@ -189,9 +199,10 @@ const CHART_NAMES: Record<Lang, Record<Exclude<ChartMetric, "symptom">, [string,
   },
 };
 
-export function chartName(metric: ChartMetric, lang: Lang, symptom?: string): { title: string; unit: string } {
+export function chartName(metric: ChartMetric, lang: Lang, symptom?: string, units: Units = DEFAULT_UNITS): { title: string; unit: string } {
   if (metric === "symptom") return { title: cap(symptom ?? ""), unit: "/10" };
   const [title, unit] = CHART_NAMES[lang][metric];
+  if (metric === "weightKg") return { title, unit: units.weight };
   return { title, unit };
 }
 
@@ -205,8 +216,10 @@ export function weeklyText(opts: {
   doses?: { taken: number; total: number };
   pattern?: Pattern;
   medEffect?: MedEffect;
+  units?: Units;
 }): string {
   const { lang } = opts;
+  const units = opts.units ?? DEFAULT_UNITS;
   const L = {
     en: { title: "Your week", last: "last week", better: "better", worse: "worse", doses: "Medications: {a} of {b} doses taken", pattern: "Worth watching", med: "Medication", footer: "Ask me about any of these, or open Health tools for the charts." },
     es: { title: "Tu semana", last: "la semana pasada", better: "mejor", worse: "peor", doses: "Medicamentos: {a} de {b} dosis tomadas", pattern: "Para vigilar", med: "Medicamento", footer: "Pregúntame por cualquiera de estos puntos, o abre Herramientas de salud para ver los gráficos." },
@@ -214,24 +227,24 @@ export function weeklyText(opts: {
     zh: { title: "你的一周", last: "上周", better: "好转", worse: "变差", doses: "药物：已服用 {a}/{b} 剂", pattern: "值得留意", med: "药物", footer: "可以随时问我其中任何一项，或打开健康工具查看图表。" },
   }[lang];
   const lines = [`📅 **${L.title}** (${shortDate(opts.from, lang)} – ${shortDate(opts.to, lang)})`, ""];
-  for (const s of opts.stats) lines.push(`• ${weekStatLine(s, lang)}`);
+  for (const s of opts.stats) lines.push(`• ${weekStatLine(s, lang, units)}`);
   if (opts.doses?.total) lines.push(`• ${L.doses.replace("{a}", String(opts.doses.taken)).replace("{b}", String(opts.doses.total))}`);
-  if (opts.medEffect) lines.push("", `💊 ${L.med}: ${medEffectText(opts.medEffect, lang)}`);
-  if (opts.pattern) lines.push("", `🔎 ${L.pattern}: ${patternText(opts.pattern, lang)}`);
+  if (opts.medEffect) lines.push("", `💊 ${L.med}: ${medEffectText(opts.medEffect, lang, units)}`);
+  if (opts.pattern) lines.push("", `🔎 ${L.pattern}: ${patternText(opts.pattern, lang, units)}`);
   lines.push("", L.footer);
   return lines.join("\n");
 }
 
 // "Mood: 4/5 (last week 2/5, better)": one line of the weekly summary, also shown to a care circle.
-export function weekStatLine(s: WeekStat, lang: Lang): string {
+export function weekStatLine(s: WeekStat, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const L = {
     en: { last: "last week", better: "better", worse: "worse" },
     es: { last: "la semana pasada", better: "mejor", worse: "peor" },
     el: { last: "την προηγούμενη εβδομάδα", better: "καλύτερα", worse: "χειρότερα" },
     zh: { last: "上周", better: "好转", worse: "变差" },
   }[lang];
-  const now = outcomeValue(s.outcome, s.thisWeek, lang);
-  const was = s.lastWeek === undefined ? "" : ` (${L.last} ${outcomeValue(s.outcome, s.lastWeek, lang)}${s.better === undefined ? "" : `, ${s.better ? L.better : L.worse}`})`;
+  const now = outcomeValue(s.outcome, s.thisWeek, lang, units);
+  const was = s.lastWeek === undefined ? "" : ` (${L.last} ${outcomeValue(s.outcome, s.lastWeek, lang, units)}${s.better === undefined ? "" : `, ${s.better ? L.better : L.worse}`})`;
   return `${cap(outcomeName(s.outcome, lang))}: ${now}${was}`;
 }
 
@@ -274,24 +287,24 @@ const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; 
 type ForecastFactor = (typeof WEATHER_FACTORS)[number];
 
 // "Forecast: a drop in air pressure", and the pattern it falls on.
-function forecastParts(m: ForecastMatch, lang: Lang) {
+function forecastParts(m: ForecastMatch, lang: Lang, units: Units) {
   const L = FORECAST[lang];
   const what = L[m.pattern.factor as ForecastFactor].replace("{v}", num(Math.round(m.value), lang));
-  return { head: `${L.prefix}: ${what}`, body: patternText(m.pattern, lang) };
+  return { head: `${L.prefix}: ${what}`, body: patternText(m.pattern, lang, units) };
 }
 
 // "Forecast: a drop in air pressure. Pain averaged 6/10 on days with a drop in air pressure (8 days), vs 3/10 …"
-export function forecastLine(m: ForecastMatch, lang: Lang): string {
-  const { head, body } = forecastParts(m, lang);
+export function forecastLine(m: ForecastMatch, lang: Lang, units: Units = DEFAULT_UNITS): string {
+  const { head, body } = forecastParts(m, lang, units);
   return `${head}${lang === "zh" ? "。" : "."} ${body}`;
 }
 
 // The evening message. With `name`, it's the copy a care circle member gets about that person.
-export function forecastText(matches: ForecastMatch[], lang: Lang, name?: string): { text: string; title: string } {
+export function forecastText(matches: ForecastMatch[], lang: Lang, name?: string, units: Units = DEFAULT_UNITS): { text: string; title: string } {
   const L = FORECAST[lang];
   const title = name ? L.titleFor.replace("{name}", name) : L.title;
   const lines = matches.map((m) => {
-    const { head, body } = forecastParts(m, lang);
+    const { head, body } = forecastParts(m, lang, units);
     return `• **${head}${lang === "zh" ? "。" : "."}** ${body}`;
   });
   const footer = name ? L.footerFor.replace("{name}", name) : L.footer;

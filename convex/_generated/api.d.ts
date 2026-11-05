@@ -65,6 +65,7 @@ import type * as lib_telegram from "../lib/telegram.js";
 import type * as lib_telehealth from "../lib/telehealth.js";
 import type * as lib_tools from "../lib/tools.js";
 import type * as lib_trackers from "../lib/trackers.js";
+import type * as lib_units from "../lib/units.js";
 import type * as lib_visit from "../lib/visit.js";
 import type * as lib_weather from "../lib/weather.js";
 import type * as me from "../me.js";
@@ -153,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   "lib/telehealth": typeof lib_telehealth;
   "lib/tools": typeof lib_tools;
   "lib/trackers": typeof lib_trackers;
+  "lib/units": typeof lib_units;
   "lib/visit": typeof lib_visit;
   "lib/weather": typeof lib_weather;
   me: typeof me;

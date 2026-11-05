@@ -7,16 +7,19 @@ import type { Entry, DailyLog } from "./journal";
 import type { HealthDay } from "./health";
 import type { TrackerEntry } from "./trackers";
 import type { WeatherDay } from "./weather";
+import { DEFAULT_UNITS, showWeight, type Units } from "./units";
 
 export type Series = Map<string, number>; // date -> value
 
 // What the user wants to get better. `worse`: which direction is bad. `min`: the smallest gap worth a mention.
-export type OutcomeKey = "pain" | "mood" | "energy" | "sleepQuality" | "peakFlow" | "reliever" | "seizures" | `symptom:${string}`;
-export type Outcome = { key: OutcomeKey; worse: "high" | "low"; min: number; values: Series };
+// Weight has no bad direction ("none"): it's shown before and after medication changes and in the weekly summary,
+// but never called better or worse, and patterns aren't looked for in it.
+export type OutcomeKey = "pain" | "mood" | "energy" | "sleepQuality" | "peakFlow" | "reliever" | "seizures" | "weight" | `symptom:${string}`;
+export type Outcome = { key: OutcomeKey; worse: "high" | "low" | "none"; min: number; values: Series };
 
 // Things that might go with it. `lag` 1 means the day before counts (yesterday's steps, today's pain).
 export const FACTOR_KEYS = [
-  "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period",
+  "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period", "weightGain",
   "tempMax", "humidity", "pressureDrop", "rain", "aqi", "pollen",
 ] as const;
 export type FactorKey = (typeof FACTOR_KEYS)[number];
@@ -113,6 +116,28 @@ export function outcomes(input: Inputs, dates: string[]): Outcome[] {
     const counts = sumBy(seizures.map((e): [string, number] => [e.date, 1]));
     out.push({ key: "seizures", worse: "high", min: 0.2, values: new Map(dates.filter((d) => d >= first).map((d) => [d, counts.get(d) ?? 0])) });
   }
+
+  const weight = weightSeries(input);
+  if (weight.size) out.push({ key: "weight", worse: "none", min: WEIGHT_STEP_KG, values: weight });
+  return out;
+}
+
+// Weight (kg) per day from the phone's health data.
+const weightSeries = (input: Inputs): Series =>
+  new Map(input.health.flatMap((d): [string, number][] => (d.metrics.weightKg === undefined ? [] : [[d.date, d.metrics.weightKg]])));
+
+// A gain this big over a few days is worth looking at (fluid, a flare, a new medicine); 1 kg is about 2 lb.
+export const WEIGHT_STEP_KG = 1;
+const GAIN_DAYS = 3;
+
+// 1 on days weight is up 1 kg or more on its lowest in the 3 days before, 0 on other weighed days. Days with no
+// weighing in the 3 days before are left out.
+function weightGain(weight: Series): Series {
+  const out: Series = new Map();
+  for (const [date, kg] of weight) {
+    const before = Array.from({ length: GAIN_DAYS }, (_, i) => weight.get(shiftDate(date, -(i + 1)))).filter((x): x is number => x !== undefined);
+    if (before.length) out.set(date, kg - Math.min(...before) >= WEIGHT_STEP_KG ? 1 : 0);
+  }
   return out;
 }
 
@@ -144,6 +169,7 @@ function factors(input: Inputs): Factor[] {
       binary: true,
       step: 1,
     },
+    { key: "weightGain", values: weightGain(weightSeries(input)), lag: 0, binary: true, step: 1 },
     { key: "tempMax", values: weather((w) => w.tempMax), lag: 0, step: 1 },
     { key: "humidity", values: weather((w) => w.humidity), lag: 0, step: 5 },
     { key: "pressureDrop", values: pressureDrop, lag: 0, binary: true, step: 1 },
@@ -208,6 +234,7 @@ export function findPatterns(input: Inputs, dates: string[], limit = 6, only?: r
   const fs = factors(input).filter((f) => !only || only.includes(f.key));
   const found: Pattern[] = [];
   for (const o of outcomes(input, dates)) {
+    if (o.worse === "none") continue;
     // Sleep quality is both an outcome and a factor; never compare it with itself.
     found.push(...fs.filter((f) => f.key !== o.key).flatMap((f) => compare(o, f) ?? []).sort((a, b) => b.effect - a.effect).slice(0, 2));
   }
@@ -235,7 +262,8 @@ export function forecastMatches(patterns: Pattern[], weather: WeatherDay[], date
 // ---------- Medications: before and after ----------
 
 export type MedChange = { name: string; kind: "started" | "dose_changed"; date: string; note?: string };
-export type MedEffect = MedChange & { outcome: OutcomeKey; before: number; after: number; better: boolean; days: number };
+// `better` is left out for weight, which has no good or bad direction.
+export type MedEffect = MedChange & { outcome: OutcomeKey; before: number; after: number; better?: boolean; days: number };
 
 const WINDOW = 14;
 const MIN_SIDE = 4;
@@ -256,7 +284,7 @@ export function medEffects(input: Inputs, changes: MedChange[], dates: string[],
       if (before.length < MIN_SIDE || after.length < MIN_SIDE) continue;
       const gap = mean(after) - mean(before);
       if (Math.abs(gap) < o.min) continue;
-      out.push({ ...c, outcome: o.key, before: r1(mean(before)), after: r1(mean(after)), better: o.worse === "high" ? gap < 0 : gap > 0, days: after.length });
+      out.push({ ...c, outcome: o.key, before: r1(mean(before)), after: r1(mean(after)), ...(o.worse !== "none" && { better: o.worse === "high" ? gap < 0 : gap > 0 }), days: after.length });
     }
   }
   return out.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
@@ -279,7 +307,12 @@ export const chartValidator = v.object({
   from: v.string(),
   to: v.string(),
   points: v.array(v.object({ date: v.string(), value: v.number() })),
+  // The 7-day average, drawn as a line of dots over the bars (weight, where single days jump around).
+  trend: v.optional(v.array(v.object({ date: v.string(), value: v.number() }))),
+  // Medication starts and dose changes in the chart's days, marked above the bars.
+  meds: v.optional(v.array(v.object({ date: v.string(), name: v.string(), kind: v.union(v.literal("started"), v.literal("dose_changed")) }))),
 });
+export type ChartMark = { date: string; name: string; kind: "started" | "dose_changed" };
 export type Chart = {
   metric: string;
   title: string;
@@ -289,15 +322,32 @@ export type Chart = {
   from: string;
   to: string;
   points: { date: string; value: number }[];
+  trend?: { date: string; value: number }[];
+  meds?: ChartMark[];
 };
+
+// The changes to mark on a chart from `from` to `to`, at most one per day (a start wins over a dose change).
+export function chartMarks(changes: MedChange[], from: string, to: string): ChartMark[] {
+  const byDate = new Map<string, ChartMark>();
+  for (const c of [...changes].sort((a, b) => (a.kind === "started" ? 1 : 0) - (b.kind === "started" ? 1 : 0))) {
+    if (c.date >= from && c.date <= to) byDate.set(c.date, { date: c.date, name: c.name, kind: c.kind });
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
 
 const SCALE: Partial<Record<ChartMetric, number>> = { pain: 10, symptom: 10, mood: 5, energy: 5, sleepQuality: 5 };
 const WORSE: Partial<Record<ChartMetric, "high" | "low">> = {
   pain: "high", symptom: "high", mood: "low", energy: "low", sleepQuality: "low", peakFlow: "low", reliever: "high", seizures: "high", aqi: "high", pollen: "high",
 };
 
-// One value per day for a chart, oldest first. `symptom` picks a journal symptom by name.
-export function chartSeries(input: Inputs, metric: ChartMetric, dates: string[], symptom?: string): { points: { date: string; value: number }[]; max: number; worse: "high" | "low" | "none" } {
+// One value per day for a chart, oldest first, in the user's units. `symptom` picks a journal symptom by name.
+export function chartSeries(
+  input: Inputs,
+  metric: ChartMetric,
+  dates: string[],
+  symptom?: string,
+  units: Units = DEFAULT_UNITS,
+): { points: { date: string; value: number }[]; max: number; worse: "high" | "low" | "none"; trend?: { date: string; value: number }[] } {
   let values: Series;
   if (metric === "symptom") {
     values = maxBy(input.entries.flatMap((e): [string, number][] => (e.symptom === symptom && e.severity !== undefined ? [[e.date, e.severity]] : [])));
@@ -309,9 +359,17 @@ export function chartSeries(input: Inputs, metric: ChartMetric, dates: string[],
     const key = metric === "hrv" ? "hrvMs" : (metric as "sleepHours" | "steps" | "restingHeartRate" | "weightKg");
     values = new Map(input.health.flatMap((d): [string, number][] => (d.metrics[key] === undefined ? [] : [[d.date, d.metrics[key]!]])));
   }
-  const points = dates.flatMap((date) => (values.has(date) ? [{ date, value: Math.round(values.get(date)! * 10) / 10 }] : []));
+  const show = (x: number) => (metric === "weightKg" ? showWeight(x, units) : x);
+  const points = dates.flatMap((date) => (values.has(date) ? [{ date, value: r1(show(values.get(date)!)) }] : []));
   const top = Math.max(0, ...points.map((p) => p.value));
-  return { points, max: SCALE[metric] ?? (top || 1), worse: WORSE[metric] ?? "none" };
+  const out = { points, max: SCALE[metric] ?? (top || 1), worse: WORSE[metric] ?? ("none" as const) };
+  // Weight jumps a pound or two from day to day; the 7-day average shows where it's really heading.
+  if (metric !== "weightKg" || points.length < 3) return out;
+  const trend = dates.flatMap((date) => {
+    const week = dates.filter((d) => d <= date && d > shiftDate(date, -7) && values.has(d)).map((d) => show(values.get(d)!));
+    return week.length >= 2 ? [{ date, value: r1(mean(week)) }] : [];
+  });
+  return { ...out, trend };
 }
 
 // ---------- The week in numbers (weekly summary) ----------
@@ -331,7 +389,7 @@ export function weekStats(input: Inputs, dates: string[], today: string): WeekSt
     if (prev.length >= 2) {
       stat.lastWeek = r1(mean(prev));
       const gap = stat.thisWeek - stat.lastWeek;
-      if (Math.abs(gap) >= o.min) stat.better = o.worse === "high" ? gap < 0 : gap > 0;
+      if (Math.abs(gap) >= o.min && o.worse !== "none") stat.better = o.worse === "high" ? gap < 0 : gap > 0;
     }
     out.push(stat);
   }

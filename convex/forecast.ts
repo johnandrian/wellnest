@@ -4,6 +4,7 @@
 // Care circle members who picked it get their own copy. Nothing is sent on days with no match; a Settings switch
 // turns it off.
 import { v } from "convex/values";
+import { unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation } from "./_generated/server";
@@ -58,11 +59,11 @@ export const send = internalMutation({
     const matches = await tomorrowMatches(ctx, userId, localToday(user, now));
     if (!matches.length) return;
 
-    const { text, title } = forecastText(matches, langOf(user));
+    const { text, title } = forecastText(matches, langOf(user), undefined, unitsOf(user));
     await saveAssistantReply(ctx, { userId, text, channel: user.telegramChatId ? "telegram" : "app", urgent: false, kind: "forecast" });
     await notify(ctx, userId, "forecast", { title, body: bodyOf(text) });
     await alertCircle(ctx, userId, "forecast", (lang, who) => {
-      const copy = forecastText(matches, lang, who);
+      const copy = forecastText(matches, lang, who, unitsOf(user));
       return { ...copy, body: bodyOf(copy.text) };
     });
   },

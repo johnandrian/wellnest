@@ -2,6 +2,7 @@
 // check-ins, medication changes and side effects, patterns) and suggests a few specific questions, saved on the
 // visit. Made from the Visits tab, and automatically with the 2-hour reminder when there are none yet.
 import { v } from "convex/values";
+import { unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, ActionCtx, internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -64,8 +65,8 @@ export const context = internalQuery({
       sideEffects.length && `Side effects: ${sideEffects.map((e) => `${e.date} ${medName.get(e.medicationId) ?? ""}: ${e.effect}${e.severity !== undefined ? ` ${e.severity}/10` : ""}`).join("; ")}`,
       journalText([...recent.entries, ...painAsEntries(recent.trackers)], recent.health, recent.daily),
       trackersText(recent.trackers, user?.peakFlowBest),
-      ...findPatterns(recent, dateList(from, today)).map((p) => `Pattern: ${patternText(p, "en")}`),
-      ...medEffects(input, changes, dateList(shiftDate(from, -14), today), today).map((e) => `Medication before/after: ${medEffectText(e, "en")}`),
+      ...findPatterns(recent, dateList(from, today)).map((p) => `Pattern: ${patternText(p, "en", unitsOf(user))}`),
+      ...medEffects(input, changes, dateList(shiftDate(from, -14), today), today).map((e) => `Medication before/after: ${medEffectText(e, "en", unitsOf(user))}`),
     ]
       .filter(Boolean)
       .join("\n\n");
