@@ -6,7 +6,7 @@ import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH, themed } from "./theme";
+import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { ReportSection, SectionChips } from "./ReportCard";
 
@@ -152,15 +152,15 @@ const styles = themed(() => ({
   label: { color: colors.text, fontSize: 13, fontWeight: "600" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   form: { gap: 8 },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  made: { backgroundColor: colors.primarySoft, borderRadius: 8, padding: 10, gap: 8 },
+  made: { backgroundColor: colors.primarySoft, borderRadius: round(8), padding: 10, gap: 8 },
   url: { color: colors.text, fontSize: 13 },
-  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH },
+  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: pillish(10), paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   addRow: { ...ui.addButton },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },

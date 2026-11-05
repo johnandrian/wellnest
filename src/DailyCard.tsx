@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, scaleColor, ui, themed } from "./theme";
+import { colors, round, scaleColor, themed, ui } from "./theme";
 import type { Strings } from "./i18n";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
@@ -108,11 +108,11 @@ const styles = themed(() => ({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   label: { color: colors.text, fontSize: 14, flexShrink: 1 },
   faces: { flexDirection: "row", gap: 4 },
-  face: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
+  face: { width: 34, height: 34, borderRadius: round(17), alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
   faceOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   faceText: { fontSize: 20 },
   link: { color: colors.muted, fontSize: 13, alignSelf: "flex-end" },
-  chart: { gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 },
+  chart: { gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: round(10), padding: 10 },
   chartRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   chartLabel: { width: 70, fontSize: 12, color: colors.muted },
   bars: { flex: 1, height: 28, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 3 },

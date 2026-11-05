@@ -6,7 +6,7 @@ import { ScrollView, Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, severityColor, ui, themed } from "./theme";
+import { colors, round, severityColor, themed, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
@@ -172,5 +172,5 @@ const styles = themed(() => ({
   axisText: { color: colors.muted, fontSize: 12 },
   legend: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
-  insights: { backgroundColor: colors.primarySoft, borderRadius: 10, padding: 10, gap: 4 },
+  insights: { backgroundColor: colors.primarySoft, borderRadius: round(10), padding: 10, gap: 4 },
 }));

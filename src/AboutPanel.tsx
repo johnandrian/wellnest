@@ -7,7 +7,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, themed } from "./theme";
+import { colors, pillish, round, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "records" | "everything";
@@ -247,11 +247,11 @@ const styles = themed(() => ({
   flex: { flex: 1 },
   factRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   fact: { fontSize: 15, color: colors.text },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
   dataRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.bg },
   dataLabel: { width: 120, fontSize: 14, color: colors.text, fontWeight: "600" },
   actions: { flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 8 },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, minWidth: 150, alignItems: "center" },
+  button: { backgroundColor: colors.primary, borderRadius: pillish(10), paddingVertical: 10, paddingHorizontal: 16, minWidth: 150, alignItems: "center" },
   dangerButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.danger },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },

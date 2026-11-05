@@ -1,7 +1,7 @@
 // A chart the model drew with show_chart (convex/insights.ts), under its reply: one bar per day with data, coloured
 // by how good or bad the value is for that measure, with the average, high and low underneath.
 import { Text, View } from "react-native";
-import { colors, themed } from "./theme";
+import { colors, round, themed } from "./theme";
 import type { Strings } from "./i18n";
 
 export type ChartData = {
@@ -75,7 +75,7 @@ export function ChartCard({ chart, s }: { chart: ChartData; s: Strings }) {
 }
 
 const styles = themed(() => ({
-  card: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
+  card: { marginTop: 8, padding: 10, borderRadius: round(10), backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
   title: { fontSize: 14, fontWeight: "700", color: colors.text },
   unit: { fontWeight: "400", color: colors.muted },
   bars: { flexDirection: "row", alignItems: "flex-end", height: 90, gap: 1 },

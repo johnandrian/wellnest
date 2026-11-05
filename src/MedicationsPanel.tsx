@@ -10,7 +10,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, radius, tint, ui, TOUCH, themed } from "./theme";
+import { colors, pillish, radius, round, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
 import { Enter, Reveal, SwapIcon } from "./Motion";
@@ -644,7 +644,7 @@ const styles = themed(() => ({
   medHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   tileHead: { gap: 6 },
   tileTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
-  tileIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  tileIcon: { width: 38, height: 38, borderRadius: round(19), alignItems: "center", justifyContent: "center" },
   badge: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.warningSoft },
   badgeText: { fontSize: 12, fontWeight: "700", color: colors.warningText },
   tileName: { fontSize: 17, fontWeight: "700", color: colors.text },
@@ -658,7 +658,7 @@ const styles = themed(() => ({
   status: { fontSize: 12, fontWeight: "600", color: colors.warningText },
   detail: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   form: { gap: 8 },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 64, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text, fontSize: 14 },
@@ -667,14 +667,14 @@ const styles = themed(() => ({
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  script: { width: 96, height: 96, borderRadius: 8, backgroundColor: colors.border },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
+  script: { width: 96, height: 96, borderRadius: round(8), backgroundColor: colors.border },
+  button: { backgroundColor: colors.primary, borderRadius: pillish(10), paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   addRow: { ...ui.addButton, minWidth: 200 },
   addRows: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  scanNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: colors.primarySoft, borderRadius: 8, padding: 10 },
+  scanNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: colors.primarySoft, borderRadius: round(8), padding: 10 },
   listCard: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, minHeight: TOUCH },
-  listIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  listIcon: { width: 38, height: 38, borderRadius: round(19), alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   safety: { ...ui.card, padding: 12, gap: 8 },
   safetyWarn: { backgroundColor: colors.warningSoft, borderColor: colors.amber },
   safetyHead: { flexDirection: "row", alignItems: "center", gap: 8 },

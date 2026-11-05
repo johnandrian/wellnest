@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH, themed } from "./theme";
+import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -120,14 +120,14 @@ const styles = themed(() => ({
   form: { gap: 8 },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
   date: { width: 120 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, padding: 11, minHeight: TOUCH },
+  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: pillish(10), padding: 11, minHeight: TOUCH },
   busy: { opacity: 0.7 },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   error: { color: colors.danger, fontSize: 13 },

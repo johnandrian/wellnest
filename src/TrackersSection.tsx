@@ -7,7 +7,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, ui, TOUCH, themed } from "./theme";
+import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
 
@@ -319,17 +319,17 @@ const styles = themed(() => ({
   attackText: { color: colors.danger, fontWeight: "700" },
   tbtn: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 5 },
   count: { fontSize: 12, color: colors.muted },
-  sev: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  sev: { width: 28, height: 28, borderRadius: round(14), borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   sevText: { fontSize: 13, color: colors.text },
   sevOn: { color: colors.onPrimary, fontWeight: "700" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 72, textAlign: "center" },
   multi: { minHeight: 56, textAlignVertical: "top" },
   bars: { height: 56, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 4 },
   slot: { flex: 1, height: "100%", justifyContent: "flex-end" },
   bar: { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
-  button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
+  button: { backgroundColor: colors.primary, borderRadius: pillish(10), paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   entry: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, Switch, Text, View } fro
 import { useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, themed } from "./theme";
+import { colors, pillish, round, themed } from "./theme";
 import type { HealthSync } from "./useHealthSync";
 import type { Strings } from "./i18n";
 
@@ -90,14 +90,14 @@ export function HealthSettings({ health, s }: { health: HealthSync; s: Strings }
 }
 
 const styles = themed(() => ({
-  box: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, gap: 8 },
+  box: { borderWidth: 1, borderColor: colors.border, borderRadius: round(10), padding: 12, gap: 8 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 16, fontWeight: "600", color: colors.text, flex: 1 },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   small: { color: colors.muted, fontSize: 12 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   label: { fontSize: 15, color: colors.text },
-  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 11, alignItems: "center" },
+  button: { backgroundColor: colors.primary, borderRadius: pillish(10), padding: 11, alignItems: "center" },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   actions: { flexDirection: "row", gap: 20 },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },

@@ -7,7 +7,7 @@ import { useAction } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
-import { colors, ui, themed } from "./theme";
+import { colors, round, themed, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
@@ -142,7 +142,7 @@ export function CarePanel({ s }: { s: Strings }) {
 const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
-  emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: 10, padding: 11 },
+  emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: round(10), padding: 11 },
   emergencyText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

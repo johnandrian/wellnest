@@ -6,7 +6,7 @@ import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, ui, TOUCH, themed } from "./theme";
+import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { shareUrl } from "./ShareCard";
 
@@ -257,8 +257,8 @@ const styles = themed(() => ({
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   flex: { flex: 1 },
   form: { gap: 8 },
-  editBlock: { gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8 },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  editBlock: { gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: round(8), padding: 8 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   multi: { minHeight: 70, textAlignVertical: "top" },
   rel: { width: 90 },
   phone: { width: 130 },
@@ -269,13 +269,13 @@ const styles = themed(() => ({
   block: { gap: 3 },
   secTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   step: { fontSize: 14, color: colors.text, lineHeight: 20 },
-  zone: { fontSize: 14, lineHeight: 20, borderRadius: 6, padding: 6, color: colors.text },
+  zone: { fontSize: 14, lineHeight: 20, borderRadius: round(6), padding: 6, color: colors.text },
   green: { backgroundColor: colors.successSoft },
   amber: { backgroundColor: colors.warningSoft },
   red: { backgroundColor: colors.dangerSoft },
   contact: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
   contactText: { fontSize: 15, color: colors.primary, fontWeight: "600", flexShrink: 1 },
-  button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH, justifyContent: "center" },
+  button: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, borderRadius: pillish(10), paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start", minHeight: TOUCH, justifyContent: "center" },
   redButton: { backgroundColor: colors.danger },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
@@ -283,7 +283,7 @@ const styles = themed(() => ({
   fullScreen: { padding: 20, paddingTop: Platform.OS === "web" ? 20 : 60, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   fullHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   fullTitle: { fontSize: 26, fontWeight: "800", color: colors.danger },
-  call911: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: colors.danger, borderRadius: 14, padding: 18 },
+  call911: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: colors.danger, borderRadius: round(14), padding: 18 },
   call911Text: { color: colors.onPrimary, fontSize: 20, fontWeight: "800" },
   bigTitle: { fontSize: 20 },
   bigStep: { fontSize: 18, lineHeight: 26 },

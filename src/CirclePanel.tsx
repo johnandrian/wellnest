@@ -13,7 +13,7 @@ import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, Reveal, SwapIcon } from "./Motion";
 import { shareUrl } from "./ShareCard";
-import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
+import { colors, pillish, radius, round, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 
 type Alerts = { missedDoses: boolean; forecast: boolean };
@@ -446,7 +446,7 @@ const styles = themed(() => ({
   cardTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
   inline: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
   personRow: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, minHeight: TOUCH + 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 40, height: 40, borderRadius: round(20), alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 17, fontWeight: "700" },
   name: { fontSize: 16, fontWeight: "600", color: colors.text },
   body: { fontSize: 15, lineHeight: 21, color: colors.text },
@@ -466,7 +466,7 @@ const styles = themed(() => ({
   made: { backgroundColor: colors.primarySoft, borderRadius: radius.md, padding: 12, gap: 8 },
   url: { fontSize: 13, color: colors.text },
   input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 10, fontSize: 15 },
-  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: 14, minHeight: TOUCH },
+  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary, borderRadius: pillish(radius.md), paddingHorizontal: 14, minHeight: TOUCH },
   buttonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "600" },
   dangerButton: { backgroundColor: colors.danger },
   dangerButtonText: { color: colors.onDanger, fontSize: 15, fontWeight: "600" },

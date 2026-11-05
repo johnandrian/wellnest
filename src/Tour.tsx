@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tap } from "./Tap";
 import { Icon, IconName } from "./Icon";
 import { Enter, usePresence } from "./Motion";
-import { colors, radius, TOUCH, ui, themed } from "./theme";
+import { colors, radius, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import type { HubTab } from "./HubPanel";
 
@@ -94,7 +94,7 @@ const styles = themed(() => ({
   card: { ...ui.card, width: "100%", maxWidth: 520, padding: 16, gap: 14, borderRadius: radius.lg, borderColor: colors.primary },
   body: { gap: 6 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
-  icon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  icon: { width: 36, height: 36, borderRadius: round(18), alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   count: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.muted },
   skip: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 8 },
   skipText: { fontSize: 15, fontWeight: "600", color: colors.muted },
