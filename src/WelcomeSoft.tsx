@@ -1,6 +1,6 @@
 // The welcome page in the soft design (src/design.ts picks it): the same words, links and invite banner as the
 // classic page in src/Welcome.tsx, laid out with more room. A floating pill bar at the top; a large headline beside
-// the preview of a week; the six features as a grid of cards in two sizes; how it works; the free tools; the privacy
+// an example story (src/LandingStory.tsx); the six features as a grid of cards in two sizes; how it works; the free tools; the privacy
 // promise on teal; then the language switch and links. Each section fades up as it scrolls into view.
 import { useMemo } from "react";
 import { Image, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
@@ -13,48 +13,11 @@ import { Enter, Rise } from "./Motion";
 import { pendingInvite } from "./invite";
 import { colors, tint, TOUCH, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings } from "./i18n";
-import { FEATURES, PREVIEW, TOOLS } from "./landing";
+import { FEATURES, TOOLS } from "./landing";
+import { LandingStory } from "./LandingStory";
 import { Bezel, Eyebrow, font, Pill, settle } from "./soft";
 
 type Props = { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onOpen: (path: string) => void };
-
-// A week of pain and sleep as rounded bars, and the pattern Wellnest found in it.
-function Preview({ s }: { s: Strings }) {
-  const rows = [
-    { label: s.landPreviewPain, values: PREVIEW.pain, max: 10, color: tint.care.fg, icon: "pain" as const },
-    { label: s.landPreviewSleep, values: PREVIEW.sleep, max: 9, color: tint.journal.fg, icon: "sleep" as const },
-  ];
-  return (
-    <Bezel core={styles.previewCore}>
-      <View accessible accessibilityLabel={`${s.landPreviewTitle}. ${s.landPreviewPattern}`} style={styles.previewInner}>
-        <Text style={styles.previewTitle}>{s.landPreviewTitle}</Text>
-        {rows.map((r) => (
-          <View key={r.label} style={styles.previewRow}>
-            <View style={styles.previewLabel}>
-              <Icon name={r.icon} size={16} color={r.color} />
-              <Text style={styles.previewLabelText} numberOfLines={1}>
-                {r.label}
-              </Text>
-            </View>
-            <View style={styles.previewBars}>
-              {r.values.map((v, i) => (
-                <View key={i} style={styles.previewSlot}>
-                  <View style={[styles.previewBar, { height: `${(v / r.max) * 100}%`, backgroundColor: r.color }]} />
-                </View>
-              ))}
-            </View>
-          </View>
-        ))}
-        <View style={styles.previewPattern}>
-          <View style={styles.previewPatternIcon}>
-            <Icon name="insights" size={18} color={colors.primary} />
-          </View>
-          <Text style={styles.previewPatternText}>{s.landPreviewPattern}</Text>
-        </View>
-      </View>
-    </Bezel>
-  );
-}
 
 function Feature({ i, title, body, big }: { i: number; title: string; body: string; big?: boolean }) {
   const t = tint[FEATURES[i].tint];
@@ -117,7 +80,7 @@ export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
             </View>
           </Enter>
           <Rise style={wide ? styles.previewWide : undefined} delay={120} from={56}>
-            <Preview s={s} />
+            <LandingStory s={s} />
           </Rise>
         </View>
 
@@ -308,20 +271,8 @@ const styles = themed(() => ({
   headlineLarge: { fontSize: 66, lineHeight: 72, letterSpacing: -2.2 },
   sub: { ...font.regular, fontSize: 18, lineHeight: 28, color: colors.muted },
   subWide: { fontSize: 19, lineHeight: 30, maxWidth: 560 },
+  previewWide: { flex: 1, minWidth: 0, maxWidth: 460 },
   ctas: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 },
-  previewWide: { flex: 1, minWidth: 0, maxWidth: 440 },
-  previewCore: { padding: 26 },
-  previewInner: { gap: 18 },
-  previewTitle: { ...font.bold, fontSize: 16, color: colors.text },
-  previewRow: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
-  previewLabel: { width: 76, flexDirection: "row", alignItems: "center", gap: 6, paddingBottom: 2 },
-  previewLabelText: { ...font.semibold, fontSize: 13, color: colors.muted },
-  previewBars: { flex: 1, flexDirection: "row", alignItems: "flex-end", gap: 6, height: 72 },
-  previewSlot: { flex: 1, height: "100%", justifyContent: "flex-end" },
-  previewBar: { width: "100%", borderRadius: 6 },
-  previewPattern: { flexDirection: "row", gap: 12, alignItems: "flex-start", padding: 14, borderRadius: 20, backgroundColor: colors.primarySoft },
-  previewPatternIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
-  previewPatternText: { ...font.medium, flex: 1, fontSize: 14, lineHeight: 21, color: colors.text },
 
   section: { gap: 32 },
   heading: { gap: 16, maxWidth: 720 },

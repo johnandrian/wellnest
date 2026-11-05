@@ -1,5 +1,5 @@
 // What people see before they sign in: a welcome page that leads with the tracker (log in a tap, see trends and
-// patterns, with a preview of a week), then medications, visit prep, the Care Circle and talking or typing, how it
+// patterns, with an example story in src/LandingStory.tsx), then medications, visit prep, the Care Circle and talking or typing, how it
 // works, the free tools (/medication-list, /appointment-checklist) and how data stays theirs, then sign-in or a new
 // account. In the phone's or browser's language, with a switch at the bottom. Someone who came from a Care Circle
 // invite sees whose it is first.
@@ -16,7 +16,8 @@ import { pendingInvite } from "./invite";
 import { colors, isSoft, radius, tint, TOUCH, ui, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings, strings } from "./i18n";
 import { SoftLanding } from "./WelcomeSoft";
-import { FEATURES, PREVIEW, TOOLS } from "./landing";
+import { FEATURES, TOOLS } from "./landing";
+import { LandingStory } from "./LandingStory";
 
 const LANG_KEY = "wellnest.lang";
 
@@ -52,40 +53,6 @@ export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string)
   // The soft or the classic look (src/design.ts): same words and links, different layout.
   const Page = isSoft() ? SoftLanding : Landing;
   return <Page s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
-}
-
-// A week of pain and sleep as small bars, and the pattern Wellnest found in it.
-function Preview({ s }: { s: Strings }) {
-  const rows = [
-    { label: s.landPreviewPain, values: PREVIEW.pain, max: 10, color: tint.care.fg, icon: "pain" as const },
-    { label: s.landPreviewSleep, values: PREVIEW.sleep, max: 9, color: tint.journal.fg, icon: "sleep" as const },
-  ];
-  return (
-    <View style={styles.preview} accessibilityLabel={`${s.landPreviewTitle}. ${s.landPreviewPattern}`}>
-      <Text style={styles.previewTitle}>{s.landPreviewTitle}</Text>
-      {rows.map((r) => (
-        <View key={r.label} style={styles.previewRow}>
-          <View style={styles.previewLabel}>
-            <Icon name={r.icon} size={16} color={r.color} />
-            <Text style={styles.previewLabelText} numberOfLines={1}>
-              {r.label}
-            </Text>
-          </View>
-          <View style={styles.previewBars}>
-            {r.values.map((v, i) => (
-              <View key={i} style={styles.previewSlot}>
-                <View style={[styles.previewBar, { height: `${(v / r.max) * 100}%`, backgroundColor: r.color }]} />
-              </View>
-            ))}
-          </View>
-        </View>
-      ))}
-      <View style={styles.previewPattern}>
-        <Icon name="insights" size={18} color={colors.primary} />
-        <Text style={styles.previewPatternText}>{s.landPreviewPattern}</Text>
-      </View>
-    </View>
-  );
 }
 
 function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onOpen: (path: string) => void }) {
@@ -135,7 +102,7 @@ function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; 
             </Tap>
           </View>
           <View style={wide ? styles.previewWide : undefined}>
-            <Preview s={s} />
+            <LandingStory s={s} />
           </View>
         </Enter>
 
@@ -257,17 +224,7 @@ const styles = themed(() => ({
   secondaryText: { color: colors.text, fontSize: 16, fontWeight: "600" },
   demo: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8, minHeight: TOUCH, marginTop: 4, paddingHorizontal: 4 },
   demoText: { color: colors.primary, fontSize: 16, fontWeight: "700", textDecorationLine: "underline" },
-  previewWide: { width: 380 },
-  preview: { ...ui.card, padding: 18, gap: 14, borderRadius: radius.lg },
-  previewTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
-  previewRow: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
-  previewLabel: { width: 76, flexDirection: "row", alignItems: "center", gap: 6, paddingBottom: 2 },
-  previewLabelText: { fontSize: 13, fontWeight: "600", color: colors.muted },
-  previewBars: { flex: 1, flexDirection: "row", alignItems: "flex-end", gap: 5, height: 56 },
-  previewSlot: { flex: 1, height: "100%", justifyContent: "flex-end" },
-  previewBar: { width: "100%", borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  previewPattern: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft },
-  previewPatternText: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.text },
+  previewWide: { width: 400 },
   sectionSub: { fontSize: 15, color: colors.muted, marginTop: -8 },
   tool: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.lg },
 
