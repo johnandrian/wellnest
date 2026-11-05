@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, usePresence } from "./Motion";
-import { colors, radius, TOUCH, themed } from "./theme";
+import { colors, floatingBar, kicker, pillish, radius, round, themed, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { DashboardView, type DashboardData, type InsightsData } from "./HomePanel";
 import { DailyCardView, type DailyKey } from "./DailyCard";
@@ -114,7 +114,7 @@ export function DemoPage({ s, onBack, onCreate }: { s: Strings; onBack: () => vo
       <View style={styles.top}>
         <View style={styles.topRow}>
           <Tap style={styles.round} onPress={onBack} accessibilityRole="button" accessibilityLabel={s.landBack}>
-            <Ionicons name="chevron-back" size={22} color={colors.onPrimary} />
+            <Ionicons name="chevron-back" size={22} color={colors.onBar} />
           </Tap>
           <View style={styles.titles}>
             <Text style={styles.kicker} numberOfLines={1}>
@@ -125,7 +125,7 @@ export function DemoPage({ s, onBack, onCreate }: { s: Strings; onBack: () => vo
             </Text>
           </View>
           <Tap style={[styles.create, narrow && styles.createNarrow]} onPress={onCreate} accessibilityRole="button" accessibilityLabel={s.landCreate}>
-            <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+            <Ionicons name="person-add-outline" size={18} color={colors.onBarAction} />
             {!narrow && <Text style={styles.createText}>{s.landCreate}</Text>}
           </Tap>
         </View>
@@ -176,15 +176,15 @@ function Locked({ tool, s, onCreate, onClose }: { tool: string | null; s: String
 const styles = themed(() => ({
   page: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1, minWidth: 0 },
-  top: { backgroundColor: colors.primary, paddingTop: 14, paddingBottom: 12, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
+  top: { backgroundColor: colors.bar, paddingTop: 14, paddingBottom: 12, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, ...floatingBar() },
   topRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16 },
-  round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.onPrimaryFill },
+  round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.barFill },
   titles: { flex: 1, minWidth: 0 },
-  kicker: { color: colors.primarySoft, fontSize: 13, fontWeight: "600" },
-  title: { color: colors.onPrimary, fontSize: 21, fontWeight: "700", marginTop: 1 },
-  create: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.surface },
+  kicker: { color: colors.onBarMuted, fontSize: 13, fontWeight: "600", ...kicker() },
+  title: { color: colors.onBar, fontSize: 21, fontWeight: "700", marginTop: 1 },
+  create: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.barAction },
   createNarrow: { width: TOUCH, paddingHorizontal: 0, justifyContent: "center" },
-  createText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
+  createText: { color: colors.onBarAction, fontWeight: "700", fontSize: 14 },
   banner: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.mint },
   bannerText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   locked: {
@@ -204,9 +204,9 @@ const styles = themed(() => ({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  lockedIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  lockedIcon: { width: 36, height: 36, borderRadius: round(18), alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   lockedText: { color: colors.text, fontSize: 14, lineHeight: 20 },
-  lockedCreate: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.primary },
+  lockedCreate: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 14, borderRadius: pillish(radius.md), backgroundColor: colors.primary },
   lockedCreateText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   close: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
 }));

@@ -9,7 +9,7 @@ import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName } from "./Icon";
-import { colors, radius, tint, TOUCH, themed } from "./theme";
+import { colors, floatingBar, kicker, radius, tint, TOUCH, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { HomePanel } from "./HomePanel";
 import { JournalPanel } from "./JournalPanel";
@@ -75,13 +75,13 @@ export function HubPanel({
           {tool ? (
             <Tap style={styles.round} onPress={() => onTab("home")} accessibilityRole="button" accessibilityLabel={s.dashboard}>
               <SwapIcon id="back">
-                <Ionicons name="chevron-back" size={22} color={colors.onPrimary} />
+                <Ionicons name="chevron-back" size={22} color={colors.onBar} />
               </SwapIcon>
             </Tap>
           ) : (
             <View style={styles.badge}>
               <SwapIcon id="home">
-                <Icon name="dashboard" size={20} color={colors.onPrimary} />
+                <Icon name="dashboard" size={20} color={colors.onBar} />
               </SwapIcon>
             </View>
           )}
@@ -95,11 +95,11 @@ export function HubPanel({
           </View>
           <Tap style={styles.round} onPress={onSettings} accessibilityRole="button" accessibilityLabel={settingsOpen ? s.closeSettings : s.settings}>
             <SwapIcon id={settingsOpen ? "close" : "settings"}>
-              <Ionicons name={settingsOpen ? "close" : "settings-outline"} size={22} color={colors.onPrimary} />
+              <Ionicons name={settingsOpen ? "close" : "settings-outline"} size={22} color={colors.onBar} />
             </SwapIcon>
           </Tap>
           <Tap style={[styles.chat, narrow && styles.chatNarrow]} onPress={onClose} accessibilityRole="button" accessibilityLabel={s.backToChat}>
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.onBarAction} />
             {!narrow && <Text style={styles.chatText}>{s.backToChat}</Text>}
           </Tap>
         </View>
@@ -115,7 +115,7 @@ export function HubPanel({
                   accessibilityRole="tab"
                   accessibilityState={{ selected: on }}
                 >
-                  <Icon name={t.icon} size={16} color={on ? colors.primary : colors.onPrimary} />
+                  <Icon name={t.icon} size={16} color={on ? colors.onBarAction : colors.onBar} />
                   <Text style={[styles.tabText, on && styles.tabTextOn]} numberOfLines={1}>
                     {t.label(s)}
                   </Text>
@@ -156,27 +156,28 @@ const styles = themed(() => ({
   body: { flex: 1 },
   // The teal band: it carries the greeting on the dashboard and the tool switcher inside a tool.
   header: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.bar,
     // Room for the status bar / notch on phones, like the chat header.
     paddingTop: Platform.OS === "web" ? 14 : 56,
     paddingBottom: 12,
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
+    ...floatingBar(),
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, width: "100%" },
-  round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.onPrimaryFill },
-  badge: { width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.onPrimaryFill },
+  round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.barFill },
+  badge: { width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.barFill },
   titles: { flex: 1, minWidth: 0 },
-  kicker: { color: colors.primarySoft, fontSize: 13, fontWeight: "600" },
-  title: { color: colors.onPrimary, fontSize: 21, fontWeight: "700", marginTop: 1 },
-  chat: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.surface },
+  kicker: { color: colors.onBarMuted, fontSize: 13, fontWeight: "600", ...kicker() },
+  title: { color: colors.onBar, fontSize: 21, fontWeight: "700", marginTop: 1 },
+  chat: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.barAction },
   chatNarrow: { width: TOUCH, paddingHorizontal: 0, justifyContent: "center" },
-  chatText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
+  chatText: { color: colors.onBarAction, fontWeight: "700", fontSize: 14 },
   tabsScroll: { flexGrow: 0, width: "100%", marginTop: 12 },
   // Pill tabs: the selected one is filled white, so it doesn't rely on colour alone.
   tabs: { flexDirection: "row", gap: 6, paddingHorizontal: 12, minWidth: "100%" },
-  tab: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.onPrimaryFill },
-  tabOn: { backgroundColor: colors.surface },
-  tabText: { color: colors.onPrimary, fontSize: 14, fontWeight: "600" },
-  tabTextOn: { color: colors.primary },
+  tab: { flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.barFill },
+  tabOn: { backgroundColor: colors.barAction },
+  tabText: { color: colors.onBar, fontSize: 14, fontWeight: "600" },
+  tabTextOn: { color: colors.onBarAction },
 }));
