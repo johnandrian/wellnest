@@ -25,7 +25,6 @@ export function LandingStory({ s }: { s: Strings }) {
   const [pick, setPick] = useState(0);
   const content = (
     <>
-      <Text style={styles.example}>{s.landStoryExample}</Text>
       <View style={styles.tabs} accessibilityRole="tablist">
         {s.landStories.map((st, i) => {
           const on = i === pick;
@@ -129,7 +128,6 @@ function Beat({ t, icon, tintKey, label, children }: { t: Animated.Value; icon: 
 const styles = themed(() => ({
   card: { ...ui.card, padding: 16, gap: 12, borderRadius: radius.lg },
   core: { padding: 20, gap: 12 },
-  example: { color: colors.muted, fontSize: 12, fontWeight: "600", ...kicker() },
   tabs: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: pillish(radius.md), borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface },
   tabOn: { backgroundColor: colors.primary },
