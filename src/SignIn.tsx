@@ -39,12 +39,11 @@ export function SignIn({ s, initialFlow = "signIn", onBack }: { s: Strings; init
           <Text style={styles.backText}>{s.landBack}</Text>
         </Pressable>
       )}
-      <Image
-        source={require("../assets/wellnest-logo.png")}
-        style={styles.logo}
-        resizeMode="contain"
-        accessibilityLabel="Wellnest"
-      />
+      {/* The mark (transparent, so it sits on any background) over the name, set as text so dark mode can color it. */}
+      <View style={styles.brand} accessible accessibilityRole="image" accessibilityLabel="Wellnest">
+        <Image source={require("../assets/wellnest-mark.png")} style={styles.logo} accessibilityIgnoresInvertColors />
+        <Text style={styles.wordmark}>Wellnest</Text>
+      </View>
       <Text style={styles.tagline}>{s.authTagline}</Text>
       <Text style={styles.subtitle} accessibilityRole="header">
         {flow === "signIn" ? s.authSignInTitle : s.authSignUpTitle}
@@ -100,7 +99,9 @@ const styles = themed(() => ({
   },
   back: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: TOUCH, alignSelf: "flex-start" },
   backText: { color: colors.primary, fontSize: 15, fontWeight: "600" },
-  logo: { width: 200, height: 151, alignSelf: "center" },
+  brand: { alignItems: "center", gap: 4 },
+  logo: { width: 104, height: 104 },
+  wordmark: { color: colors.primary, fontSize: 36, fontWeight: "800", letterSpacing: -0.8 },
   tagline: { fontSize: 15, color: colors.muted, textAlign: "center", marginBottom: 12 },
   subtitle: { fontSize: 16, color: colors.muted, marginBottom: 8 },
   input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: round(10), padding: 12, fontSize: 16, color: colors.text, backgroundColor: colors.surface },

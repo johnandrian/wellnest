@@ -706,7 +706,7 @@ const styles = themed(() => ({
   // The title side shrinks (subtitle truncates) so the four header buttons always fit on a phone.
   brand: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 },
   brandText: { flexShrink: 1, minWidth: 0 },
-  logo: { width: 38, height: 38, borderRadius: round(10) },
+  logo: { width: 38, height: 38 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },
   headerButton: { width: 38, height: 40, borderRadius: pillish(20), alignItems: "center", justifyContent: "center" },
   // Health tools: the one filled button, so it stands out from the chat's own controls.
