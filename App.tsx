@@ -15,6 +15,11 @@ import { strings } from "./src/i18n";
 import { takeInviteFromUrl } from "./src/invite";
 import { usePath } from "./src/route";
 import { DemoPage } from "./src/DemoPage";
+import { appDesign } from "./src/design";
+import { useSoftFonts } from "./src/soft";
+
+// The look (src/design.ts), fixed for this page load.
+const design = appDesign();
 
 // A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
 takeInviteFromUrl();
@@ -56,7 +61,9 @@ function Themed() {
   const pageLang = strings(me?.language ?? deviceLang());
   const pref = me?.appearance;
   const scheme = pref && pref.theme !== "system" ? pref.theme : system === "dark" ? "dark" : "light";
-  applyTheme(scheme, pref?.textSize ?? 1);
+  applyTheme(scheme, pref?.textSize ?? 1, design);
+  // The soft look's font is bundled with the app; wait the moment it takes to load so text doesn't jump.
+  const fontsReady = useSoftFonts(design === "soft");
   useEffect(() => {
     // The page behind the app (overscroll on web) and the browser's own controls.
     if (Platform.OS === "web") {
@@ -67,6 +74,7 @@ function Themed() {
       document.documentElement.style.setProperty("--scrollbar-hover", colors.primary);
     }
   }, [scheme]);
+  if (!fontsReady) return <View style={styles.root} />;
   return (
     <View style={styles.root}>
       {/* The privacy page, the free tools and the demo dashboard are open to everyone, signed in or not. */}

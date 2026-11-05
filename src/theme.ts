@@ -1,7 +1,11 @@
-// Colours, shapes and text size for the whole app, in a light and a dark version.
-// `colors` and `tint` are swapped in place by applyTheme (App.tsx, from the user's Appearance settings), and styles
-// made with themed() are rebuilt on the next render, with every fontSize and lineHeight scaled to the chosen text size.
+// Colours, shapes and text size for the whole app, in a light and a dark version, and in two looks (src/design.ts):
+// "classic" and "soft" (rounder corners, cards on a faint tray with a soft shadow, pill buttons, a white floating top
+// bar instead of the teal band, and Plus Jakarta Sans).
+// `colors`, `tint` and `radius` are swapped in place by applyTheme (App.tsx, from the user's Appearance settings), and
+// styles made with themed() are rebuilt on the next render, with every fontSize and lineHeight scaled to the chosen
+// text size and, in the soft look, each text style given the font file for its weight.
 import { Platform, StyleSheet } from "react-native";
+import type { Design } from "./design";
 
 const LIGHT = {
   bg: "#F5F7FA",
@@ -47,6 +51,14 @@ const LIGHT = {
   glow: "rgba(11, 93, 87, 0.14)",
   // Fill of the small circle around a button's arrow, on a teal button.
   onPrimaryCircle: "rgba(255, 255, 255, 0.18)",
+  // The top bar of the dashboard and tools: its fill, its words and icons, the quieter line above the title, the
+  // fill behind its round buttons and unselected tabs, and its one filled button (Chat) or selected tab.
+  bar: "#0B5D57",
+  onBar: "#FFFFFF",
+  onBarMuted: "#E4F4EC",
+  barFill: "rgba(255, 255, 255, 0.16)",
+  barAction: "#FFFFFF",
+  onBarAction: "#0B5D57",
 };
 export type Palette = typeof LIGHT;
 
@@ -90,6 +102,30 @@ const DARK: Palette = {
   highlight: "rgba(255, 255, 255, 0.06)",
   glow: "rgba(0, 0, 0, 0.45)",
   onPrimaryCircle: "rgba(6, 43, 39, 0.14)",
+  bar: "#5FC7B7",
+  onBar: "#062B27",
+  onBarMuted: "#123A35",
+  barFill: "rgba(6, 43, 39, 0.12)",
+  barAction: "#182027",
+  onBarAction: "#5FC7B7",
+};
+
+// The soft look's changes to each palette: the top bar turns white (dark grey in dark mode) with a teal button.
+const SOFT_LIGHT: Partial<Palette> = {
+  bar: "#FFFFFF",
+  onBar: "#111827",
+  onBarMuted: "#4B5563",
+  barFill: "rgba(17, 24, 39, 0.05)",
+  barAction: "#0B5D57",
+  onBarAction: "#FFFFFF",
+};
+const SOFT_DARK: Partial<Palette> = {
+  bar: "#182027",
+  onBar: "#E8ECF1",
+  onBarMuted: "#A9B4C0",
+  barFill: "rgba(255, 255, 255, 0.06)",
+  barAction: "#5FC7B7",
+  onBarAction: "#062B27",
 };
 
 export const colors: Palette = { ...LIGHT };
@@ -125,27 +161,53 @@ function copyTints(t: typeof TINT_LIGHT) {
 export type Scheme = "light" | "dark";
 export const TEXT_SIZES = [0.9, 1, 1.15, 1.3] as const;
 
-let current = { scheme: "light" as Scheme, scale: 1, version: 0 };
+let current = { scheme: "light" as Scheme, scale: 1, design: "classic" as Design, version: 0 };
 
-// Switch palette and text size. Call it while rendering the app root, before the screens render.
-export function applyTheme(scheme: Scheme, scale: number) {
-  if (scheme === current.scheme && scale === current.scale) return;
-  Object.assign(colors, scheme === "dark" ? DARK : LIGHT);
+const RADIUS = { classic: { sm: 8, md: 12, lg: 16, pill: 999 }, soft: { sm: 12, md: 18, lg: 24, pill: 999 } };
+
+// Switch palette, text size and look. Call it while rendering the app root, before the screens render.
+export function applyTheme(scheme: Scheme, scale: number, design: Design = current.design) {
+  if (scheme === current.scheme && scale === current.scale && design === current.design) return;
+  const soft = design === "soft" ? (scheme === "dark" ? SOFT_DARK : SOFT_LIGHT) : {};
+  Object.assign(colors, scheme === "dark" ? DARK : LIGHT, soft);
   const tints = scheme === "dark" ? TINT_DARK : TINT_LIGHT;
   for (const k of Object.keys(tints) as (keyof typeof tints)[]) Object.assign(tint[k], tints[k]);
-  current = { scheme, scale, version: current.version + 1 };
+  Object.assign(radius, RADIUS[design]);
+  current = { scheme, scale, design, version: current.version + 1 };
 }
 export const themeScheme = () => current.scheme;
+export const isSoft = () => current.design === "soft";
 // Changes whenever the theme does: pass it to lists (FlatList extraData) so their rows redraw too.
 export const themeVersion = () => current.version;
 
-const scaleText = <T extends object>(styles: T): T => {
-  if (current.scale === 1) return styles;
+// The soft look's font, one file per weight (loaded in App.tsx). The weight itself goes back to normal, or the
+// browser would thicken the already bold file a second time.
+const FAMILY: [number, string][] = [
+  [800, "PlusJakartaSans_800ExtraBold"],
+  [700, "PlusJakartaSans_700Bold"],
+  [600, "PlusJakartaSans_600SemiBold"],
+  [500, "PlusJakartaSans_500Medium"],
+  [0, "PlusJakartaSans_400Regular"],
+];
+
+function softFont(s: Record<string, unknown>) {
+  if (s.fontFamily || (typeof s.fontSize !== "number" && s.fontWeight === undefined)) return;
+  const w = s.fontWeight === "bold" ? 700 : Number(s.fontWeight) || 400;
+  s.fontFamily = FAMILY.find(([min]) => w >= min)![1];
+  s.fontWeight = "normal";
+  // Big bold headings sit a little tighter.
+  if (typeof s.fontSize === "number" && s.fontSize >= 20 && w >= 700 && s.letterSpacing === undefined) s.letterSpacing = -Math.round(s.fontSize * 0.25) / 10;
+}
+
+const adjustText = <T extends object>(styles: T, scale: boolean): T => {
+  const sized = scale && current.scale !== 1;
+  if (!sized && current.design !== "soft") return styles;
   const out: Record<string, unknown> = {};
   for (const [name, style] of Object.entries(styles)) {
     const s = { ...(style as Record<string, unknown>) };
-    if (typeof s.fontSize === "number") s.fontSize = Math.round(s.fontSize * current.scale);
-    if (typeof s.lineHeight === "number") s.lineHeight = Math.round(s.lineHeight * current.scale);
+    if (sized && typeof s.fontSize === "number") s.fontSize = Math.round(s.fontSize * current.scale);
+    if (sized && typeof s.lineHeight === "number") s.lineHeight = Math.round(s.lineHeight * current.scale);
+    if (current.design === "soft") softFont(s);
     out[name] = s;
   }
   return out as T;
@@ -162,7 +224,7 @@ export function themed<T extends Sheet>(make: () => T & Sheet, opts: { scaleText
   const get = () => {
     if (at !== current.version || !made) {
       const raw = make();
-      made = StyleSheet.create(opts.scaleText === false ? raw : scaleText(raw)) as T;
+      made = StyleSheet.create(adjustText(raw, opts.scaleText !== false)) as T;
       at = current.version;
     }
     return made as T;
@@ -196,26 +258,60 @@ export function inkOn(bg: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5 ? LIGHT.text : LIGHT.surface;
 }
 
-export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
+export const radius = { ...RADIUS.classic };
+// A corner written for the classic look, in the current one: as written in the classic look, half again as round in
+// the soft one.
+export const round = (n: number) => (current.design === "soft" ? Math.round(n * 1.5) : n);
+// A button's or chip's corners: as written in the classic look, fully round (a pill) in the soft one.
+export const pillish = (n: number) => (current.design === "soft" ? 999 : n);
 export const TOUCH = 44; // minimum touch target (iOS 44pt; Android adds hitSlop to reach 48dp)
 
 const shadow = () =>
-  Platform.select({
+  current.design === "soft" ? softShadow() : Platform.select({
     web: { boxShadow: current.scheme === "dark" ? "0 1px 2px rgba(0, 0, 0, 0.4)" : "0 1px 2px rgba(17, 24, 39, 0.06), 0 2px 8px rgba(17, 24, 39, 0.05)" },
     default: { shadowColor: "#000000", shadowOpacity: current.scheme === "dark" ? 0.3 : 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   }) as object;
 
+// The soft look's shadow: wide and faint, so a card floats rather than sits, with a light top edge on the web.
+export const softShadow = () =>
+  Platform.select({
+    web: { boxShadow: `0 24px 48px -28px ${colors.glow}, 0 6px 18px -10px ${colors.hairline}, inset 0 1px 1px ${colors.highlight}` },
+    default: { shadowColor: colors.glow, shadowOpacity: 1, shadowRadius: 20, shadowOffset: { width: 0, height: 12 }, elevation: 2 },
+  }) as object;
+
+// In the soft look, a top bar floats as a rounded panel with a little room around it (and below the status bar on a
+// phone), instead of running edge to edge. Spread it last into a top bar's style; in the classic look it adds nothing.
+export const floatingBar = () =>
+  current.design === "soft"
+    ? {
+        marginHorizontal: 10,
+        marginTop: Platform.OS === "web" ? 10 : 48,
+        marginBottom: 4,
+        paddingTop: 8,
+        paddingBottom: 8,
+        borderRadius: 28,
+        borderWidth: 1,
+        borderColor: colors.hairline,
+        borderBottomColor: colors.hairline,
+        ...softShadow(),
+      }
+    : {};
+
+// The small line above a title (the date over the greeting, "Dashboard" over a tool's name): in the soft look, small
+// spaced capitals, like the tags over the welcome page's headings. Spread it last into that text's style.
+export const kicker = () => (current.design === "soft" ? { fontSize: 11, letterSpacing: 1.6, textTransform: "uppercase" as const, marginBottom: 2 } : {});
+
 // Building blocks to spread into themed() styles. Their text isn't scaled here: the sheet that spreads them scales it.
 export const ui = themed(
   () => ({
-    card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, ...shadow() },
+    card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: current.design === "soft" ? colors.hairline : colors.border, borderRadius: radius.md, ...shadow() },
     chip: { minHeight: 40, justifyContent: "center" as const, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.pill, paddingHorizontal: 14 },
     chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-    button: { minHeight: TOUCH, justifyContent: "center" as const, alignItems: "center" as const, backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: 16 },
+    button: { minHeight: TOUCH, justifyContent: "center" as const, alignItems: "center" as const, backgroundColor: colors.primary, borderRadius: current.design === "soft" ? radius.pill : radius.md, paddingHorizontal: current.design === "soft" ? 22 : 16 },
     // Nothing here yet: a dashed card, so it reads as a place to fill rather than an error.
     empty: { color: colors.muted, fontSize: 15, lineHeight: 21, textAlign: "center" as const, padding: 16, borderWidth: 1, borderStyle: "dashed" as const, borderColor: colors.inputBorder, borderRadius: radius.md, backgroundColor: colors.surface },
     // "Add a medication", "Add an appointment": an outlined button, not a bare link.
-    addButton: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const, gap: 6, minHeight: TOUCH, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.md, backgroundColor: colors.surface },
+    addButton: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const, gap: 6, minHeight: TOUCH, paddingHorizontal: current.design === "soft" ? 20 : 16, borderWidth: 1, borderColor: colors.primary, borderRadius: current.design === "soft" ? radius.pill : radius.md, backgroundColor: colors.surface },
     section: { fontSize: 17, fontWeight: "700" as const, color: colors.text, marginTop: 8 },
   }),
   { scaleText: false },

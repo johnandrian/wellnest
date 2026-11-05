@@ -13,9 +13,8 @@ import { Icon } from "./Icon";
 import { Enter } from "./Motion";
 import { SignIn } from "./SignIn";
 import { pendingInvite } from "./invite";
-import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
+import { colors, isSoft, radius, tint, TOUCH, ui, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings, strings } from "./i18n";
-import { useLandingDesign } from "./design";
 import { SoftLanding } from "./WelcomeSoft";
 import { FEATURES, PREVIEW, TOOLS } from "./landing";
 
@@ -49,10 +48,9 @@ export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string)
     setLang(l);
     saveLang(l);
   };
-  const design = useLandingDesign();
   if (auth) return <SignIn key={auth} s={s} initialFlow={auth} onBack={() => setAuth(null)} />;
   // The soft or the classic look (src/design.ts): same words and links, different layout.
-  const Page = design === "soft" ? SoftLanding : Landing;
+  const Page = isSoft() ? SoftLanding : Landing;
   return <Page s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
 }
 

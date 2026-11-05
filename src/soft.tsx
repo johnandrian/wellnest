@@ -3,8 +3,7 @@
 // - Pill: a rounded button whose arrow sits in its own small circle; on the web the circle nudges up and right on
 //   hover and the whole button presses in a little.
 // - Eyebrow: the small capital-letter tag above a heading.
-// - useSoftFonts / font: Plus Jakarta Sans, bundled with the app (no request to Google), with the system font until
-//   it has loaded.
+// - useSoftFonts: loads Plus Jakarta Sans, bundled with the app (no request to Google).
 import { ReactNode } from "react";
 import { Platform, Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,17 +19,21 @@ import { colors, themed } from "./theme";
 
 const web = Platform.OS === "web";
 
-export function useSoftFonts() {
-  useFonts({ PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold });
+// True once the font has loaded (or failed to, so the app still opens), or straight away when it isn't needed.
+export function useSoftFonts(needed: boolean) {
+  const [loaded, error] = useFonts(
+    needed ? { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } : {},
+  );
+  return !needed || loaded || !!error;
 }
 
-// Spread into a text style: the family for that weight (the weight is kept for the system-font fallback).
+// Text weights; themed() (src/theme.ts) gives each the Plus Jakarta Sans file for that weight.
 export const font = {
-  regular: { fontFamily: "PlusJakartaSans_400Regular", fontWeight: "400" as const },
-  medium: { fontFamily: "PlusJakartaSans_500Medium", fontWeight: "500" as const },
-  semibold: { fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600" as const },
-  bold: { fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" as const },
-  heavy: { fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" as const },
+  regular: { fontWeight: "400" as const },
+  medium: { fontWeight: "500" as const },
+  semibold: { fontWeight: "600" as const },
+  bold: { fontWeight: "700" as const },
+  heavy: { fontWeight: "800" as const },
 };
 
 export const SHELL_RADIUS = 32;

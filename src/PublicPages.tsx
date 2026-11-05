@@ -10,12 +10,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, Reveal } from "./Motion";
-import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
+import { colors, isSoft, pillish, radius, round, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { MedRow, medListHtml, printHtml } from "./medList";
 import { Checklist } from "./GuidesPanel";
-import { useLandingDesign } from "./design";
-import { Bezel, Eyebrow, font, Pill, useSoftFonts } from "./soft";
+import { Bezel, Eyebrow, font, Pill } from "./soft";
 
 const LIST_KEY = "wellnest.medList";
 const CHECK_KEY = "wellnest.checklist";
@@ -49,8 +48,7 @@ function confirm(text: string, ok: string, cancel: string): Promise<boolean> {
 }
 
 function Page({ s, onBack, children }: { s: Strings; onBack: () => void; children: ReactNode }) {
-  useSoftFonts();
-  if (useLandingDesign() === "soft") {
+  if (isSoft()) {
     return (
       <ScrollView style={styles.scroll} contentContainerStyle={soft.page} keyboardShouldPersistTaps="handled">
         <Enter style={soft.inner}>
@@ -81,7 +79,7 @@ function Page({ s, onBack, children }: { s: Strings; onBack: () => void; childre
 }
 
 function Cta({ s, text, onCreate }: { s: Strings; text: string; onCreate: () => void }) {
-  if (useLandingDesign() === "soft") {
+  if (isSoft()) {
     return (
       <Bezel tone="primary" style={soft.ctaShell} core={soft.ctaCore}>
         <Text style={soft.ctaText}>{text}</Text>
@@ -101,7 +99,7 @@ function Cta({ s, text, onCreate }: { s: Strings; text: string; onCreate: () => 
 
 // A medicine's card: a plain card, or in the soft look a card in a tray.
 function Card({ children }: { children: ReactNode }) {
-  if (useLandingDesign() === "soft") {
+  if (isSoft()) {
     return (
       <Enter from={10}>
         <Bezel core={soft.cardCore}>{children}</Bezel>
@@ -122,7 +120,7 @@ export function MedListTool({ s, onBack, onCreate }: { s: Strings; onBack: () =>
   useEffect(() => save(LIST_KEY, { who, rows }), [who, rows]);
   const set = (i: number, patch: Partial<MedRow>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const filled = rows.filter((r) => r.name.trim());
-  const st = useLandingDesign() === "soft" ? soft : styles;
+  const st = isSoft() ? soft : styles;
 
   const print = async () => {
     setError(null);
@@ -223,7 +221,7 @@ export function MedListTool({ s, onBack, onCreate }: { s: Strings; onBack: () =>
 export function ChecklistPage({ s, onBack, onCreate }: { s: Strings; onBack: () => void; onCreate: () => void }) {
   const [checked, setChecked] = useState<string[]>(() => load(CHECK_KEY, [] as string[]));
   useEffect(() => save(CHECK_KEY, checked), [checked]);
-  const st = useLandingDesign() === "soft" ? soft : styles;
+  const st = isSoft() ? soft : styles;
   return (
     <Page s={s} onBack={onBack}>
       <View style={st.titleRow}>
@@ -270,7 +268,7 @@ const styles = themed(() => ({
   note: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.muted },
   cta: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: 20, gap: 12, marginTop: 8 },
   ctaText: { fontSize: 16, lineHeight: 24, color: colors.onPrimary, fontWeight: "600" },
-  ctaButton: { alignSelf: "flex-start", minHeight: 48, paddingHorizontal: 20, justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.surface },
+  ctaButton: { alignSelf: "flex-start", minHeight: 48, paddingHorizontal: 20, justifyContent: "center", borderRadius: pillish(radius.md), backgroundColor: colors.surface },
   ctaButtonText: { color: colors.primary, fontSize: 16, fontWeight: "700" },
 }));
 
@@ -283,12 +281,12 @@ const soft = themed(() => ({
   mark: { width: 26, height: 26 },
   brand: { ...font.heavy, fontSize: 17, letterSpacing: -0.3, color: colors.text },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 16 },
-  titleIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  titleIcon: { width: 56, height: 56, borderRadius: round(18), alignItems: "center", justifyContent: "center" },
   title: { ...font.heavy, flex: 1, fontSize: 36, lineHeight: 42, letterSpacing: -1.1, color: colors.text },
   intro: { ...font.regular, fontSize: 18, lineHeight: 28, color: colors.muted, marginBottom: 8 },
   cardCore: { padding: 20, gap: 10 },
   cardTitle: { ...font.bold, fontSize: 17, color: colors.text },
-  input: { ...font.regular, minHeight: 50, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 16, paddingHorizontal: 16, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
+  input: { ...font.regular, minHeight: 50, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: round(16), paddingHorizontal: 16, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
   clearText: { ...font.semibold },
   ctaShell: { marginTop: 24 },
   ctaCore: { padding: 28, gap: 18 },

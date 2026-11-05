@@ -14,7 +14,7 @@ import { pendingInvite } from "./invite";
 import { colors, tint, TOUCH, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings } from "./i18n";
 import { FEATURES, PREVIEW, TOOLS } from "./landing";
-import { Bezel, Eyebrow, font, Pill, settle, useSoftFonts } from "./soft";
+import { Bezel, Eyebrow, font, Pill, settle } from "./soft";
 
 type Props = { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onOpen: (path: string) => void };
 
@@ -70,7 +70,6 @@ function Feature({ i, title, body, big }: { i: number; title: string; body: stri
 }
 
 export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
-  useSoftFonts();
   const { width } = useWindowDimensions();
   const wide = width >= 768;
   const large = width >= 1080;
