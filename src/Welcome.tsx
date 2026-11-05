@@ -9,12 +9,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
-import { Icon, IconName } from "./Icon";
+import { Icon } from "./Icon";
 import { Enter } from "./Motion";
 import { SignIn } from "./SignIn";
 import { pendingInvite } from "./invite";
 import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings, strings } from "./i18n";
+import { useLandingDesign } from "./design";
+import { SoftLanding } from "./WelcomeSoft";
+import { FEATURES, PREVIEW, TOOLS } from "./landing";
 
 const LANG_KEY = "wellnest.lang";
 
@@ -38,24 +41,6 @@ function saveLang(lang: Lang) {
   }
 }
 
-// In the order of `s.landFeatures`: the tracker first.
-const FEATURES: { icon: IconName; tint: keyof typeof tint }[] = [
-  { icon: "journal", tint: "journal" },
-  { icon: "insights", tint: "appointments" },
-  { icon: "medications", tint: "medications" },
-  { icon: "guides", tint: "guides" },
-  { icon: "circle", tint: "circle" },
-  { icon: "history", tint: "records" },
-];
-
-const TOOLS: { path: string; icon: IconName; tint: keyof typeof tint }[] = [
-  { path: "/medication-list", icon: "medList", tint: "medications" },
-  { path: "/appointment-checklist", icon: "guides", tint: "guides" },
-];
-
-// A made-up week for the preview card: pain eases as sleep gets longer.
-const PREVIEW = { pain: [6, 7, 5, 4, 3, 3, 2], sleep: [5, 5.5, 6.5, 7, 7.5, 7, 8] };
-
 export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string) => void; initialAuth?: "signIn" | "signUp" | null }) {
   const [lang, setLang] = useState<Lang>(deviceLang);
   const [auth, setAuth] = useState<"signIn" | "signUp" | null>(initialAuth);
@@ -64,8 +49,11 @@ export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string)
     setLang(l);
     saveLang(l);
   };
+  const design = useLandingDesign();
   if (auth) return <SignIn key={auth} s={s} initialFlow={auth} onBack={() => setAuth(null)} />;
-  return <Landing s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
+  // The soft or the classic look (src/design.ts): same words and links, different layout.
+  const Page = design === "soft" ? SoftLanding : Landing;
+  return <Page s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
 }
 
 // A week of pain and sleep as small bars, and the pattern Wellnest found in it.
