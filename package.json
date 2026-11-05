@@ -6,6 +6,7 @@
     "@auth/core": "^0.41.3",
     "@convex-dev/auth": "^0.0.96",
     "@convex-dev/static-hosting": "^0.2.1",
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/metro-runtime": "~58.0.15",
     "@expo/vector-icons": "^15.0.2",
     "@kingstinct/react-native-healthkit": "^16.2.0",

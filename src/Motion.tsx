@@ -136,6 +136,44 @@ export function Enter({ children, style, from = 16, fromX }: { children: ReactNo
   );
 }
 
+// The soft design's curve: a quick start that settles slowly, like something with weight coming to rest.
+export const SETTLE = Easing.bezier(0.32, 0.72, 0, 1);
+
+// Fades and lifts its content in once it scrolls into view (on the web; on a phone, when it first appears).
+// `delay` staggers a row of cards.
+export function Rise({ children, style, from = 40, delay = 0 }: { children: ReactNode; style?: StyleProp<ViewStyle>; from?: number; delay?: number }) {
+  const reduced = useReducedMotion();
+  const t = useRef(new Animated.Value(0)).current;
+  // On the web this is the page element itself, which IntersectionObserver can watch.
+  const ref = useRef<unknown>(null);
+  const [seen, setSeen] = useState(native);
+  useEffect(() => {
+    if (seen) return;
+    const node = ref.current as Element | null;
+    if (!node || typeof IntersectionObserver === "undefined") return setSeen(true);
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px" },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [seen]);
+  useEffect(() => {
+    if (!seen) return;
+    Animated.timing(t, { toValue: 1, duration: reduced ? 0 : 800, delay: reduced ? 0 : delay, easing: SETTLE, useNativeDriver: native }).start();
+  }, [seen, reduced, delay, t]);
+  return (
+    <Animated.View ref={ref as never} style={[style, { opacity: t, transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [from, 0] }) }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 // Swaps one icon for another with a quick spin and pop whenever `id` changes (gear to close, circle to tick).
 export function SwapIcon({ id, children }: { id: string; children: ReactNode }) {
   const reduced = useReducedMotion();

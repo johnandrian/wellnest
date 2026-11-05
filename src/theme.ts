@@ -39,6 +39,14 @@ const LIGHT = {
   // On the teal header band: the translucent fill behind its round buttons and tabs.
   onPrimaryFill: "rgba(255, 255, 255, 0.16)",
   backdrop: "rgba(17, 24, 39, 0.35)",
+  // The soft welcome page (src/soft.tsx): the tray a card sits in, its hairline edge, the card's top highlight, and
+  // the faint teal of its shadow.
+  shell: "rgba(17, 24, 39, 0.035)",
+  hairline: "rgba(17, 24, 39, 0.06)",
+  highlight: "rgba(255, 255, 255, 0.9)",
+  glow: "rgba(11, 93, 87, 0.14)",
+  // Fill of the small circle around a button's arrow, on a teal button.
+  onPrimaryCircle: "rgba(255, 255, 255, 0.18)",
 };
 export type Palette = typeof LIGHT;
 
@@ -77,6 +85,11 @@ const DARK: Palette = {
   codeBg: "#232C35",
   onPrimaryFill: "rgba(6, 43, 39, 0.12)",
   backdrop: "rgba(0, 0, 0, 0.55)",
+  shell: "rgba(255, 255, 255, 0.035)",
+  hairline: "rgba(255, 255, 255, 0.08)",
+  highlight: "rgba(255, 255, 255, 0.06)",
+  glow: "rgba(0, 0, 0, 0.45)",
+  onPrimaryCircle: "rgba(6, 43, 39, 0.14)",
 };
 
 export const colors: Palette = { ...LIGHT };
