@@ -2,6 +2,7 @@
 // to ask at an appointment in the coming week, four weeks of charts for what the user tracks, tomorrow's flare
 // forecast, the strongest pattern, and every tool as a tile. It fills the window: more columns on wider screens.
 // DashboardView draws it from data passed in, so the public demo (src/DemoPage.tsx) shows the same screen.
+import { MedBand, MedLegend, MedPins, TrendDot } from "./ChartMarks";
 import { ReactNode, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -317,9 +318,12 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
   const dates: string[] = [];
   for (let d = Date.parse(`${chart.from}T00:00:00Z`); d <= Date.parse(`${chart.to}T00:00:00Z`); d += 86_400_000) dates.push(new Date(d).toISOString().slice(0, 10));
   const values = chart.points.map((p) => p.value);
-  const top = Math.max(chart.max, ...values) || 1;
+  const trendBy = new Map((chart.trend ?? []).map((p) => [p.date, p.value]));
+  const marked = new Set(chart.meds.map((m) => m.date));
+  const top = Math.max(chart.max, ...values, ...trendBy.values()) || 1;
   // Measures without a fixed scale (peak flow, steps, heart rate) start just under their lowest day, so changes show.
-  const floor = chart.unit.startsWith("/") ? 0 : Math.max(0, Math.min(...values) - (top - Math.min(...values)) * 0.5 - top * 0.02);
+  const low = Math.min(...values, ...trendBy.values());
+  const floor = chart.unit.startsWith("/") ? 0 : Math.max(0, low - (top - low) * 0.5 - top * 0.02);
 
   // Each bar's colour says how good that day was: red to teal, by which direction is bad. 1-5 ratings start at 1.
   // Measures with no bad direction (steps) stay in the greens.
@@ -354,14 +358,18 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
           </Text>
         )}
       </View>
+      {chart.meds.length > 0 && <MedPins dates={dates} meds={chart.meds} gap={2} />}
       <View style={styles.bars}>
         {dates.map((d) => {
           const v = byDate.get(d);
+          const t = trendBy.get(d);
           return (
             <View key={d} style={styles.slot}>
+              {marked.has(d) && <MedBand />}
               {v !== undefined && (
                 <View style={[styles.bar, { height: `${Math.max(6, ((v - floor) / (top - floor || 1)) * 100)}%`, backgroundColor: barColor(v) }]} />
               )}
+              {t !== undefined && <TrendDot share={(t - floor) / (top - floor || 1)} color={colors.text} />}
             </View>
           );
         })}
@@ -370,6 +378,8 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
         <Text style={styles.axisText}>{chart.from.slice(5)}</Text>
         <Text style={styles.axisText}>{chart.to.slice(5)}</Text>
       </View>
+      {trendBy.size > 0 && <Text style={styles.axisText}>● {s.chartTrend}</Text>}
+      <MedLegend meds={chart.meds} s={s} />
     </Tap>
   );
 }

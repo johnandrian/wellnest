@@ -60,6 +60,7 @@ export function demoData(s: Strings, now: number): { data: DashboardData; insigh
       points,
       max,
       worse: (metric === "pain" ? "high" : "low") as "high" | "low",
+      meds: [] as { date: string; name: string; kind: "started" | "dose_changed" }[],
       latest: points[points.length - 1],
       week: avg(week),
       prevWeek: avg(prev),

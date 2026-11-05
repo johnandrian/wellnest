@@ -521,6 +521,7 @@ function Settings({
     checkins: boolean;
     weeklySummary: boolean;
     flareForecast: boolean;
+    units: { glucose: "mg/dL" | "mmol/L"; weight: "lb" | "kg" };
   };
   s: Strings;
   pushToken: { current: string | null };
@@ -536,6 +537,7 @@ function Settings({
   const setCheckins = useMutation(api.checkins.setEnabled);
   const setWeekly = useMutation(api.weekly.setEnabled);
   const setForecast = useMutation(api.forecast.setEnabled);
+  const setUnits = useMutation(api.chat.setUnits);
   const setLocation = useMutation(api.chat.setLocation);
   const [location, setLocationText] = useState(me.location);
   const saveLocation = () => {
@@ -623,6 +625,33 @@ function Settings({
           })}
         </View>
       </View>
+      {/* Units for weight and glucose: only what's shown changes; readings are stored the same way. */}
+      {(
+        [
+          ["weight", s.unitsWeight, ["lb", "kg"]],
+          ["glucose", s.unitsGlucose, ["mg/dL", "mmol/L"]],
+        ] as const
+      ).map(([kind, label, options]) => (
+        <View key={kind} style={styles.settingRow}>
+          <Text style={styles.settingLabel}>{label}</Text>
+          <View style={styles.langChips} accessibilityRole="radiogroup" accessibilityLabel={label}>
+            {options.map((unit) => {
+              const on = me.units[kind] === unit;
+              return (
+                <Pressable
+                  key={unit}
+                  style={[styles.langChip, on && styles.langChipOn]}
+                  onPress={() => void setUnits({ units: { ...me.units, [kind]: unit } })}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text style={[styles.langChipText, on && styles.langChipTextOn]}>{unit}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ))}
       <View style={styles.settingRow}>
         <Text style={styles.settingLabel}>{s.locationLabel}</Text>
         <TextInput
