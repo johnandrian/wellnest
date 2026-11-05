@@ -114,7 +114,7 @@ export type TrackerEntry = {
 
 const human = (s: string) => s.replace(/_/g, " ");
 const flags = (p: PainDetails) =>
-  [p.flare && "flare", p.swelling && "swelling", p.colourChange && "colour change", p.temperatureChange && "temperature change", p.touchSensitive && "touch-sensitive"].filter(Boolean);
+  [p.flare && "flare", p.swelling && "swelling", p.colourChange && "color change", p.temperatureChange && "temperature change", p.touchSensitive && "touch-sensitive"].filter(Boolean);
 
 export function entryLine(e: TrackerEntry, peakFlowBest?: number): string {
   if (e.tracker === "pain" && e.pain) {

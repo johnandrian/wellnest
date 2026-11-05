@@ -152,7 +152,7 @@ export const generate = internalAction({
         medications: medications || undefined,
         facts,
         journal:
-          [entries.length || daily.length ? journalText([...entries, ...painAsEntries(tracked.entries)], data.healthDays, daily) : "", conditions && `Condition trackers:\n${conditions}`, ex.text && `Exercises and physio:\n${ex.text}`]
+          [entries.length || daily.length ? journalText([...entries, ...painAsEntries(tracked.entries)], data.healthDays, daily) : "", conditions && `Condition trackers:\n${conditions}`, ex.text && `Exercises and physical therapy:\n${ex.text}`]
             .filter(Boolean)
             .join("\n\n") || undefined,
         appointments: appointments || undefined,

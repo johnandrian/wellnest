@@ -67,7 +67,7 @@ export type ReportData = {
 const HEAD: Record<Lang, Record<string, string>> = {
   en: {
     period: "Period", generated: "Generated", facts: "Key facts", medications: "Medications", journal: "Symptoms and daily check-ins",
-    trackers: "Condition trackers", exercises: "Exercises and physio", health: "Health data", appointments: "Appointments and care team",
+    trackers: "Condition trackers", exercises: "Exercises and physical therapy", health: "Health data", appointments: "Appointments and care team",
     emergency: "Emergency plan", none: "Nothing recorded for this period.", name: "Name", dose: "Dose", schedule: "Schedule", status: "Status",
     taken: "Taken", sideEffects: "Side effects", changes: "Changes", careTeam: "Care team", role: "Role", phone: "Phone", patterns: "Patterns (associations, not causes)",
     sleep: "Sleep (hours)", contacts: "Emergency contacts", asthmaPlan: "Asthma action plan", disclaimer: "Made by Wellnest from what the person recorded. It isn't a diagnosis or a medical record.",

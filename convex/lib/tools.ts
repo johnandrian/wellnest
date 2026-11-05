@@ -263,7 +263,7 @@ export const journalTools: ToolDef[] = [
     type: "function",
     function: {
       name: "add_exercise",
-      description: "Add an exercise or physio routine the user is meant to do (e.g. from a physio): name, sets/reps or minutes, and weekdays.",
+      description: "Add an exercise or physical therapy routine the user is meant to do (e.g. from a physical therapist): name, sets/reps or minutes, and weekdays.",
       parameters: {
         type: "object",
         properties: {
@@ -282,7 +282,7 @@ export const journalTools: ToolDef[] = [
     type: "function",
     function: {
       name: "log_exercise_done",
-      description: "Tick off an exercise the user says they did (name, or \"all\" for the whole routine).",
+      description: "Check off an exercise the user says they did (name, or \"all\" for the whole routine).",
       parameters: { type: "object", properties: { name: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD if not today" } }, required: ["name"] },
     },
   },
@@ -305,7 +305,7 @@ export const visitTools: ToolDef[] = [
     function: {
       name: "add_appointment",
       description:
-        "Add an appointment the user tells you about (GP, specialist, physio, scan, blood test...) to their calendar, " +
+        "Add an appointment the user tells you about (primary care, specialist, physical therapy, scan, blood test...) to their calendar, " +
         "with a reminder 2 hours before. Use their local date and 24h time. If a weekday is given, work out the date " +
         "from today's date.",
       parameters: {
