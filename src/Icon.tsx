@@ -44,6 +44,7 @@ const ICONS = {
   guides: ["ion", "checkbox-outline"],
   medList: ["ion", "list-outline"],
   scan: ["ion", "scan-outline"],
+  agent: ["ion", "sparkles-outline"],
 } as const;
 
 export type IconName = keyof typeof ICONS;

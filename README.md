@@ -127,6 +127,7 @@ flowchart LR
   - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
   - `CarePanel.tsx`, `EmergencyCard.tsx`, `TelehealthCard.tsx` — care nearby, emergency plan, video visits.
   - `CirclePanel.tsx`, `JoinPrompt.tsx`, `invite.ts` — the Care Circle, joining from an invite link.
+  - `AgentPanel.tsx` — the Action Inbox.
   - `health.ios.ts` / `health.android.ts` / `health.ts` + `useHealthSync.ts` + `HealthSettings.tsx` — Apple Health / Health Connect sync.
   - `AboutPanel.tsx` — "What Wellnest knows about me". `push.ts` — notifications. `photo.ts` — photos. `i18n.ts` — English, Spanish, Greek, Simplified Chinese.
   - `useVoice.ts`, `speaker.web.ts` / `speaker.ts` — the mic and spoken replies (see Voice below).
@@ -304,7 +305,9 @@ The start of Wellnest's agent (`convex/agent.ts`, `convex/lib/agent.ts`). The ag
 - **Message to the doctor:** a draft the person reads and copies into their patient portal; nothing is sent.
 - **Reminder:** not built yet, so approving it fails and says so.
 
-Actions marked `urgent` are red flags. Nothing proposes actions automatically yet; pattern checks and the chat model come next. For development, `npx convex run agent:proposeSamples '{"userId":"..."}'` adds one of each.
+**Health tools → Actions** (`src/AgentPanel.tsx`) lists what needs the person's OK first, each card with Approve and Dismiss and a "Based on" list of its facts, then History with what happened; new actions appear live. Actions marked `urgent` are red flags: the card shows a fixed "call your care team now, or 911" notice written by the app, not the model.
+
+Nothing proposes actions automatically yet; pattern checks and the chat model come next. For development, `npx convex run agent:proposeSamples '{"userId":"..."}'` adds one of each.
 
 ## Welcome page and privacy
 Signed out, `src/Welcome.tsx` leads with the tracker and an **example story** (`src/LandingStory.tsx`, data in `src/landing.ts`): four weeks of a made-up person's days that play in as the page opens, in four beats, each something the app really does. Wellnest finds the pattern (bars with the weather days marked), warns about tomorrow, writes the question for the doctor, and shows the change after a medicine. Tabs switch between rheumatoid arthritis (joint pain and drops in air pressure), asthma (reliever puffs and high pollen), and type 2 diabetes (glucose after short nights, and a metformin dose increase); the day the medicine started or changed is marked with a green pill, as on real charts. With reduced motion the finished picture shows straight away. After that come what else Wellnest does, how it works, the free tools and how data stays the user's, in the browser's or phone's language (with a switch), then sign-in or a new account. `/privacy` (`src/Privacy.tsx`) lists what's kept, the services that process it and the choices people have; it's open signed in or not and linked from "What Wellnest knows about me". `public/index.html` adds the description and link-preview tags for the site and invites.
