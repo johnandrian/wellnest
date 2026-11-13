@@ -7,6 +7,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import {
   asthmaDetails,
   AsthmaDetails,
@@ -60,7 +61,10 @@ async function addEntry(ctx: MutationCtx, userId: Id<"users">, a: AddArgs, sourc
   if (a.tracker === "glucose") {
     const glucose = cleanGlucose(a.glucose ?? {});
     if ("error" in glucose) throw new Error(glucose.error);
-    return { id: await ctx.db.insert("trackerEntries", { ...base, glucose }), date };
+    const id = await ctx.db.insert("trackerEntries", { ...base, glucose });
+    // A very low or very high reading goes to the Action Inbox right away (convex/agentScan.ts).
+    await ctx.scheduler.runAfter(0, internal.agentScan.afterGlucose, { userId });
+    return { id, date };
   }
   return { id: await ctx.db.insert("trackerEntries", { ...base, seizure: cleanSeizure(a.seizure ?? {}) }), date };
 }

@@ -1,13 +1,15 @@
-// The agent's Action Inbox. The agent (later: pattern checks, the chat model, documents the user adds) calls
-// `propose`; the user approves or dismisses each action in the Health tools' Actions tab (src/AgentPanel.tsx);
-// approving schedules `execute`, which runs that kind's executor and records what happened.
+// The agent's Action Inbox. The agent (the morning check in convex/agentScan.ts; later the chat model and documents
+// the user adds) proposes through `insertProposal`; the user approves or dismisses each action in the Health tools'
+// Actions tab (src/AgentPanel.tsx); approving schedules `execute`, which runs that kind's executor and records what happened.
 // Nothing outward-facing happens without the user's tap.
-import { v } from "convex/values";
+import { Infer, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalAction, internalMutation, internalQuery, mutation, MutationCtx, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { actionDetails, evidence, MAX_OPEN, OPEN } from "./lib/agent";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // The user's actions, newest first: the inbox splits them into "needs you" and "history".
 export const list = query({
@@ -50,30 +52,47 @@ export const dismiss = mutation({
   },
 });
 
-// The only way an action enters the inbox. Returns null when the user already has MAX_OPEN open actions.
+const proposalArgs = {
+  userId: v.id("users"),
+  title: v.string(),
+  reason: v.string(),
+  evidence: v.array(evidence),
+  details: actionDetails,
+  urgent: v.boolean(),
+  rule: v.optional(v.string()),
+  cooldownDays: v.optional(v.number()),
+};
+const proposal = v.object(proposalArgs);
+export type ProposalArgs = Infer<typeof proposal>;
+
+// Every action enters the inbox through here. Returns null, adding nothing, when the user already has MAX_OPEN
+// open actions, or when the same rule proposed something (whatever became of it) within its cooldown.
+export async function insertProposal(ctx: MutationCtx, { cooldownDays, ...args }: ProposalArgs): Promise<Id<"agentActions"> | null> {
+  if (args.rule) {
+    const last = await ctx.db
+      .query("agentActions")
+      .withIndex("by_user_and_rule", (q) => q.eq("userId", args.userId).eq("rule", args.rule))
+      .order("desc")
+      .first();
+    if (last && last._creationTime > Date.now() - (cooldownDays ?? 14) * DAY_MS) return null;
+  }
+  let open = 0;
+  for (const status of OPEN) {
+    open += (await ctx.db.query("agentActions").withIndex("by_user_and_status", (q) => q.eq("userId", args.userId).eq("status", status)).take(MAX_OPEN)).length;
+  }
+  if (open >= MAX_OPEN) return null;
+  return await ctx.db.insert("agentActions", {
+    ...args,
+    title: args.title.trim().slice(0, 120),
+    reason: args.reason.trim().slice(0, 600),
+    evidence: args.evidence.slice(0, 8),
+    status: "proposed",
+  });
+}
+
 export const propose = internalMutation({
-  args: {
-    userId: v.id("users"),
-    title: v.string(),
-    reason: v.string(),
-    evidence: v.array(evidence),
-    details: actionDetails,
-    urgent: v.boolean(),
-  },
-  handler: async (ctx, args): Promise<Id<"agentActions"> | null> => {
-    let open = 0;
-    for (const status of OPEN) {
-      open += (await ctx.db.query("agentActions").withIndex("by_user_and_status", (q) => q.eq("userId", args.userId).eq("status", status)).take(MAX_OPEN)).length;
-    }
-    if (open >= MAX_OPEN) return null;
-    return await ctx.db.insert("agentActions", {
-      ...args,
-      title: args.title.trim().slice(0, 120),
-      reason: args.reason.trim().slice(0, 600),
-      evidence: args.evidence.slice(0, 8),
-      status: "proposed",
-    });
-  },
+  args: proposalArgs,
+  handler: (ctx, args): Promise<Id<"agentActions"> | null> => insertProposal(ctx, args),
 });
 
 export const get = internalQuery({

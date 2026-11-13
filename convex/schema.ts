@@ -120,6 +120,8 @@ export default defineSchema({
     // Evening alerts when tomorrow's air quality is forecast to be unhealthy (convex/forecast.ts); on when unset.
     airAlerts: v.optional(v.boolean()),
     forecastSentAt: v.optional(v.number()),
+    // The agent's morning check of the user's logs (convex/agentScan.ts); stops a second one that day.
+    agentScannedAt: v.optional(v.number()),
     // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
     notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),
     // Set while "Delete everything" runs (convex/me.ts).
@@ -563,12 +565,15 @@ export default defineSchema({
     details: actionDetails,
     // A red flag: the inbox shows the fixed "call your care team or 911" notice above it.
     urgent: v.boolean(),
+    // The rule that proposed it (convex/lib/agentRules.ts), so it isn't proposed again too soon. Unset for samples.
+    rule: v.optional(v.string()),
     result: v.optional(v.string()), // what happened, once done
     error: v.optional(v.string()),
     decidedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_user_and_status", ["userId", "status"]),
+    .index("by_user_and_status", ["userId", "status"])
+    .index("by_user_and_rule", ["userId", "rule"]),
 
   // Legacy, no longer written: orders from the removed approve-then-fill-a-cart flow. Kept because the dev deployment still has rows.
   carts: defineTable({

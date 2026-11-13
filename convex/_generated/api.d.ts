@@ -9,6 +9,7 @@
  */
 
 import type * as agent from "../agent.js";
+import type * as agentScan from "../agentScan.js";
 import type * as auth from "../auth.js";
 import type * as care from "../care.js";
 import type * as chat from "../chat.js";
@@ -28,6 +29,7 @@ import type * as http from "../http.js";
 import type * as insights from "../insights.js";
 import type * as journal from "../journal.js";
 import type * as lib_agent from "../lib/agent.js";
+import type * as lib_agentRules from "../lib/agentRules.js";
 import type * as lib_appearance from "../lib/appearance.js";
 import type * as lib_cartesia from "../lib/cartesia.js";
 import type * as lib_chats from "../lib/chats.js";
@@ -100,6 +102,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
+  agentScan: typeof agentScan;
   auth: typeof auth;
   care: typeof care;
   chat: typeof chat;
@@ -119,6 +122,7 @@ declare const fullApi: ApiFromModules<{
   insights: typeof insights;
   journal: typeof journal;
   "lib/agent": typeof lib_agent;
+  "lib/agentRules": typeof lib_agentRules;
   "lib/appearance": typeof lib_appearance;
   "lib/cartesia": typeof lib_cartesia;
   "lib/chats": typeof lib_chats;
