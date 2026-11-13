@@ -111,6 +111,7 @@ flowchart LR
   V["2 h before an appointment"] --> VP["push reminder +<br/>suggested questions if none yet"]
   W["Every day"] --> WD["fetch weather, air quality and pollen<br/>for everyone with a saved location"]
   S["Every hour"] --> SW["Sunday 6 PM local: the week's summary<br/>in the chat + push"]
+  A["Every hour"] --> FA["9 AM local: the agent's morning check<br/>→ maybe actions for your OK (push)"]
   F["Every hour"] --> FF["7 PM local: tomorrow's weather vs your patterns<br/>→ maybe a flare forecast (you + Care Circle)"]
   T["15 min before a video visit"] --> TP["push with the join link"]
   D["Delete my data"] --> DB["delete in batches of 200,<br/>rescheduling itself"]
@@ -142,7 +143,7 @@ flowchart LR
   - `health.ts`, `checkins.ts` — wearable data and check-ins. `push.ts` — notifications. `me.ts` — facts, export, deletion.
   - `insights.ts`, `weather.ts`, `weekly.ts`, `forecast.ts`, `questions.ts` (+ `lib/insights.ts`, `lib/insightsText.ts`, `lib/weather.ts`) — patterns, charts, medication before/after, weather triggers, the weekly summary, the flare forecast, questions for appointments.
   - `circle.ts` (+ `lib/circle.ts`, `lib/links.ts`) — the Care Circle; links on the app's domain.
-  - `agent.ts` (+ `lib/agent.ts`) — the agent's Action Inbox: proposed actions, approval, and what runs after.
+  - `agent.ts`, `agentScan.ts` (+ `lib/agent.ts`, `lib/agentRules.ts`) — the agent's Action Inbox: the morning check that proposes actions, approval, and what runs after.
   - `creao.ts`, `shop.ts`, `lib/` — CREAO analysis, the supply shopper, and clients for Cortex, Jina, Cartesia, Telegram, Jev, OpenStreetMap.
 - `tests/` — Vitest + convex-test; every outside API is faked.
 - `creao/` — the CREAO agent bundle.
@@ -307,7 +308,12 @@ The start of Wellnest's agent (`convex/agent.ts`, `convex/lib/agent.ts`). The ag
 
 **Health tools → Actions** (`src/AgentPanel.tsx`) lists what needs the person's OK first, each card with Approve and Dismiss and a "Based on" list of its facts, then History with what happened; new actions appear live. Actions marked `urgent` are red flags: the card shows a fixed "call your care team now, or 911" notice written by the app, not the model.
 
-Nothing proposes actions automatically yet; pattern checks and the chat model come next. For development, `npx convex run agent:proposeSamples '{"userId":"..."}'` adds one of each.
+**The morning check** (`convex/agentScan.ts`, rules in `convex/lib/agentRules.ts`, hourly cron) runs at 9 AM local time and proposes from the person's own logs, with fixed thresholds rather than a model's judgment:
+- **High fasting glucose:** the first fasting reading above 130 mg/dL on 3 days in a row, ending today or yesterday, drafts a message to the doctor with the readings and any medication started or changed in the 30 days before.
+- **Very low or very high glucose:** a reading under 54 or over 300 mg/dL today is an urgent video visit card. It's also checked the moment a reading is logged, so it doesn't wait for the morning.
+- **Getting worse:** pain or a tracked symptom averaging 5/10 or more this week and worse than last week, with no visit or video visit booked, suggests a video visit.
+
+Each rule proposes again only after its cooldown (14 days, or 1 day for the urgent glucose card), whether the earlier one was approved or dismissed. New proposals send one push notification ("Something needs your OK", or the urgent card's title and the call-for-help line) on the "Suggested actions" channel, and tapping it opens the Action Inbox. The chat model can't propose actions yet. For development, `npx convex run agent:proposeSamples '{"userId":"..."}'` adds one of each.
 
 ## Welcome page and privacy
 Signed out, `src/Welcome.tsx` leads with the tracker and an **example story** (`src/LandingStory.tsx`, data in `src/landing.ts`): four weeks of a made-up person's days that play in as the page opens, in four beats, each something the app really does. Wellnest finds the pattern (bars with the weather days marked), warns about tomorrow, writes the question for the doctor, and shows the change after a medicine. Tabs switch between rheumatoid arthritis (joint pain and drops in air pressure), asthma (reliever puffs and high pollen), and type 2 diabetes (glucose after short nights, and a metformin dose increase); the day the medicine started or changed is marked with a green pill, as on real charts. With reduced motion the finished picture shows straight away. After that come what else Wellnest does, how it works, the free tools and how data stays the user's, in the browser's or phone's language (with a switch), then sign-in or a new account. `/privacy` (`src/Privacy.tsx`) lists what's kept, the services that process it and the choices people have; it's open signed in or not and linked from "What Wellnest knows about me". `public/index.html` adds the description and link-preview tags for the site and invites.

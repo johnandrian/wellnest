@@ -10,7 +10,7 @@ import { isPushToken, plain, sendPush } from "./lib/push";
 
 const MAX_DEVICES = 10;
 export const pushKind = v.union(v.literal("reminders"), v.literal("appointments"));
-type PushKind = "reminders" | "appointments" | "weekly" | "forecast" | "circle";
+type PushKind = "reminders" | "appointments" | "weekly" | "forecast" | "circle" | "agent";
 
 export const register = mutation({
   args: { token: v.string(), platform: v.string() },
