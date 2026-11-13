@@ -63,7 +63,7 @@ function ActionCard({ s, action }: { s: Strings; action: Action }) {
   const dismiss = useMutation(api.agent.dismiss);
   const [busy, setBusy] = useState<"approve" | "dismiss" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showWhy, setShowWhy] = useState(action.status === "proposed");
+  const [showWhy, setShowWhy] = useState(false);
   const pending = action.status === "proposed";
   const d = action.details;
 
