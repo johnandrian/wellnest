@@ -23,6 +23,7 @@ async function setUp(s: Strings) {
     await Notifications.setNotificationChannelAsync("weekly", { name: s.channelWeekly, importance: Notifications.AndroidImportance.DEFAULT });
     await Notifications.setNotificationChannelAsync("forecast", { name: s.channelForecast, importance: Notifications.AndroidImportance.DEFAULT });
     await Notifications.setNotificationChannelAsync("circle", { name: s.channelCircle, importance: Notifications.AndroidImportance.HIGH });
+    await Notifications.setNotificationChannelAsync("agent", { name: s.channelAgent, importance: Notifications.AndroidImportance.HIGH });
   }
   // Answering from the notification doesn't open the app.
   await Notifications.setNotificationCategoryAsync("reminder", [
