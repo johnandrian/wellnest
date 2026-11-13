@@ -21,9 +21,10 @@ import { ExercisePanel } from "./ExercisePanel";
 import { RecordsPanel } from "./RecordsPanel";
 import { CirclePanel } from "./CirclePanel";
 import { GuidesPanel } from "./GuidesPanel";
+import { AgentPanel } from "./AgentPanel";
 import { Enter, SwapIcon } from "./Motion";
 
-export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "guides" | "visit" | "records" | "care" | "circle";
+export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "guides" | "visit" | "records" | "care" | "circle" | "agent";
 export type HubTab = "home" | ToolTab;
 
 export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; label: (s: Strings) => string; desc: (s: Strings) => string }[] = [
@@ -36,6 +37,7 @@ export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; lab
   { tab: "records", icon: "records", tint: "records", label: (s) => s.tabRecords, desc: (s) => s.toolRecordsDesc },
   { tab: "care", icon: "care", tint: "care", label: (s) => s.tabCare, desc: (s) => s.toolCareDesc },
   { tab: "circle", icon: "circle", tint: "circle", label: (s) => s.tabCircle, desc: (s) => s.toolCircleDesc },
+  { tab: "agent", icon: "agent", tint: "agent", label: (s) => s.tabAgent, desc: (s) => s.toolAgentDesc },
 ];
 
 export function greeting(s: Strings, name: string | null) {
@@ -146,6 +148,7 @@ export function HubPanel({
         {tab === "records" && <RecordsPanel s={s} />}
         {tab === "care" && <CarePanel s={s} />}
         {tab === "circle" && <CirclePanel s={s} />}
+        {tab === "agent" && <AgentPanel s={s} />}
       </Enter>
     </View>
   );

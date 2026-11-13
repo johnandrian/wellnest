@@ -141,6 +141,7 @@ const TINT_LIGHT = {
   records: { fg: "#0E7490", bg: "#CFFAFE" },
   circle: { fg: "#9D174D", bg: "#FCE7F3" },
   guides: { fg: "#3F6212", bg: "#ECFCCB" },
+  agent: { fg: "#4338CA", bg: "#E0E7FF" },
 };
 const TINT_DARK: typeof TINT_LIGHT = {
   journal: { fg: "#5FC7B7", bg: "#123A35" },
@@ -152,6 +153,7 @@ const TINT_DARK: typeof TINT_LIGHT = {
   records: { fg: "#67E8F9", bg: "#103540" },
   circle: { fg: "#F9A8D4", bg: "#3D1530" },
   guides: { fg: "#BEF264", bg: "#26330F" },
+  agent: { fg: "#A5B4FC", bg: "#1E2250" },
 };
 export const tint = copyTints(TINT_LIGHT);
 function copyTints(t: typeof TINT_LIGHT) {
