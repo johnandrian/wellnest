@@ -180,11 +180,11 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
 
   // Tapping a reminder notification opens the reminders; Taken / Skip on it are handled in usePush.
   // The weekly summary and the flare forecast are chat messages, so their notifications just open the chat;
-  // a Care Circle alert opens the Care Circle.
+  // a Care Circle alert opens the Care Circle, and an agent proposal opens the Action Inbox.
   const pushToken = usePush(s, (kind) =>
     kind === "weekly" || kind === "forecast"
       ? openChat()
-      : openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : kind === "circle" ? "circle" : "care"),
+      : openHub(kind === "reminders" ? "reminders" : kind === "appointments" ? "visits" : kind === "circle" ? "circle" : kind === "agent" ? "agent" : "care"),
   );
 
 
