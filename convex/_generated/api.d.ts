@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as agent from "../agent.js";
 import type * as auth from "../auth.js";
 import type * as care from "../care.js";
 import type * as chat from "../chat.js";
@@ -26,6 +27,7 @@ import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as insights from "../insights.js";
 import type * as journal from "../journal.js";
+import type * as lib_agent from "../lib/agent.js";
 import type * as lib_appearance from "../lib/appearance.js";
 import type * as lib_cartesia from "../lib/cartesia.js";
 import type * as lib_chats from "../lib/chats.js";
@@ -97,6 +99,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agent: typeof agent;
   auth: typeof auth;
   care: typeof care;
   chat: typeof chat;
@@ -115,6 +118,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   insights: typeof insights;
   journal: typeof journal;
+  "lib/agent": typeof lib_agent;
   "lib/appearance": typeof lib_appearance;
   "lib/cartesia": typeof lib_cartesia;
   "lib/chats": typeof lib_chats;

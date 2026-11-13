@@ -16,6 +16,7 @@ import { focus, profile } from "./lib/onboarding";
 import { appearance } from "./lib/appearance";
 import { labFlag, recordKind } from "./lib/records";
 import { circleAlerts } from "./lib/circle";
+import { actionDetails, actionStatus, evidence } from "./lib/agent";
 
 // jina-embeddings-v3 default output size.
 export const EMBEDDING_DIMS = 1024;
@@ -551,6 +552,23 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_run", ["runId"]),
+
+  // Actions the agent proposes, waiting for the user's approval in the Action Inbox (convex/agent.ts).
+  agentActions: defineTable({
+    userId: v.id("users"),
+    status: actionStatus,
+    title: v.string(), // "Message Dr. Chen about high glucose"
+    reason: v.string(), // why the agent suggests it, in plain words
+    evidence: v.array(evidence),
+    details: actionDetails,
+    // A red flag: the inbox shows the fixed "call your care team or 911" notice above it.
+    urgent: v.boolean(),
+    result: v.optional(v.string()), // what happened, once done
+    error: v.optional(v.string()),
+    decidedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_status", ["userId", "status"]),
 
   // Legacy, no longer written: orders from the removed approve-then-fill-a-cart flow. Kept because the dev deployment still has rows.
   carts: defineTable({

@@ -97,7 +97,7 @@ flowchart TB
   users --- records["records · labResults"]
   meds -.- drugInfo["drugInfo (shared)"]
   users --- care["visits · careTeam · appointments (telehealth) · emergencyPlans"]
-  users --- out["visitSummaries · shareLinks · creaoRuns"]
+  users --- out["visitSummaries · shareLinks · creaoRuns · agentActions"]
   users --- circle["circleMembers · circleInvites"]
   users --- devices["pushTokens · authSessions"]
 ```
@@ -141,6 +141,7 @@ flowchart LR
   - `health.ts`, `checkins.ts` — wearable data and check-ins. `push.ts` — notifications. `me.ts` — facts, export, deletion.
   - `insights.ts`, `weather.ts`, `weekly.ts`, `forecast.ts`, `questions.ts` (+ `lib/insights.ts`, `lib/insightsText.ts`, `lib/weather.ts`) — patterns, charts, medication before/after, weather triggers, the weekly summary, the flare forecast, questions for appointments.
   - `circle.ts` (+ `lib/circle.ts`, `lib/links.ts`) — the Care Circle; links on the app's domain.
+  - `agent.ts` (+ `lib/agent.ts`) — the agent's Action Inbox: proposed actions, approval, and what runs after.
   - `creao.ts`, `shop.ts`, `lib/` — CREAO analysis, the supply shopper, and clients for Cortex, Jina, Cartesia, Telegram, Jev, OpenStreetMap.
 - `tests/` — Vitest + convex-test; every outside API is faked.
 - `creao/` — the CREAO agent bundle.
@@ -296,6 +297,14 @@ At 7 PM local time (`convex/forecast.ts`, hourly cron), Wellnest compares **tomo
 - **What members see (read only):** today's doses (taken, skipped, missed after 2 hours, due), active medications, this week against last week for each measure, when something was last logged, tomorrow's flare forecast, emergency contacts with Call buttons, and a full 30-day report (the same page as PDF reports). Members can leave at any time.
 - **Alerts** go to the member's own chat (and Telegram when linked) with a push, in the member's language.
 - **Deleting** the account removes both sides: the person's members and invites, and the circles they were in. Export includes the circle.
+
+## Action Inbox
+The start of Wellnest's agent (`convex/agent.ts`, `convex/lib/agent.ts`). The agent only ever **proposes** an action (`agent.propose`, an internal function, at most 20 open per person); each one carries a title, the reason in plain words, and the logged facts it rests on. **Nothing runs until the person approves it**; approving schedules `agent.execute`, which runs that kind's executor and records what happened, and dismissing ends it. Kinds today:
+- **Video visit:** hands off to the telehealth flow, so times appear in the chat and the person still picks one and confirms.
+- **Message to the doctor:** a draft the person reads and copies into their patient portal; nothing is sent.
+- **Reminder:** not built yet, so approving it fails and says so.
+
+Actions marked `urgent` are red flags. Nothing proposes actions automatically yet; pattern checks and the chat model come next. For development, `npx convex run agent:proposeSamples '{"userId":"..."}'` adds one of each.
 
 ## Welcome page and privacy
 Signed out, `src/Welcome.tsx` leads with the tracker and an **example story** (`src/LandingStory.tsx`, data in `src/landing.ts`): four weeks of a made-up person's days that play in as the page opens, in four beats, each something the app really does. Wellnest finds the pattern (bars with the weather days marked), warns about tomorrow, writes the question for the doctor, and shows the change after a medicine. Tabs switch between rheumatoid arthritis (joint pain and drops in air pressure), asthma (reliever puffs and high pollen), and type 2 diabetes (glucose after short nights, and a metformin dose increase); the day the medicine started or changed is marked with a green pill, as on real charts. With reduced motion the finished picture shows straight away. After that come what else Wellnest does, how it works, the free tools and how data stays the user's, in the browser's or phone's language (with a switch), then sign-in or a new account. `/privacy` (`src/Privacy.tsx`) lists what's kept, the services that process it and the choices people have; it's open signed in or not and linked from "What Wellnest knows about me". `public/index.html` adds the description and link-preview tags for the site and invites.
