@@ -6,7 +6,7 @@ import { View } from "react-native";
 import { colors, themed } from "./theme";
 import { BREATH_MS, dotAlpha, GAP } from "./breathingWave";
 
-export function BreathingGrid(_: { scroll: { current: number }; lane?: [number, number] }) {
+export function BreathingGrid(_: { scroll: { current: number } }) {
   const [box, setBox] = useState({ width: 0, height: 0 });
   const dots = useMemo(() => {
     const out: { x: number; y: number; a: number }[] = [];

@@ -47,7 +47,7 @@ export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
   return (
     // The breathing dot grid covers the whole page from behind; the page itself is see-through and tells it how far it has scrolled.
     <View style={styles.screen}>
-      <BreathingGrid scroll={scrollY} lane={wide ? [100, 180] : undefined} />
+      <BreathingGrid scroll={scrollY} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.page, wide && styles.pageWide]}
