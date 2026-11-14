@@ -2,7 +2,7 @@
 // classic page in src/Welcome.tsx, laid out with more room. A floating pill bar at the top; a large headline beside
 // an example story (src/LandingStory.tsx); the six features as a grid of cards in two sizes; how it works; the free tools; the privacy
 // promise on teal; then the language switch and links. Each section fades up as it scrolls into view.
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
@@ -37,6 +37,7 @@ function Feature({ i, title, body, big }: { i: number; title: string; body: stri
 export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
   const { width } = useWindowDimensions();
   const wide = width >= 768;
+  const scrollY = useRef(0);
   const large = width >= 1080;
   const token = useMemo(() => pendingInvite(), []);
   const now = useMemo(() => Date.now(), []);
@@ -44,192 +45,200 @@ export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
   const f = s.landFeatures;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={[styles.page, wide && styles.pageWide]}>
-      <BreathingGrid height={wide ? 880 : 760} lane={wide ? [100, 180] : undefined} />
-      <View style={[styles.inner, wide && styles.innerWide]}>
-        <Enter style={styles.navWrap} from={-12}>
-          <View style={styles.nav}>
+    // The breathing dot grid covers the whole page from behind; the page itself is see-through and tells it how far it has scrolled.
+    <View style={styles.screen}>
+      <BreathingGrid scroll={scrollY} lane={wide ? [100, 180] : undefined} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.page, wide && styles.pageWide]}
+        onScroll={(e) => (scrollY.current = e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+      >
+        <View style={[styles.inner, wide && styles.innerWide]}>
+          <Enter style={styles.navWrap} from={-12}>
+            <View style={styles.nav}>
+              <View style={styles.brand}>
+                <SingingBrand style={styles.singer}>
+                  <SingingMark size={30} />
+                  <Text style={styles.brandText}>Wellnest</Text>
+                </SingingBrand>
+              </View>
+              {wide && (
+                <Tap style={styles.navLink} onPress={() => onOpen("/demo")} accessibilityRole="link">
+                  <Text style={styles.navLinkText}>{s.landDemo}</Text>
+                </Tap>
+              )}
+              <Tap style={styles.navSignIn} onPress={() => onAuth("signIn")} accessibilityRole="button">
+                <Text style={styles.navSignInText}>{s.landSignIn}</Text>
+              </Tap>
+            </View>
+          </Enter>
+
+          <View style={[styles.hero, wide && styles.heroWide]}>
+            <Enter style={[styles.heroText, wide && styles.heroTextWide]} from={28}>
+              {invite && !invite.own && (
+                <View style={styles.invite}>
+                  <Icon name="circle" size={20} color={tint.circle.fg} />
+                  <Text style={styles.inviteText}>{s.landInvite.replace("{name}", invite.name)}</Text>
+                </View>
+              )}
+              <Eyebrow text={s.softEyebrow} />
+              <Text style={[styles.headline, wide && styles.headlineWide, large && styles.headlineLarge]} accessibilityRole="header">
+                {s.landHeadline}
+              </Text>
+              <Text style={[styles.sub, wide && styles.subWide]}>{s.landSub}</Text>
+              <View style={styles.ctas}>
+                <Pill label={s.landCreate} onPress={() => onAuth("signUp")} />
+                <Pill label={s.landDemo} kind="quiet" icon="grid-outline" role="link" onPress={() => onOpen("/demo")} />
+              </View>
+            </Enter>
+            <Rise style={wide ? styles.previewWide : undefined} delay={120} from={56}>
+              <LandingStory s={s} />
+            </Rise>
+          </View>
+
+          <View style={styles.section}>
+            <Rise style={styles.heading}>
+              <Eyebrow text={s.softFeaturesEyebrow} />
+              <Text style={[styles.sectionTitle, wide && styles.sectionTitleWide]} accessibilityRole="header">
+                {s.softFeaturesTitle}
+              </Text>
+            </Rise>
+            {/* Two big cards, three small ones, then one across the width; a single column on a phone. */}
+            <View style={styles.bento}>
+              <View style={[styles.bentoRow, wide && styles.row]}>
+                <Rise style={wide ? styles.span7 : undefined}>
+                  <Feature i={0} title={f[0].title} body={f[0].body} big />
+                </Rise>
+                <Rise style={wide ? styles.span5 : undefined} delay={wide ? 100 : 0}>
+                  <Feature i={1} title={f[1].title} body={f[1].body} big />
+                </Rise>
+              </View>
+              <View style={[styles.bentoRow, wide && styles.row]}>
+                {[2, 3, 4].map((i, k) => (
+                  <Rise key={i} style={wide ? styles.span4 : undefined} delay={wide ? k * 100 : 0}>
+                    <Feature i={i} title={f[i].title} body={f[i].body} />
+                  </Rise>
+                ))}
+              </View>
+              <Rise>
+                <Bezel core={[styles.featureCore, wide && styles.featureWideCore]}>
+                  <View style={[styles.featureIcon, { backgroundColor: tint[FEATURES[5].tint].bg }]}>
+                    <Icon name={FEATURES[5].icon} size={24} color={tint[FEATURES[5].tint].fg} />
+                  </View>
+                  <View style={[styles.featureWideText, wide && styles.flex]}>
+                    <Text style={styles.featureTitle}>{f[5].title}</Text>
+                    <Text style={styles.featureBody}>{f[5].body}</Text>
+                  </View>
+                </Bezel>
+              </Rise>
+            </View>
+          </View>
+
+          <View style={[styles.section, wide && styles.split]}>
+            <Rise style={[styles.heading, wide && styles.splitLeft]}>
+              <Eyebrow text={s.softHowEyebrow} />
+              <Text style={[styles.sectionTitle, wide && styles.sectionTitleWide]} accessibilityRole="header">
+                {s.landHowTitle}
+              </Text>
+            </Rise>
+            <Rise style={wide ? styles.flex : undefined} delay={wide ? 120 : 0}>
+              <Bezel core={styles.stepsCore}>
+                {s.landHow.map((step, i) => (
+                  <View key={step} style={[styles.step, i > 0 && styles.stepRule]}>
+                    <Text style={styles.stepNumber}>{String(i + 1).padStart(2, "0")}</Text>
+                    <Text style={[styles.stepText, styles.flex]}>{step}</Text>
+                  </View>
+                ))}
+              </Bezel>
+            </Rise>
+          </View>
+
+          <View style={styles.section}>
+            <Rise style={styles.heading}>
+              <Eyebrow text={s.softToolsEyebrow} />
+              <Text style={[styles.sectionTitle, wide && styles.sectionTitleWide]} accessibilityRole="header">
+                {s.landToolsTitle}
+              </Text>
+              <Text style={styles.sectionSub}>{s.landToolsSub}</Text>
+            </Rise>
+            <View style={[styles.bentoRow, wide && styles.row]}>
+              {s.landTools.map((t, i) => (
+                <Rise key={t.title} style={wide ? styles.flex : undefined} delay={wide ? i * 100 : 0}>
+                  <Pressable onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link" style={styles.fill}>
+                    {(state) => {
+                      const hovered = (state as { hovered?: boolean }).hovered;
+                      return (
+                        <Bezel style={[styles.fill, styles.lift, hovered && styles.lifted, state.pressed && styles.pressed]} core={[styles.toolCore, !wide && styles.toolCoreNarrow]}>
+                          <View style={[styles.featureIcon, { backgroundColor: tint[TOOLS[i].tint].bg }]}>
+                            <Icon name={TOOLS[i].icon} size={24} color={tint[TOOLS[i].tint].fg} />
+                          </View>
+                          <View style={wide ? styles.flex : styles.toolTextNarrow}>
+                            <Text style={styles.featureTitle}>{t.title}</Text>
+                            <Text style={styles.featureBody}>{t.body}</Text>
+                          </View>
+                          <View style={[styles.arrow, hovered && styles.arrowHover]}>
+                            <Ionicons name="arrow-forward" size={18} color={colors.primary} />
+                          </View>
+                        </Bezel>
+                      );
+                    }}
+                  </Pressable>
+                </Rise>
+              ))}
+            </View>
+          </View>
+
+          <Rise style={styles.section}>
+            <Bezel tone="primary" core={[styles.trustCore, wide && styles.trustCoreWide]}>
+              <Eyebrow text={s.landPrivacy} onPrimary />
+              <Text style={[styles.trustTitle, wide && styles.trustTitleWide]} accessibilityRole="header">
+                {s.landTrustTitle}
+              </Text>
+              <Text style={styles.trustBody}>{s.landTrust}</Text>
+              <Text style={styles.notDoctor}>{s.landNotDoctor}</Text>
+              <Pill label={s.landCreate} kind="light" onPress={() => onAuth("signUp")} style={styles.trustCta} />
+            </Bezel>
+          </Rise>
+
+          <View style={styles.footer}>
             <View style={styles.brand}>
               <SingingBrand style={styles.singer}>
                 <SingingMark size={30} />
                 <Text style={styles.brandText}>Wellnest</Text>
               </SingingBrand>
             </View>
-            {wide && (
-              <Tap style={styles.navLink} onPress={() => onOpen("/demo")} accessibilityRole="link">
-                <Text style={styles.navLinkText}>{s.landDemo}</Text>
-              </Tap>
-            )}
-            <Tap style={styles.navSignIn} onPress={() => onAuth("signIn")} accessibilityRole="button">
-              <Text style={styles.navSignInText}>{s.landSignIn}</Text>
-            </Tap>
-          </View>
-        </Enter>
-
-        <View style={[styles.hero, wide && styles.heroWide]}>
-          <Enter style={[styles.heroText, wide && styles.heroTextWide]} from={28}>
-            {invite && !invite.own && (
-              <View style={styles.invite}>
-                <Icon name="circle" size={20} color={tint.circle.fg} />
-                <Text style={styles.inviteText}>{s.landInvite.replace("{name}", invite.name)}</Text>
-              </View>
-            )}
-            <Eyebrow text={s.softEyebrow} />
-            <Text style={[styles.headline, wide && styles.headlineWide, large && styles.headlineLarge]} accessibilityRole="header">
-              {s.landHeadline}
-            </Text>
-            <Text style={[styles.sub, wide && styles.subWide]}>{s.landSub}</Text>
-            <View style={styles.ctas}>
-              <Pill label={s.landCreate} onPress={() => onAuth("signUp")} />
-              <Pill label={s.landDemo} kind="quiet" icon="grid-outline" role="link" onPress={() => onOpen("/demo")} />
-            </View>
-          </Enter>
-          <Rise style={wide ? styles.previewWide : undefined} delay={120} from={56}>
-            <LandingStory s={s} />
-          </Rise>
-        </View>
-
-        <View style={styles.section}>
-          <Rise style={styles.heading}>
-            <Eyebrow text={s.softFeaturesEyebrow} />
-            <Text style={[styles.sectionTitle, wide && styles.sectionTitleWide]} accessibilityRole="header">
-              {s.softFeaturesTitle}
-            </Text>
-          </Rise>
-          {/* Two big cards, three small ones, then one across the width; a single column on a phone. */}
-          <View style={styles.bento}>
-            <View style={[styles.bentoRow, wide && styles.row]}>
-              <Rise style={wide ? styles.span7 : undefined}>
-                <Feature i={0} title={f[0].title} body={f[0].body} big />
-              </Rise>
-              <Rise style={wide ? styles.span5 : undefined} delay={wide ? 100 : 0}>
-                <Feature i={1} title={f[1].title} body={f[1].body} big />
-              </Rise>
-            </View>
-            <View style={[styles.bentoRow, wide && styles.row]}>
-              {[2, 3, 4].map((i, k) => (
-                <Rise key={i} style={wide ? styles.span4 : undefined} delay={wide ? k * 100 : 0}>
-                  <Feature i={i} title={f[i].title} body={f[i].body} />
-                </Rise>
+            <View style={styles.langs} accessibilityRole="radiogroup" accessibilityLabel={s.landLanguage}>
+              {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
+                <Tap
+                  key={code}
+                  style={[styles.langChip, lang === code && styles.langChipOn]}
+                  onPress={() => onLang(code)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: lang === code }}
+                >
+                  <Text style={[styles.langText, lang === code && styles.langTextOn]}>{LANGUAGE_NAMES[code]}</Text>
+                </Tap>
               ))}
             </View>
-            <Rise>
-              <Bezel core={[styles.featureCore, wide && styles.featureWideCore]}>
-                <View style={[styles.featureIcon, { backgroundColor: tint[FEATURES[5].tint].bg }]}>
-                  <Icon name={FEATURES[5].icon} size={24} color={tint[FEATURES[5].tint].fg} />
-                </View>
-                <View style={[styles.featureWideText, wide && styles.flex]}>
-                  <Text style={styles.featureTitle}>{f[5].title}</Text>
-                  <Text style={styles.featureBody}>{f[5].body}</Text>
-                </View>
-              </Bezel>
-            </Rise>
-          </View>
-        </View>
-
-        <View style={[styles.section, wide && styles.split]}>
-          <Rise style={[styles.heading, wide && styles.splitLeft]}>
-            <Eyebrow text={s.softHowEyebrow} />
-            <Text style={[styles.sectionTitle, wide && styles.sectionTitleWide]} accessibilityRole="header">
-              {s.landHowTitle}
-            </Text>
-          </Rise>
-          <Rise style={wide ? styles.flex : undefined} delay={wide ? 120 : 0}>
-            <Bezel core={styles.stepsCore}>
-              {s.landHow.map((step, i) => (
-                <View key={step} style={[styles.step, i > 0 && styles.stepRule]}>
-                  <Text style={styles.stepNumber}>{String(i + 1).padStart(2, "0")}</Text>
-                  <Text style={[styles.stepText, styles.flex]}>{step}</Text>
-                </View>
+            <View style={styles.footerRow}>
+              <Tap onPress={() => onOpen("/privacy")} accessibilityRole="link">
+                <Text style={styles.footerLink}>{s.landPrivacy}</Text>
+              </Tap>
+              {s.landTools.map((t, i) => (
+                <Tap key={t.title} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
+                  <Text style={styles.footerLink}>{t.title}</Text>
+                </Tap>
               ))}
-            </Bezel>
-          </Rise>
-        </View>
-
-        <View style={styles.section}>
-          <Rise style={styles.heading}>
-            <Eyebrow text={s.softToolsEyebrow} />
-            <Text style={[styles.sectionTitle, wide && styles.sectionTitleWide]} accessibilityRole="header">
-              {s.landToolsTitle}
-            </Text>
-            <Text style={styles.sectionSub}>{s.landToolsSub}</Text>
-          </Rise>
-          <View style={[styles.bentoRow, wide && styles.row]}>
-            {s.landTools.map((t, i) => (
-              <Rise key={t.title} style={wide ? styles.flex : undefined} delay={wide ? i * 100 : 0}>
-                <Pressable onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link" style={styles.fill}>
-                  {(state) => {
-                    const hovered = (state as { hovered?: boolean }).hovered;
-                    return (
-                      <Bezel style={[styles.fill, styles.lift, hovered && styles.lifted, state.pressed && styles.pressed]} core={[styles.toolCore, !wide && styles.toolCoreNarrow]}>
-                        <View style={[styles.featureIcon, { backgroundColor: tint[TOOLS[i].tint].bg }]}>
-                          <Icon name={TOOLS[i].icon} size={24} color={tint[TOOLS[i].tint].fg} />
-                        </View>
-                        <View style={wide ? styles.flex : styles.toolTextNarrow}>
-                          <Text style={styles.featureTitle}>{t.title}</Text>
-                          <Text style={styles.featureBody}>{t.body}</Text>
-                        </View>
-                        <View style={[styles.arrow, hovered && styles.arrowHover]}>
-                          <Ionicons name="arrow-forward" size={18} color={colors.primary} />
-                        </View>
-                      </Bezel>
-                    );
-                  }}
-                </Pressable>
-              </Rise>
-            ))}
-          </View>
-        </View>
-
-        <Rise style={styles.section}>
-          <Bezel tone="primary" core={[styles.trustCore, wide && styles.trustCoreWide]}>
-            <Eyebrow text={s.landPrivacy} onPrimary />
-            <Text style={[styles.trustTitle, wide && styles.trustTitleWide]} accessibilityRole="header">
-              {s.landTrustTitle}
-            </Text>
-            <Text style={styles.trustBody}>{s.landTrust}</Text>
-            <Text style={styles.notDoctor}>{s.landNotDoctor}</Text>
-            <Pill label={s.landCreate} kind="light" onPress={() => onAuth("signUp")} style={styles.trustCta} />
-          </Bezel>
-        </Rise>
-
-        <View style={styles.footer}>
-          <View style={styles.brand}>
-            <SingingBrand style={styles.singer}>
-              <SingingMark size={30} />
-              <Text style={styles.brandText}>Wellnest</Text>
-            </SingingBrand>
-          </View>
-          <View style={styles.langs} accessibilityRole="radiogroup" accessibilityLabel={s.landLanguage}>
-            {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
-              <Tap
-                key={code}
-                style={[styles.langChip, lang === code && styles.langChipOn]}
-                onPress={() => onLang(code)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: lang === code }}
-              >
-                <Text style={[styles.langText, lang === code && styles.langTextOn]}>{LANGUAGE_NAMES[code]}</Text>
+              <Tap onPress={() => onOpen("/demo")} accessibilityRole="link">
+                <Text style={styles.footerLink}>{s.landDemo}</Text>
               </Tap>
-            ))}
-          </View>
-          <View style={styles.footerRow}>
-            <Tap onPress={() => onOpen("/privacy")} accessibilityRole="link">
-              <Text style={styles.footerLink}>{s.landPrivacy}</Text>
-            </Tap>
-            {s.landTools.map((t, i) => (
-              <Tap key={t.title} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
-                <Text style={styles.footerLink}>{t.title}</Text>
-              </Tap>
-            ))}
-            <Tap onPress={() => onOpen("/demo")} accessibilityRole="link">
-              <Text style={styles.footerLink}>{s.landDemo}</Text>
-            </Tap>
-            <Text style={styles.footerText}>© {new Date().getFullYear()} Wellnest</Text>
+              <Text style={styles.footerText}>© {new Date().getFullYear()} Wellnest</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -237,7 +246,8 @@ const styles = themed(() => ({
   flex: { flex: 1, minWidth: 0 },
   fill: { flexGrow: 1 },
   row: { flexDirection: "row", alignItems: "stretch" },
-  scroll: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flex: 1 },
   page: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 48 },
   pageWide: { paddingHorizontal: 32, paddingTop: 24, paddingBottom: 64 },
   inner: { width: "100%", maxWidth: 1160, alignSelf: "center", gap: 72 },

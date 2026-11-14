@@ -3,7 +3,7 @@
 // works, the free tools (/medication-list, /appointment-checklist) and how data stays theirs, then sign-in or a new
 // account. In the phone's or browser's language, with a switch at the bottom. Someone who came from a Care Circle
 // invite sees whose it is first.
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
@@ -60,151 +60,161 @@ export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string)
 function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onOpen: (path: string) => void }) {
   const { width } = useWindowDimensions();
   const wide = width >= 760;
+  const scrollY = useRef(0);
   const token = useMemo(() => pendingInvite(), []);
   const now = useMemo(() => Date.now(), []);
   const invite = useQuery(api.circle.inviteInfo, token ? { token, now } : "skip");
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.page}>
-      <BreathingGrid height={wide ? 820 : 700} lane={wide ? [72, 110] : undefined} />
-      <View style={styles.inner}>
-        <View style={styles.topBar}>
-          <View style={styles.brand}>
-            <SingingBrand style={styles.singer}>
-              <SingingMark size={32} />
-              <Text style={styles.brandText}>Wellnest</Text>
-            </SingingBrand>
+    // The breathing dot grid covers the whole page from behind; the page itself is see-through and tells it how far it has scrolled.
+    <View style={styles.screen}>
+      <BreathingGrid scroll={scrollY} lane={wide ? [72, 110] : undefined} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.page}
+        onScroll={(e) => (scrollY.current = e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+      >
+        <View style={styles.inner}>
+          <View style={styles.topBar}>
+            <View style={styles.brand}>
+              <SingingBrand style={styles.singer}>
+                <SingingMark size={32} />
+                <Text style={styles.brandText}>Wellnest</Text>
+              </SingingBrand>
+            </View>
+            <Tap style={styles.topSignIn} onPress={() => onAuth("signIn")} accessibilityRole="button">
+              <Text style={styles.topSignInText}>{s.landSignIn}</Text>
+            </Tap>
           </View>
-          <Tap style={styles.topSignIn} onPress={() => onAuth("signIn")} accessibilityRole="button">
-            <Text style={styles.topSignInText}>{s.landSignIn}</Text>
-          </Tap>
-        </View>
 
-        <Enter style={[styles.hero, wide && styles.heroWide]}>
-          <View style={[styles.heroText, wide && styles.flex]}>
-            {invite && !invite.own && (
-              <View style={styles.invite}>
-                <Icon name="circle" size={20} color={tint.circle.fg} />
-                <Text style={styles.inviteText}>{s.landInvite.replace("{name}", invite.name)}</Text>
+          <Enter style={[styles.hero, wide && styles.heroWide]}>
+            <View style={[styles.heroText, wide && styles.flex]}>
+              {invite && !invite.own && (
+                <View style={styles.invite}>
+                  <Icon name="circle" size={20} color={tint.circle.fg} />
+                  <Text style={styles.inviteText}>{s.landInvite.replace("{name}", invite.name)}</Text>
+                </View>
+              )}
+              <Text style={[styles.headline, wide && styles.headlineWide]} accessibilityRole="header">
+                {s.landHeadline}
+              </Text>
+              <Text style={styles.sub}>{s.landSub}</Text>
+              <View style={styles.ctas}>
+                <Tap style={styles.primary} onPress={() => onAuth("signUp")} accessibilityRole="button">
+                  <Text style={styles.primaryText}>{s.landCreate}</Text>
+                </Tap>
+                <Tap style={styles.secondary} onPress={() => onAuth("signIn")} accessibilityRole="button">
+                  <Text style={styles.secondaryText}>{s.landSignIn}</Text>
+                </Tap>
               </View>
-            )}
-            <Text style={[styles.headline, wide && styles.headlineWide]} accessibilityRole="header">
-              {s.landHeadline}
+              <Tap style={styles.demo} onPress={() => onOpen("/demo")} accessibilityRole="link">
+                <Icon name="dashboard" size={18} color={colors.primary} />
+                <Text style={styles.demoText}>{s.landDemo}</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+              </Tap>
+            </View>
+            <View style={wide ? styles.previewWide : undefined}>
+              <LandingStory s={s} />
+            </View>
+          </Enter>
+
+          <Enter style={styles.grid} from={24}>
+            {s.landFeatures.map((f, i) => (
+              <View key={f.title} style={[styles.feature, wide ? styles.third : styles.full]}>
+                <View style={[styles.featureIcon, { backgroundColor: tint[FEATURES[i].tint].bg }]}>
+                  <Icon name={FEATURES[i].icon} size={22} color={tint[FEATURES[i].tint].fg} />
+                </View>
+                <Text style={styles.featureTitle}>{f.title}</Text>
+                <Text style={styles.featureBody}>{f.body}</Text>
+              </View>
+            ))}
+          </Enter>
+
+          <Enter style={styles.block} from={32}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              {s.landHowTitle}
             </Text>
-            <Text style={styles.sub}>{s.landSub}</Text>
-            <View style={styles.ctas}>
-              <Tap style={styles.primary} onPress={() => onAuth("signUp")} accessibilityRole="button">
-                <Text style={styles.primaryText}>{s.landCreate}</Text>
-              </Tap>
-              <Tap style={styles.secondary} onPress={() => onAuth("signIn")} accessibilityRole="button">
-                <Text style={styles.secondaryText}>{s.landSignIn}</Text>
-              </Tap>
+            <View style={[styles.steps, wide && styles.stepsWide]}>
+              {s.landHow.map((step, i) => (
+                <View key={step} style={[styles.step, wide && styles.flex]}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>{i + 1}</Text>
+                  </View>
+                  <Text style={[styles.stepText, styles.flex]}>{step}</Text>
+                </View>
+              ))}
             </View>
-            <Tap style={styles.demo} onPress={() => onOpen("/demo")} accessibilityRole="link">
-              <Icon name="dashboard" size={18} color={colors.primary} />
-              <Text style={styles.demoText}>{s.landDemo}</Text>
-              <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-            </Tap>
-          </View>
-          <View style={wide ? styles.previewWide : undefined}>
-            <LandingStory s={s} />
-          </View>
-        </Enter>
+          </Enter>
 
-        <Enter style={styles.grid} from={24}>
-          {s.landFeatures.map((f, i) => (
-            <View key={f.title} style={[styles.feature, wide ? styles.third : styles.full]}>
-              <View style={[styles.featureIcon, { backgroundColor: tint[FEATURES[i].tint].bg }]}>
-                <Icon name={FEATURES[i].icon} size={22} color={tint[FEATURES[i].tint].fg} />
-              </View>
-              <Text style={styles.featureTitle}>{f.title}</Text>
-              <Text style={styles.featureBody}>{f.body}</Text>
+          <Enter style={styles.block} from={32}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              {s.landToolsTitle}
+            </Text>
+            <Text style={styles.sectionSub}>{s.landToolsSub}</Text>
+            <View style={[styles.steps, wide && styles.stepsWide]}>
+              {s.landTools.map((t, i) => (
+                <Tap key={t.title} style={[styles.tool, wide && styles.flex]} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
+                  <View style={[styles.featureIcon, { backgroundColor: tint[TOOLS[i].tint].bg }]}>
+                    <Icon name={TOOLS[i].icon} size={22} color={tint[TOOLS[i].tint].fg} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.featureTitle}>{t.title}</Text>
+                    <Text style={styles.featureBody}>{t.body}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+                </Tap>
+              ))}
             </View>
-          ))}
-        </Enter>
+          </Enter>
 
-        <Enter style={styles.block} from={32}>
-          <Text style={styles.sectionTitle} accessibilityRole="header">
-            {s.landHowTitle}
-          </Text>
-          <View style={[styles.steps, wide && styles.stepsWide]}>
-            {s.landHow.map((step, i) => (
-              <View key={step} style={[styles.step, wide && styles.flex]}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{i + 1}</Text>
-                </View>
-                <Text style={[styles.stepText, styles.flex]}>{step}</Text>
-              </View>
-            ))}
-          </View>
-        </Enter>
-
-        <Enter style={styles.block} from={32}>
-          <Text style={styles.sectionTitle} accessibilityRole="header">
-            {s.landToolsTitle}
-          </Text>
-          <Text style={styles.sectionSub}>{s.landToolsSub}</Text>
-          <View style={[styles.steps, wide && styles.stepsWide]}>
-            {s.landTools.map((t, i) => (
-              <Tap key={t.title} style={[styles.tool, wide && styles.flex]} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
-                <View style={[styles.featureIcon, { backgroundColor: tint[TOOLS[i].tint].bg }]}>
-                  <Icon name={TOOLS[i].icon} size={22} color={tint[TOOLS[i].tint].fg} />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={styles.featureTitle}>{t.title}</Text>
-                  <Text style={styles.featureBody}>{t.body}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-              </Tap>
-            ))}
-          </View>
-        </Enter>
-
-        <Enter style={styles.trust} from={32}>
-          <Text style={styles.trustTitle} accessibilityRole="header">
-            {s.landTrustTitle}
-          </Text>
-          <Text style={styles.trustBody}>{s.landTrust}</Text>
-          <Text style={styles.notDoctor}>{s.landNotDoctor}</Text>
-          <Tap style={styles.primaryOnTeal} onPress={() => onAuth("signUp")} accessibilityRole="button">
-            <Text style={styles.primaryOnTealText}>{s.landCreate}</Text>
-          </Tap>
-        </Enter>
-
-        <View style={styles.footer}>
-          <View style={styles.langs} accessibilityRole="radiogroup" accessibilityLabel={s.landLanguage}>
-            {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
-              <Tap
-                key={code}
-                style={[styles.langChip, lang === code && styles.langChipOn]}
-                onPress={() => onLang(code)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: lang === code }}
-              >
-                <Text style={[styles.langText, lang === code && styles.langTextOn]}>{LANGUAGE_NAMES[code]}</Text>
-              </Tap>
-            ))}
-          </View>
-          <View style={styles.footerRow}>
-            <Tap onPress={() => onOpen("/privacy")} accessibilityRole="link">
-              <Text style={styles.footerLink}>{s.landPrivacy}</Text>
+          <Enter style={styles.trust} from={32}>
+            <Text style={styles.trustTitle} accessibilityRole="header">
+              {s.landTrustTitle}
+            </Text>
+            <Text style={styles.trustBody}>{s.landTrust}</Text>
+            <Text style={styles.notDoctor}>{s.landNotDoctor}</Text>
+            <Tap style={styles.primaryOnTeal} onPress={() => onAuth("signUp")} accessibilityRole="button">
+              <Text style={styles.primaryOnTealText}>{s.landCreate}</Text>
             </Tap>
-            {s.landTools.map((t, i) => (
-              <Tap key={t.title} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
-                <Text style={styles.footerLink}>{t.title}</Text>
+          </Enter>
+
+          <View style={styles.footer}>
+            <View style={styles.langs} accessibilityRole="radiogroup" accessibilityLabel={s.landLanguage}>
+              {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
+                <Tap
+                  key={code}
+                  style={[styles.langChip, lang === code && styles.langChipOn]}
+                  onPress={() => onLang(code)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: lang === code }}
+                >
+                  <Text style={[styles.langText, lang === code && styles.langTextOn]}>{LANGUAGE_NAMES[code]}</Text>
+                </Tap>
+              ))}
+            </View>
+            <View style={styles.footerRow}>
+              <Tap onPress={() => onOpen("/privacy")} accessibilityRole="link">
+                <Text style={styles.footerLink}>{s.landPrivacy}</Text>
               </Tap>
-            ))}
-            <Text style={styles.footerText}>© {new Date().getFullYear()} Wellnest</Text>
+              {s.landTools.map((t, i) => (
+                <Tap key={t.title} onPress={() => onOpen(TOOLS[i].path)} accessibilityRole="link">
+                  <Text style={styles.footerLink}>{t.title}</Text>
+                </Tap>
+              ))}
+              <Text style={styles.footerText}>© {new Date().getFullYear()} Wellnest</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = themed(() => ({
   flex: { flex: 1, minWidth: 0 },
-  scroll: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flex: 1 },
   page: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   inner: { width: "100%", maxWidth: 1040, alignSelf: "center", gap: 28 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 56 },

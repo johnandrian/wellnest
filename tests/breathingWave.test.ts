@@ -1,16 +1,20 @@
 import { describe, expect, test } from "vitest";
-import { dotAlpha, makeTrend } from "../src/breathingWave";
+import { BREATH_MS, dotAlpha, makeTrend } from "../src/breathingWave";
 
 describe("landing dot grid", () => {
-  test("dots stay faint and fade out at the bottom", () => {
-    for (let ms = 0; ms < 10000; ms += 1250) {
-      for (const [x, y] of [[0, 0], [700, 200], [1100, 400], [300, 700]]) {
-        const a = dotAlpha(x, y, 1100, 800, ms);
-        expect(a).toBeGreaterThanOrEqual(0);
+  test("dots stay faint anywhere on the page, and softer on a narrow screen", () => {
+    for (let ms = 0; ms < BREATH_MS; ms += BREATH_MS / 8) {
+      for (const [x, y] of [[0, 0], [700, 200], [1100, 400], [300, 3000]]) {
+        const a = dotAlpha(x, y, 1100, ms);
+        expect(a).toBeGreaterThan(0);
         expect(a).toBeLessThanOrEqual(0.55);
       }
     }
-    expect(dotAlpha(800, 800, 1100, 800, 0)).toBe(0);
+    expect(dotAlpha(300, 200, 390, 0)).toBeLessThan(dotAlpha(300 * (1100 / 390), 200, 1100, 0));
+  });
+
+  test("the wave breathes 50% faster than 6 breaths a minute", () => {
+    expect(60000 / BREATH_MS).toBeCloseTo(9);
   });
 
   test("a trend line steps one column at a time and stays inside its lane", () => {

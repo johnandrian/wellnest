@@ -1,9 +1,14 @@
-// The math behind the landing page's dot grid (src/BreathingGrid.web.tsx and src/BreathingGrid.tsx), kept apart so the
-// web canvas and the still phone version draw the same picture.
+// The math behind the welcome page's dot grid (src/BreathingGrid.web.tsx and src/BreathingGrid.tsx), kept apart so the
+// web canvas and the still phone version draw the same picture. Positions are in page points, so the grid scrolls with
+// the page even though the canvas only covers the screen.
 
 export const GAP = 22; // space between dots, in points
-export const BREATH_MS = 10000; // one slow breath: about 6 a minute
-export const TREND_MS = 5200; // a trend line draws, holds, and fades in this long
+export const SPEED = 1.5; // how much faster than a calm 6-breaths-a-minute pace the grid breathes
+export const BREATH_MS = 10000 / SPEED; // one breath of the wave
+export const TREND_MS = 5200 / SPEED; // a trend line draws, holds, and fades in this long
+export const TREND_DRAW_MS = 1400 / SPEED; // ...of which drawing it takes this long
+export const TREND_FADE_MS = 1200 / SPEED; // ...and fading it this long
+export const TREND_GAP_MS = [4000 / SPEED, 8000 / SPEED]; // the pause before the next line, shortest and longest
 
 const WAVELENGTH = 520;
 
@@ -12,17 +17,16 @@ const smooth = (a: number, b: number, v: number) => {
   return t * t * (3 - 2 * t);
 };
 
-// How strongly to draw the dot at (x, y), from 0 to about 0.55. A ring spreads out from the top right corner once a
-// breath, the grid is quieter behind the headline on the left, and it fades out toward the bottom. On a narrow screen
-// the words run the full width, so the whole grid is softer there.
-export function dotAlpha(x: number, y: number, w: number, h: number, ms: number) {
-  const d = Math.hypot(x - w * 0.88, y - h * 0.08);
+// How strongly to draw the dot at page point (x, y), from 0 to about 0.55. Rings spread out from the top right corner
+// of the page once a breath, the grid is quieter on the left where the words start, and on a narrow screen, where the
+// words run the full width, the whole grid is softer.
+export function dotAlpha(x: number, y: number, w: number, ms: number) {
+  const d = Math.hypot(x - w * 0.88, y - 70);
   const phase = (d / WAVELENGTH - ms / BREATH_MS) * Math.PI * 2;
   const band = Math.pow((Math.sin(phase) + 1) / 2, 3);
   const quiet = 0.4 + 0.6 * smooth(0.1, 0.65, x / w);
-  const fade = 1 - smooth(0.45, 1, y / h);
   const soft = w < 768 ? 0.45 : 1;
-  return (0.1 + 0.45 * band) * quiet * fade * soft;
+  return (0.1 + 0.45 * band) * quiet * soft;
 }
 
 export type Trend = { born: number; points: [number, number][] };
