@@ -242,7 +242,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             <View style={styles.brandText}>
               <Text style={styles.headerTitle}>Wellnest</Text>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {s.subtitleVoice} · {s.notDoctor}
+                {s.subtitleCompanion} · {s.notDoctor}
               </Text>
             </View>
           </SingingBrand>
