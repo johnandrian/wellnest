@@ -1,8 +1,8 @@
 // The welcome page's background on the web: a fine grid of teal dots behind the whole page that a wave swells and fades
 // in a steady breathing rhythm. Small graphs come and go on it, the kinds of things Wellnest shows: mostly trend lines
-// and step lines (like sleep stages), sometimes a little bar chart of lit dots, and once in a while a curved link
-// between two dots with a pulse running along it, like a pattern found between two things. Each draws itself, holds,
-// and dissolves back into the grid.
+// and step lines (like sleep stages), then scatters with a fitted line, dose timelines with a missed dose or two, and
+// little bar charts of lit dots, and once in a while a curved link between two dots with a pulse running along it,
+// like a pattern found between two things. Each draws itself, holds, and dissolves back into the grid.
 // The canvas only covers the screen and stays put; the dots move with `scroll` (the page's scroll offset, kept up to
 // date by the page) so the grid looks like part of the page from top to bottom. Before a graph appears it checks the
 // page under every dot it would use and only goes where there are no words, buttons, or cards, and never on top of
@@ -16,6 +16,7 @@ import { useReducedMotion } from "./Motion";
 import {
   BREATH_MS,
   dotAlpha,
+  fitLine,
   footprint,
   GAP,
   linkPoint,
@@ -97,6 +98,7 @@ export function BreathingGrid({ scroll }: { scroll: { current: number } }) {
       const rBottom = Math.floor((sy + h) / GAP);
       for (let tries = 0; tries < 18; tries++) {
         const kind = pickKind();
+        if (kind === "link" && shapes.some((s) => s.kind === "link")) continue; // one arch on screen at most
         const span = SHAPE_SPAN[kind];
         const lo = rTop + span.up + 1;
         const hi = rBottom - span.down - 1;
@@ -190,6 +192,51 @@ export function BreathingGrid({ scroll }: { scroll: { current: number } }) {
             ctx.stroke();
             rows.forEach((r) => r >= top - 0.01 && light(c, r, fade));
           });
+        } else if (s.kind === "scatter") {
+          // The dots light up one by one, then the line that fits them draws across.
+          pts.forEach(([c, r], i) => p * 1.6 * pts.length > i && light(c, r, fade));
+          const q = clamp(p * 1.6 - 0.6); // the line starts once most dots are in
+          if (q > 0) {
+            const [[c1, rr1], [c2, rr2]] = fitLine(pts);
+            ctx.lineWidth = 1.25;
+            ctx.strokeStyle = `rgba(${ink}, ${0.4 * fade})`;
+            ctx.beginPath();
+            ctx.moveTo(X(c1), Y(rr1));
+            ctx.lineTo(X(c1 + (c2 - c1) * q), Y(rr1 + (rr2 - rr1) * q));
+            ctx.stroke();
+          }
+        } else if (s.kind === "doses") {
+          // A thin timeline draws across; each dose shows as the line reaches it, solid if taken, a ring if missed.
+          const [first] = pts;
+          const last = pts[pts.length - 1];
+          const reach = first[0] + (last[0] - first[0]) * p;
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = `rgba(${ink}, ${0.3 * fade})`;
+          ctx.beginPath();
+          ctx.moveTo(X(first[0]), Y(first[1]));
+          ctx.lineTo(X(reach), Y(first[1]));
+          ctx.stroke();
+          pts.forEach(([c, r], i) => {
+            if (c > reach + 0.01) return;
+            if (s.missed?.includes(i)) {
+              ctx.fillStyle = colors.bg; // hide the grid dot inside the ring
+              ctx.beginPath();
+              ctx.arc(X(c), Y(r), 4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.lineWidth = 1.25;
+              ctx.strokeStyle = `rgba(${ink}, ${0.6 * fade})`;
+              ctx.beginPath();
+              ctx.arc(X(c), Y(r), 3.5, 0, Math.PI * 2);
+              ctx.stroke();
+              lit.set(`${c},${r}`, -1); // keep the grid from drawing a dot here
+            } else {
+              light(c, r, fade);
+              ctx.fillStyle = `rgba(${ink}, ${0.75 * fade})`;
+              ctx.beginPath();
+              ctx.arc(X(c), Y(r), 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
         } else {
           // A dashed curve joins the two ends, then a pulse runs along it while it holds.
           const [a, b] = pts;
@@ -226,6 +273,7 @@ export function BreathingGrid({ scroll }: { scroll: { current: number } }) {
       for (let c = 0; c < cols; c++) {
         for (let r = r0; r <= r1; r++) {
           const on = lit.get(`${c},${r}`);
+          if (on === -1) continue;
           const a = dotAlpha(X(c), r * GAP, w, ms);
           if (a < 0.01 && on === undefined) continue;
           ctx.fillStyle = `rgba(${ink}, ${on !== undefined ? Math.max(a, 0.7 * on) : a})`;

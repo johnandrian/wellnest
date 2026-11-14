@@ -9,12 +9,14 @@ export const SHAPE_MS = 5200 / SPEED; // a graph draws, holds, and fades in this
 export const SHAPE_DRAW_MS = 1400 / SPEED; // ...of which drawing it takes this long
 export const SHAPE_FADE_MS = 1200 / SPEED; // ...and fading it this long
 export const SHAPE_GAP_MS = [1200 / SPEED, 2600 / SPEED]; // the pause before the next graph, shortest and longest
-// How often each kind is picked: mostly lines, now and then bars, and only once in a while a link.
+// How often each kind is picked: mostly lines, then the other graphs, and a link only once in a while.
 export const SHAPE_ODDS: [ShapeKind, number][] = [
-  ["trend", 0.5],
-  ["steps", 0.25],
-  ["bars", 0.15],
+  ["trend", 0.4],
+  ["steps", 0.2],
+  ["scatter", 0.12],
+  ["doses", 0.1],
   ["link", 0.1],
+  ["bars", 0.08],
 ];
 
 export function pickKind(random = Math.random): ShapeKind {
@@ -48,10 +50,13 @@ export function dotAlpha(x: number, y: number, w: number, ms: number) {
 // - "trend": a line across neighboring dots that drifts gently upward, like a symptom easing over a week;
 // - "steps": a line that holds level and then jumps, like sleep stages through a night;
 // - "bars": a few columns of dots rising from one baseline, like a week of daily scores;
-// - "link": a curve that joins two dots a little apart, like a pattern Wellnest found between two things.
+// - "link": a curve that joins two dots a little apart, like a pattern Wellnest found between two things;
+// - "scatter": a loose cloud of dots with a fitted line through it, like sleep set against pain;
+// - "doses": a timeline of evenly spaced doses, solid when taken and a hollow ring for the one or two missed.
 // `points` are every dot a graph lights or crosses, used to keep graphs off words and apart from each other.
-export type ShapeKind = "trend" | "steps" | "bars" | "link";
-export type Shape = { kind: ShapeKind; born: number; points: [number, number][] };
+export type ShapeKind = "trend" | "steps" | "bars" | "link" | "scatter" | "doses";
+// `missed` lists which of a "doses" timeline's points were missed.
+export type Shape = { kind: ShapeKind; born: number; points: [number, number][]; missed?: number[] };
 
 export function makeShape(kind: ShapeKind, c0: number, r0: number, born: number, random = Math.random): Shape {
   const points: [number, number][] = [];
@@ -75,6 +80,19 @@ export function makeShape(kind: ShapeKind, c0: number, r0: number, born: number,
       if (next === r) next = r + (r < r0 ? 1 : -1);
       while (r !== next) points.push([c, (r += Math.sign(next - r))]);
     }
+  } else if (kind === "scatter") {
+    // Dots spread around a gentle slope, one per column, a row or so off it either way.
+    const slope = (random() - 0.5) * 0.9;
+    for (let i = 0; i < 10; i++) {
+      if (i > 0 && i < 9 && random() < 0.25) continue;
+      points.push([c0 + i, Math.round(r0 - slope * i + (random() * 2.4 - 1.2))]);
+    }
+  } else if (kind === "doses") {
+    const count = 6 + Math.floor(random() * 3);
+    for (let i = 0; i < count; i++) points.push([c0 + i * 2, r0]);
+    const missed = [1 + Math.floor(random() * (count - 2))];
+    if (random() < 0.4) missed.push((missed[0] + 2 + Math.floor(random() * (count - 4))) % (count - 1) + 1);
+    return { kind, born, points, missed: [...new Set(missed)] };
   } else if (kind === "bars") {
     // r0 is the baseline; each bar is listed from the baseline up.
     const count = 5 + Math.floor(random() * 3);
@@ -93,6 +111,8 @@ export function makeShape(kind: ShapeKind, c0: number, r0: number, born: number,
 export const SHAPE_SPAN: Record<ShapeKind, { cols: number; up: number; down: number }> = {
   trend: { cols: 10, up: 9, down: 9 },
   steps: { cols: 11, up: 3, down: 3 },
+  scatter: { cols: 9, up: 6, down: 6 },
+  doses: { cols: 14, up: 0, down: 0 },
   bars: { cols: 14, up: 3, down: 0 },
   link: { cols: 11, up: 5, down: 3 }, // the arc bows up to about 4.2 rows above the start
 };
@@ -107,7 +127,26 @@ export function linkPoint(a: [number, number], b: [number, number], t: number): 
 
 // Every spot a graph covers, in columns and rows (a link's curve is sampled), for checking it has room.
 export function footprint(shape: Shape): [number, number][] {
+  if (shape.kind === "scatter") {
+    const [a, b] = fitLine(shape.points);
+    return [...shape.points, a, b, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]];
+  }
   if (shape.kind !== "link") return shape.points;
   const [a, b] = shape.points;
   return Array.from({ length: 13 }, (_, i) => linkPoint(a, b, i / 12));
+}
+
+// The straight line that best fits a scatter's dots (least squares), from its first column to its last.
+export function fitLine(points: [number, number][]): [[number, number], [number, number]] {
+  const n = points.length;
+  const mc = points.reduce((t, [c]) => t + c, 0) / n;
+  const mr = points.reduce((t, [, r]) => t + r, 0) / n;
+  const sxx = points.reduce((t, [c]) => t + (c - mc) ** 2, 0);
+  const slope = sxx ? points.reduce((t, [c, r]) => t + (c - mc) * (r - mr), 0) / sxx : 0;
+  const c1 = points[0][0];
+  const c2 = points[n - 1][0];
+  return [
+    [c1, mr + slope * (c1 - mc)],
+    [c2, mr + slope * (c2 - mc)],
+  ];
 }
