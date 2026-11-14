@@ -23,6 +23,7 @@ import { colors, floatingBar, isSoft, softShadow, pillish, radius, round, TEXT_S
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
+import { SingingBrand, SingingMark } from "./SingingMark";
 import { HealthSync, useHealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { HubPanel, HubTab } from "./HubPanel";
@@ -236,13 +237,15 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           >
             <Ionicons name="menu-outline" size={24} color={colors.text} />
           </Pressable>
-          <Image source={require("../assets/wellnest-mark.png")} style={styles.logo} accessibilityIgnoresInvertColors />
-          <View style={styles.brandText}>
-            <Text style={styles.headerTitle}>Wellnest</Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {s.subtitleVoice} · {s.notDoctor}
-            </Text>
-          </View>
+          <SingingBrand style={styles.singer}>
+            <SingingMark size={38} />
+            <View style={styles.brandText}>
+              <Text style={styles.headerTitle}>Wellnest</Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {s.subtitleVoice} · {s.notDoctor}
+              </Text>
+            </View>
+          </SingingBrand>
         </View>
         <View style={styles.headerActions}>
           {!!messages?.length && (
@@ -743,6 +746,8 @@ const styles = themed(() => ({
   headerSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
   // The title side shrinks (subtitle truncates) so the four header buttons always fit on a phone.
   brand: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 },
+  // The mark and its words: hovering anywhere on them makes the bird sing (src/SingingMark.tsx).
+  singer: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 },
   brandText: { flexShrink: 1, minWidth: 0 },
   logo: { width: 38, height: 38 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },

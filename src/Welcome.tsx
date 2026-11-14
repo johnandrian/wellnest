@@ -4,13 +4,14 @@
 // account. In the phone's or browser's language, with a switch at the bottom. Someone who came from a Care Circle
 // invite sees whose it is first.
 import { useMemo, useState } from "react";
-import { Image, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter } from "./Motion";
+import { SingingBrand, SingingMark } from "./SingingMark";
 import { SignIn } from "./SignIn";
 import { pendingInvite } from "./invite";
 import { colors, isSoft, radius, tint, TOUCH, ui, themed } from "./theme";
@@ -67,8 +68,10 @@ function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; 
       <View style={styles.inner}>
         <View style={styles.topBar}>
           <View style={styles.brand}>
-            <Image source={require("../assets/wellnest-mark.png")} style={styles.mark} accessibilityIgnoresInvertColors />
-            <Text style={styles.brandText}>Wellnest</Text>
+            <SingingBrand style={styles.singer}>
+              <SingingMark size={32} />
+              <Text style={styles.brandText}>Wellnest</Text>
+            </SingingBrand>
           </View>
           <Tap style={styles.topSignIn} onPress={() => onAuth("signIn")} accessibilityRole="button">
             <Text style={styles.topSignInText}>{s.landSignIn}</Text>
@@ -204,6 +207,7 @@ const styles = themed(() => ({
   inner: { width: "100%", maxWidth: 1040, alignSelf: "center", gap: 28 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 56 },
   brand: { flexDirection: "row", alignItems: "center", gap: 8 },
+  singer: { flexDirection: "row", alignItems: "center", gap: 8 },
   mark: { width: 32, height: 32 },
   brandText: { fontSize: 20, fontWeight: "800", color: colors.text },
   topSignIn: { minHeight: TOUCH, paddingHorizontal: 16, justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface },

@@ -3,13 +3,14 @@
 // an example story (src/LandingStory.tsx); the six features as a grid of cards in two sizes; how it works; the free tools; the privacy
 // promise on teal; then the language switch and links. Each section fades up as it scrolls into view.
 import { useMemo } from "react";
-import { Image, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, Rise } from "./Motion";
+import { SingingBrand, SingingMark } from "./SingingMark";
 import { pendingInvite } from "./invite";
 import { colors, tint, TOUCH, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings } from "./i18n";
@@ -47,8 +48,10 @@ export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
         <Enter style={styles.navWrap} from={-12}>
           <View style={styles.nav}>
             <View style={styles.brand}>
-              <Image source={require("../assets/wellnest-mark.png")} style={styles.mark} accessibilityIgnoresInvertColors />
-              <Text style={styles.brandText}>Wellnest</Text>
+              <SingingBrand style={styles.singer}>
+                <SingingMark size={30} />
+                <Text style={styles.brandText}>Wellnest</Text>
+              </SingingBrand>
             </View>
             {wide && (
               <Tap style={styles.navLink} onPress={() => onOpen("/demo")} accessibilityRole="link">
@@ -190,8 +193,10 @@ export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
 
         <View style={styles.footer}>
           <View style={styles.brand}>
-            <Image source={require("../assets/wellnest-mark.png")} style={styles.mark} accessibilityIgnoresInvertColors />
-            <Text style={styles.brandText}>Wellnest</Text>
+            <SingingBrand style={styles.singer}>
+              <SingingMark size={30} />
+              <Text style={styles.brandText}>Wellnest</Text>
+            </SingingBrand>
           </View>
           <View style={styles.langs} accessibilityRole="radiogroup" accessibilityLabel={s.landLanguage}>
             {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
@@ -253,6 +258,7 @@ const styles = themed(() => ({
     borderColor: colors.hairline,
   },
   brand: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  singer: { flexDirection: "row", alignItems: "center", gap: 8 },
   mark: { width: 30, height: 30 },
   brandText: { ...font.heavy, fontSize: 19, letterSpacing: -0.4, color: colors.text },
   navLink: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 14 },

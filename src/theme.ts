@@ -31,6 +31,7 @@ const LIGHT = {
   warningText: "#92400E",
   sleep: "#6366F1",
   seizure: "#7C3AED",
+  note: "#8B5CF6", // the music notes the logo sings on hover (src/SingingMark.tsx)
   period: "#E5484D",
   heart: "#E5484D",
   // Bar charts of how a day went, from bad to good (red, orange, yellow, green, teal); see scaleColor.
@@ -87,6 +88,7 @@ const DARK: Palette = {
   warningText: "#FCD34D",
   sleep: "#818CF8",
   seizure: "#A78BFA",
+  note: "#A78BFA",
   period: "#F87171",
   heart: "#F87171",
   scale1: "#F87171",
