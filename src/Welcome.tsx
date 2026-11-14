@@ -12,6 +12,7 @@ import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter } from "./Motion";
 import { SingingBrand, SingingMark } from "./SingingMark";
+import { BreathingGrid } from "./BreathingGrid";
 import { SignIn } from "./SignIn";
 import { pendingInvite } from "./invite";
 import { colors, isSoft, radius, tint, TOUCH, ui, themed } from "./theme";
@@ -65,6 +66,7 @@ function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; 
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.page}>
+      <BreathingGrid height={wide ? 820 : 700} lane={wide ? [72, 110] : undefined} />
       <View style={styles.inner}>
         <View style={styles.topBar}>
           <View style={styles.brand}>
