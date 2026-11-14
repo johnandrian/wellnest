@@ -2,10 +2,25 @@
   <img src="assets/wellnest-logo.png" alt="Wellnest" width="220">
 </p>
 
-<p align="center"><b>Your health, in your own words.</b><br>A voice-first AI health companion for the app (web, iPhone, Android) and Telegram.</p>
+<p align="center"><b>Your health, in your own words.</b><br>A voice-first AI health companion and tracker for the web, iPhone, Android, and Telegram.</p>
+
+<p align="center">
+  <a href="https://talktothebeak.health"><b>Try it at talktothebeak.health</b></a> · <a href="https://talktothebeak.health/demo">See an example dashboard</a> (no account needed)
+  <br><br>
+  <a href="https://github.com/johnandrian/wellnest/actions/workflows/ci.yml"><img src="https://github.com/johnandrian/wellnest/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+</p>
+
+<p align="center">
+  <img src="docs/wellnest-demo.gif" alt="The Wellnest welcome page: an example story finds that joint pain flares on days the air pressure drops, then the example dashboard shows next dose, check-in, and four weeks of trends." width="880">
+</p>
+
+## What I built
+- **At Cal Hacks 2026 (October 23 to 25, team of two):** a voice-first AI health chat for the web and Telegram on a Convex backend. My teammate [akarik3873](https://github.com/akarik3873) built the message pipeline (Snowflake Cortex with tools, Jina memory) and the Telegram bot. I added streaming voice with Cartesia (spoken questions and replies in the app, voice notes on Telegram), the CREAO symptom analysis, the health supply shopper, and the chat's look. See [the code as submitted](https://github.com/johnandrian/wellnest/tree/432a72a).
+- **After the hackathon (November 2026, on my own, 76 commits):** I turned the chat into a full health tracker: a dashboard, medications with reminders and pill-bottle scanning, condition trackers, Apple Health and Health Connect, pattern finding that links worse days to sleep, weather, air pressure, and medication changes, an evening flare forecast, a Care Circle for family, an Action Inbox where the agent's suggestions run only after approval, doctor-ready reports, four languages, and the public welcome page and example dashboard.
+- **How it's built:** one TypeScript codebase (Expo and Convex) for web, iOS, and Android. AI and outside services are called only from the server, never with keys in the app. About 29,000 lines, with 41 test files run in CI on every push.
 
 ## What it is
-Wellnest is a health companion you can talk to. Tell it how you feel, ask a question, or send a photo of a pill bottle, and it answers in plain language, remembers what matters, and keeps your health story organised so the next doctor's visit is easier. It is not a doctor: anything urgent gets a clear "get care now", the nearest ER and the emergency number.
+Wellnest is a health companion you can talk to. Tell it how you feel, ask a question, or send a photo of a pill bottle, and it answers in plain language, remembers what matters, and keeps your health story organized so the next doctor's visit is easier. It is not a doctor: anything urgent gets a clear "get care now," the nearest ER, and the emergency number.
 
 What it does:
 - **Talk or type**, in English, Spanish, Greek or Simplified Chinese, in the app or on Telegram. Replies to spoken questions are spoken back.
@@ -21,6 +36,14 @@ What it does:
 - **Care Circle:** invite family or carers with a one-time link; they see how you're doing (read only) and get the alerts you pick for them.
 - **Gets you care:** doctor-ready visit summaries, PDF reports, read-only share links for carers and doctors, an emergency plan, the nearest urgent care / ER / pharmacy, and telehealth video visits booked only when you confirm.
 - **Yours to control:** see everything Wellnest knows, export it, or delete it. Light or dark appearance and four text sizes.
+
+## Privacy and security
+- **Where health data lives:** everything a person saves (chats, logs, medications, health records, photos, and files) is stored in Wellnest's [Convex](https://www.convex.dev/security) deployment, which runs on AWS and encrypts all data at rest. API keys live only in the deployment's environment settings, never in the app or this repository, and the app reaches outside services only through the server.
+- **Who processes it:** to answer, the server sends the relevant text, photos, or audio to Snowflake Cortex (the AI model), Jina (search vectors and web search), and Cartesia (speech), and, when those features are used, Jev, CREAO, and Telegram. Weather uses only the city's coordinates (Open-Meteo). The full list is on the in-app privacy page (`/privacy`). Wellnest doesn't sell data or use it for ads.
+- **Who else can see it:** only Care Circle members the person invites and read-only share links they make. Either can be removed or turned off at any time, and share links can expire.
+- **Export and deletion:** Settings → What Wellnest knows about me exports everything as a JSON file and deletes any category or the whole account. Deleting removes the database rows and the stored photos and files, in the background in batches; deleting everything also removes the sign-in sessions and the account. Clear chat only hides messages. See [What Wellnest knows about me](#what-wellnest-knows-about-me).
+- **Safeguards:** the agent's proposed actions run only after the person approves them, telehealth visits are booked only after they confirm, the Telegram webhook rejects any request without its secret, and each person can send up to 100 messages a day.
+- **Not covered by HIPAA:** Wellnest is a personal project, not a covered entity or business associate under HIPAA, and it has no business associate agreements with the services above. Don't use it to handle patient data for a clinic or health plan. It's not a medical device or a doctor; in an emergency, call 911 or your local emergency number.
 
 ## Architecture
 The app (Expo / React Native for web, iOS and Android) and the Telegram bot talk to one [Convex](https://convex.dev) backend: database, server functions, scheduler, file storage and HTTP routes. AI and outside services are called from Convex actions, never from the app with secret keys.
