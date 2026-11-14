@@ -11,6 +11,7 @@ import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, Rise } from "./Motion";
 import { SingingBrand, SingingMark } from "./SingingMark";
+import { BreathingGrid } from "./BreathingGrid";
 import { pendingInvite } from "./invite";
 import { colors, tint, TOUCH, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings } from "./i18n";
@@ -44,6 +45,7 @@ export function SoftLanding({ s, lang, onLang, onAuth, onOpen }: Props) {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.page, wide && styles.pageWide]}>
+      <BreathingGrid height={wide ? 880 : 760} lane={wide ? [100, 180] : undefined} />
       <View style={[styles.inner, wide && styles.innerWide]}>
         <Enter style={styles.navWrap} from={-12}>
           <View style={styles.nav}>
