@@ -1,7 +1,8 @@
 // The welcome page's background on the web: a fine grid of teal dots behind the whole page that a wave swells and fades
-// in a steady breathing rhythm. Small graphs come and go on it, the kinds of things Wellnest shows: a trend line, a
-// little bar chart of lit dots, and a curved link between two dots with a pulse running along it, like a pattern found
-// between two things. Each draws itself, holds, and dissolves back into the grid.
+// in a steady breathing rhythm. Small graphs come and go on it, the kinds of things Wellnest shows: mostly trend lines
+// and step lines (like sleep stages), sometimes a little bar chart of lit dots, and once in a while a curved link
+// between two dots with a pulse running along it, like a pattern found between two things. Each draws itself, holds,
+// and dissolves back into the grid.
 // The canvas only covers the screen and stays put; the dots move with `scroll` (the page's scroll offset, kept up to
 // date by the page) so the grid looks like part of the page from top to bottom. Before a graph appears it checks the
 // page under every dot it would use and only goes where there are no words, buttons, or cards, and never on top of
@@ -26,7 +27,7 @@ import {
   SHAPE_GAP_MS,
   SHAPE_MS,
   SHAPE_SPAN,
-  ShapeKind,
+  pickKind,
 } from "./breathingWave";
 
 function rgb(hex: string) {
@@ -35,10 +36,6 @@ function rgb(hex: string) {
 }
 
 const pause = () => SHAPE_GAP_MS[0] + Math.random() * (SHAPE_GAP_MS[1] - SHAPE_GAP_MS[0]);
-const pickKind = (): ShapeKind => {
-  const k = Math.random();
-  return k < 0.4 ? "trend" : k < 0.7 ? "link" : "bars";
-};
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
 export function BreathingGrid({ scroll }: { scroll: { current: number } }) {
@@ -150,9 +147,16 @@ export function BreathingGrid({ scroll }: { scroll: { current: number } }) {
         const fade = age > SHAPE_MS - SHAPE_FADE_MS ? clamp((SHAPE_MS - age) / SHAPE_FADE_MS) : 1;
         const pts = s.points;
 
-        if (s.kind === "trend") {
-          // A line that draws itself point by point.
+        if (s.kind === "trend" || s.kind === "steps") {
+          // A line that draws itself point by point. A step line lights only its corners and ends, and keeps its
+          // corners sharp.
           const drawn = p * (pts.length - 1);
+          const corner = (i: number) => {
+            if (s.kind === "trend" || i === 0 || i === pts.length - 1) return true;
+            const [a, b, c] = [pts[i - 1], pts[i], pts[i + 1]];
+            return b[0] - a[0] !== c[0] - b[0] || b[1] - a[1] !== c[1] - b[1];
+          };
+          ctx.lineJoin = s.kind === "steps" ? "miter" : "round";
           ctx.lineWidth = 1.25;
           ctx.strokeStyle = `rgba(${ink}, ${0.42 * fade})`;
           ctx.beginPath();
@@ -164,9 +168,10 @@ export function BreathingGrid({ scroll }: { scroll: { current: number } }) {
               const k = drawn - (i - 1);
               ctx.lineTo(X(pc + (c - pc) * k), Y(pr + (r - pr) * k));
             } else ctx.lineTo(X(c), Y(r));
-            if (i <= drawn) light(c, r, fade);
+            if (i <= drawn && corner(i)) light(c, r, fade);
           });
           ctx.stroke();
+          ctx.lineJoin = "round";
         } else if (s.kind === "bars") {
           // Bars rise one after another from a shared baseline, a soft stroke behind their lit dots.
           const bars = new Map<number, number[]>();

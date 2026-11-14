@@ -9,6 +9,20 @@ export const SHAPE_MS = 5200 / SPEED; // a graph draws, holds, and fades in this
 export const SHAPE_DRAW_MS = 1400 / SPEED; // ...of which drawing it takes this long
 export const SHAPE_FADE_MS = 1200 / SPEED; // ...and fading it this long
 export const SHAPE_GAP_MS = [1200 / SPEED, 2600 / SPEED]; // the pause before the next graph, shortest and longest
+// How often each kind is picked: mostly lines, now and then bars, and only once in a while a link.
+export const SHAPE_ODDS: [ShapeKind, number][] = [
+  ["trend", 0.5],
+  ["steps", 0.25],
+  ["bars", 0.15],
+  ["link", 0.1],
+];
+
+export function pickKind(random = Math.random): ShapeKind {
+  let roll = random();
+  for (const [kind, odds] of SHAPE_ODDS) if ((roll -= odds) < 0) return kind;
+  return "trend";
+}
+
 export const MAX_SHAPES = { wide: 4, narrow: 2 }; // how many graphs can show at once
 
 const WAVELENGTH = 520;
@@ -32,10 +46,11 @@ export function dotAlpha(x: number, y: number, w: number, ms: number) {
 
 // The small graphs that come and go on the grid, each built on its dots (page columns and rows):
 // - "trend": a line across neighboring dots that drifts gently upward, like a symptom easing over a week;
+// - "steps": a line that holds level and then jumps, like sleep stages through a night;
 // - "bars": a few columns of dots rising from one baseline, like a week of daily scores;
 // - "link": a curve that joins two dots a little apart, like a pattern Wellnest found between two things.
 // `points` are every dot a graph lights or crosses, used to keep graphs off words and apart from each other.
-export type ShapeKind = "trend" | "bars" | "link";
+export type ShapeKind = "trend" | "steps" | "bars" | "link";
 export type Shape = { kind: ShapeKind; born: number; points: [number, number][] };
 
 export function makeShape(kind: ShapeKind, c0: number, r0: number, born: number, random = Math.random): Shape {
@@ -47,6 +62,18 @@ export function makeShape(kind: ShapeKind, c0: number, r0: number, born: number,
       points.push([c0 + i, r]);
       const step = random();
       r += step < 0.4 ? -1 : step < 0.8 ? 0 : 1;
+    }
+  } else if (kind === "steps") {
+    // Every dot along the way, so each piece runs straight across or straight up or down.
+    let c = c0;
+    let r = r0;
+    points.push([c, r]);
+    while (c < c0 + 9) {
+      const run = 1 + Math.floor(random() * 3);
+      for (let i = 0; i < run; i++) points.push([++c, r]);
+      let next = r0 + Math.floor(random() * 7) - 3;
+      if (next === r) next = r + (r < r0 ? 1 : -1);
+      while (r !== next) points.push([c, (r += Math.sign(next - r))]);
     }
   } else if (kind === "bars") {
     // r0 is the baseline; each bar is listed from the baseline up.
@@ -65,6 +92,7 @@ export function makeShape(kind: ShapeKind, c0: number, r0: number, born: number,
 // How wide (columns) and how far above and below its start row (rows) a graph of each kind can reach.
 export const SHAPE_SPAN: Record<ShapeKind, { cols: number; up: number; down: number }> = {
   trend: { cols: 10, up: 9, down: 9 },
+  steps: { cols: 11, up: 3, down: 3 },
   bars: { cols: 14, up: 3, down: 0 },
   link: { cols: 11, up: 5, down: 3 }, // the arc bows up to about 4.2 rows above the start
 };
