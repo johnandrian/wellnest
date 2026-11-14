@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="289" height="52" viewBox="0 0 289 52" role="img" aria-label="See an example dashboard">
+  <title>See an example dashboard</title>
+  <rect x="0.75" y="0.75" width="287.5" height="50.5" rx="25.25" fill="#E4F4EC" stroke="#81C9AA" stroke-width="1.5"/>
+  <text x="26" y="26.0" dominant-baseline="central" fill="#0B5D57" font-family="'Plus Jakarta Sans','Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif" font-size="17" font-weight="600" textLength="207" lengthAdjust="spacingAndGlyphs">See an example dashboard</text>
+  <circle cx="263" cy="26.0" r="16" fill="#FFFFFF"/>
+  <g transform="translate(255 18.0)" fill="none" stroke="#0B5D57" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></g>
+</svg>

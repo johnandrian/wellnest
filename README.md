@@ -5,13 +5,17 @@
 <p align="center"><b>Your health, in your own words.</b><br>A voice-first AI health companion and tracker for the web, iPhone, Android, and Telegram.</p>
 
 <p align="center">
-  <a href="https://talktothebeak.health"><b>Try it at talktothebeak.health</b></a> · <a href="https://talktothebeak.health/demo">See an example dashboard</a> (no account needed)
+  <a href="https://talktothebeak.health"><img src="docs/button-try.svg" alt="Try it at talktothebeak.health" height="52"></a>
+  &nbsp;
+  <a href="https://talktothebeak.health/demo"><img src="docs/button-demo.svg" alt="See an example dashboard" height="52"></a>
+  <br>
+  <sub>The example dashboard needs no account.</sub>
   <br><br>
   <a href="https://github.com/johnandrian/wellnest/actions/workflows/ci.yml"><img src="https://github.com/johnandrian/wellnest/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
 </p>
 
 <p align="center">
-  <img src="docs/wellnest-demo.gif" alt="The Wellnest welcome page: an example story finds that joint pain flares on days the air pressure drops, then the example dashboard shows next dose, check-in, and four weeks of trends." width="880">
+  <img src="docs/wellnest-demo.gif" alt="The Wellnest welcome page: an example story finds that joint pain flares on days the air pressure drops, then the example dashboard shows next dose, check-in, and four weeks of trends." width="800">
 </p>
 
 ## What I built
