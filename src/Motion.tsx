@@ -136,7 +136,7 @@ export function Enter({ children, style, from = 16, fromX }: { children: ReactNo
   );
 }
 
-// The soft design's curve: a quick start that settles slowly, like something with weight coming to rest.
+// The app's curve: a quick start that settles slowly, like something with weight coming to rest.
 export const SETTLE = Easing.bezier(0.32, 0.72, 0, 1);
 
 // Fades and lifts its content in once it scrolls into view (on the web; on a phone, when it first appears).

@@ -15,7 +15,7 @@ import { SingingBrand, SingingMark } from "./SingingMark";
 import { BreathingGrid } from "./BreathingGrid";
 import { SignIn } from "./SignIn";
 import { pendingInvite } from "./invite";
-import { colors, isSoft, radius, tint, TOUCH, ui, themed } from "./theme";
+import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings, strings } from "./i18n";
 import { SoftLanding } from "./WelcomeSoft";
 import { FEATURES, TOOLS } from "./landing";
@@ -52,9 +52,7 @@ export function Welcome({ onOpen, initialAuth = null }: { onOpen: (path: string)
     saveLang(l);
   };
   if (auth) return <SignIn key={auth} s={s} initialFlow={auth} onBack={() => setAuth(null)} />;
-  // The soft or the classic look (src/design.ts): same words and links, different layout.
-  const Page = isSoft() ? SoftLanding : Landing;
-  return <Page s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
+  return <SoftLanding s={s} lang={lang} onLang={pick} onAuth={setAuth} onOpen={onOpen} />;
 }
 
 function Landing({ s, lang, onLang, onAuth, onOpen }: { s: Strings; lang: Lang; onLang: (l: Lang) => void; onAuth: (flow: "signIn" | "signUp") => void; onOpen: (path: string) => void }) {

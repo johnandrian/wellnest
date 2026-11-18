@@ -7,7 +7,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
+import { colors, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -338,21 +338,21 @@ const styles = themed(() => ({
   tag: { fontSize: 12, fontWeight: "600", color: colors.muted },
   body: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   label: { fontSize: 13, fontWeight: "600", color: colors.text },
-  questions: { gap: 4, backgroundColor: colors.primarySoft, borderRadius: round(8), padding: 8 },
+  questions: { gap: 4, backgroundColor: colors.primarySoft, borderRadius: 12, padding: 8 },
   question: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   questionText: { fontSize: 14, color: colors.text, lineHeight: 20 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, flexWrap: "wrap" },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
-  member: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: round(10), padding: 10 },
+  member: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 15, padding: 10 },
   form: { gap: 8 },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   multi: { minHeight: 60, textAlignVertical: "top" },
   chips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { backgroundColor: colors.primary, borderRadius: pillish(10), paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
+  button: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 14, minHeight: TOUCH, justifyContent: "center" },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   addRow: { ...ui.addButton },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },

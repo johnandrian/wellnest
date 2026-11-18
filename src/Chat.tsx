@@ -19,7 +19,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
-import { colors, floatingBar, isSoft, softShadow, pillish, radius, round, TEXT_SIZES, themed, themeVersion } from "./theme";
+import { colors, floatingBar, softShadow, radius, TEXT_SIZES, themed, themeVersion } from "./theme";
 import { errorText } from "./feedback";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
@@ -230,7 +230,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={[styles.header, barTop(insets.top, 10)]}>
+      <View style={[styles.header, barTop(insets.top)]}>
         <View style={styles.brand}>
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -405,7 +405,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           )}
         </View>
       )}
-      <View style={[styles.inputRow, isSoft() ? { marginBottom: 10 + insets.bottom } : { paddingBottom: 12 + insets.bottom }]}>
+      <View style={[styles.inputRow, { marginBottom: 10 + insets.bottom }]}>
         <Pressable
           style={({ pressed }) => [styles.iconButton, styles.photoButton, pressed && styles.pressed]}
           onPress={() => void addPhoto()}
@@ -741,12 +741,8 @@ const styles = themed(() => ({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    // Plus the status bar / notch on a phone (barTop in ./safeArea.ts).
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     backgroundColor: colors.surface,
+    // Floats below the status bar / notch on a phone (barTop in ./safeArea.ts).
     ...floatingBar(),
   },
   headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
@@ -758,7 +754,7 @@ const styles = themed(() => ({
   brandText: { flexShrink: 1, minWidth: 0 },
   logo: { width: 38, height: 38 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },
-  headerButton: { width: 38, height: 40, borderRadius: pillish(20), alignItems: "center", justifyContent: "center" },
+  headerButton: { width: 38, height: 40, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
   // Health tools: the one filled button, so it stands out from the chat's own controls.
   dashButton: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.primary, marginHorizontal: 4 },
   dashButtonNarrow: { width: 40, paddingHorizontal: 0, justifyContent: "center" },
@@ -774,16 +770,16 @@ const styles = themed(() => ({
   settingLabel: { fontSize: 16, color: colors.text },
   settingLabelWrap: { flex: 1, marginRight: 12 },
   settingHint: { fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 2 },
-  locationInput: { color: colors.text, flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
+  locationInput: { color: colors.text, flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
   langChips: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, marginLeft: 16 },
-  langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: pillish(14), paddingHorizontal: 10, paddingVertical: 5 },
+  langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
   iconChip: { flexDirection: "row", alignItems: "center", gap: 4 },
   sizeChip: { minWidth: 40, minHeight: 36, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   sizeSample: { color: colors.text, fontWeight: "700", lineHeight: 24 },
   langChipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   langChipText: { color: colors.text, fontSize: 14 },
   langChipTextOn: { color: colors.primary, fontWeight: "600" },
-  settingButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: pillish(10), padding: 12, alignItems: "center" },
+  settingButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, padding: 12, alignItems: "center" },
   settingButtonText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   muted: { color: colors.muted, fontSize: 14 },
   list: { padding: 16, gap: 8, maxWidth: 760, width: "100%", alignSelf: "center" },
@@ -792,13 +788,13 @@ const styles = themed(() => ({
   welcomeIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
   welcomeTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
   chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 8, maxWidth: 560 },
-  chip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: pillish(18), paddingHorizontal: 14, paddingVertical: 9 },
+  chip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9 },
   chipText: { color: colors.text, fontSize: 14 },
   speaking: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   speakingText: { fontSize: 12, color: colors.primary, fontWeight: "600" },
   thinking: { paddingVertical: 10, marginTop: 8 },
-  ring: { borderRadius: round(22) },
-  bubble: { padding: 12, borderRadius: round(14), maxWidth: "85%" },
+  ring: { borderRadius: 33 },
+  bubble: { padding: 12, borderRadius: 21, maxWidth: "85%" },
   userBubble: { backgroundColor: colors.bubbleUser, alignSelf: "flex-end", borderBottomRightRadius: 4 },
   botBubble: { backgroundColor: colors.bubbleBot, alignSelf: "flex-start", borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
   urgentBubble: { backgroundColor: colors.urgentBg, borderColor: colors.danger },
@@ -806,14 +802,14 @@ const styles = themed(() => ({
   // A chart needs the width.
   chartBubble: { width: "85%" },
   doseRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  doseButton: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: pillish(14), paddingHorizontal: 10, paddingVertical: 5 },
+  doseButton: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
   doseButtonOn: { backgroundColor: colors.primary },
   doseText: { color: colors.primary, fontWeight: "600", fontSize: 13 },
   doseTextOn: { color: colors.onPrimary },
   userText: { color: colors.onPrimary, fontSize: 16 },
-  photo: { width: 220, height: 220, borderRadius: round(10), marginBottom: 6, backgroundColor: colors.border },
+  photo: { width: 220, height: 220, borderRadius: 15, marginBottom: 6, backgroundColor: colors.border },
   attachment: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
-  attachmentThumb: { width: 44, height: 44, borderRadius: round(8) },
+  attachmentThumb: { width: 44, height: 44, borderRadius: 12 },
   attachmentText: { flex: 1, color: colors.muted, fontSize: 14 },
   photoButton: { backgroundColor: colors.primarySoft },
   botText: { color: colors.text, fontSize: 16, lineHeight: 22 },
@@ -823,12 +819,15 @@ const styles = themed(() => ({
     alignItems: "center",
     gap: 8,
     padding: 12,
-    paddingBottom: 12, // plus the home indicator on a phone, added where it is drawn
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    // In the soft look the message box floats like the top bar, with room below it.
-    ...(isSoft() ? { marginHorizontal: 10, marginTop: 4, marginBottom: 10, paddingBottom: 12, borderRadius: 32, borderWidth: 1, borderColor: colors.hairline, ...softShadow() } : {}),
+    // The message box floats like the top bar, with room below it (plus the home indicator, added where it is drawn).
+    marginHorizontal: 10,
+    marginTop: 4,
+    marginBottom: 10,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    ...softShadow(),
   },
   input: {
     color: colors.text,
@@ -837,13 +836,13 @@ const styles = themed(() => ({
     minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: round(22),
+    borderRadius: 33,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 16,
     backgroundColor: colors.bg,
   },
-  iconButton: { width: 44, height: 44, borderRadius: pillish(22), alignItems: "center", justifyContent: "center" },
+  iconButton: { width: 44, height: 44, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
   send: { backgroundColor: colors.primary },
   sendIdle: { backgroundColor: colors.border },
