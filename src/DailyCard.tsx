@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, round, scaleColor, themed, TOUCH, ui } from "./theme";
+import { colors, scaleColor, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
@@ -108,13 +108,13 @@ const styles = themed(() => ({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   label: { color: colors.text, fontSize: 14, flexShrink: 1 },
   faces: { flexDirection: "row", gap: 4 },
-  face: { width: 34, height: 34, borderRadius: round(17), alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
+  face: { width: 34, height: 34, borderRadius: 26, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
   faceOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   faceText: { fontSize: 20 },
   // "Not today": small words, but a full-size tap area.
   skip: { alignSelf: "flex-end", minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 8 },
   link: { color: colors.muted, fontSize: 14 },
-  chart: { gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: round(10), padding: 10 },
+  chart: { gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: 15, padding: 10 },
   chartRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   chartLabel: { width: 70, fontSize: 12, color: colors.muted },
   bars: { flex: 1, height: 28, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 3 },

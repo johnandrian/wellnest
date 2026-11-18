@@ -1,9 +1,9 @@
-// Building blocks for the soft design of the welcome page and the free tools (see src/design.ts):
+// Building blocks for the welcome page and the free tools:
 // - Bezel: a card sitting in a slightly darker tray with a hairline edge, both with matching rounded corners.
 // - Pill: a rounded button whose arrow sits in its own small circle; on the web the circle nudges up and right on
 //   hover and the whole button presses in a little.
 // - Eyebrow: the small capital-letter tag above a heading.
-// - useSoftFonts: loads Plus Jakarta Sans, bundled with the app (no request to Google).
+// - useAppFonts: loads Plus Jakarta Sans, bundled with the app (no request to Google).
 import { ReactNode } from "react";
 import { Platform, Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,12 +19,10 @@ import { colors, themed } from "./theme";
 
 const web = Platform.OS === "web";
 
-// True once the font has loaded (or failed to, so the app still opens), or straight away when it isn't needed.
-export function useSoftFonts(needed: boolean) {
-  const [loaded, error] = useFonts(
-    needed ? { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } : {},
-  );
-  return !needed || loaded || !!error;
+// True once the font has loaded (or failed to, so the app still opens).
+export function useAppFonts() {
+  const [loaded, error] = useFonts({ PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold });
+  return loaded || !!error;
 }
 
 // Text weights; themed() (src/theme.ts) gives each the Plus Jakarta Sans file for that weight.

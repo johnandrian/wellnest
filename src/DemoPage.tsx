@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, usePresence } from "./Motion";
-import { colors, floatingBar, kicker, pillish, radius, round, themed, TOUCH } from "./theme";
+import { colors, floatingBar, kicker, radius, themed, TOUCH } from "./theme";
 import type { Strings } from "./i18n";
 import { DashboardView, type DashboardData, type InsightsData } from "./HomePanel";
 import { DailyCardView, type DailyKey } from "./DailyCard";
@@ -202,11 +202,11 @@ function Locked({ tool, s, onCreate, onClose }: { tool: string | null; s: String
 const styles = themed(() => ({
   page: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1, minWidth: 0 },
-  top: { backgroundColor: colors.bar, paddingTop: 14, paddingBottom: 12, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, ...floatingBar() },
+  top: { backgroundColor: colors.bar, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, ...floatingBar() },
   topRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16 },
   round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.barFill },
   titles: { flex: 1, minWidth: 0 },
-  kicker: { color: colors.onBarMuted, fontSize: 13, fontWeight: "600", ...kicker() },
+  kicker: { color: colors.onBarMuted, fontWeight: "600", ...kicker() },
   title: { color: colors.onBar, fontSize: 21, fontWeight: "700", marginTop: 1 },
   create: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.barAction },
   createNarrow: { width: TOUCH, paddingHorizontal: 0, justifyContent: "center" },
@@ -230,9 +230,9 @@ const styles = themed(() => ({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  lockedIcon: { width: 36, height: 36, borderRadius: round(18), alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  lockedIcon: { width: 36, height: 36, borderRadius: 27, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   lockedText: { color: colors.text, fontSize: 14, lineHeight: 20 },
-  lockedCreate: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 14, borderRadius: pillish(radius.md), backgroundColor: colors.primary },
+  lockedCreate: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.primary },
   lockedCreateText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   close: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
 }));

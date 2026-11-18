@@ -8,7 +8,7 @@ import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { usePresence } from "./Motion";
 import { clearInvite, pendingInvite } from "./invite";
-import { colors, pillish, radius, themed, tint, TOUCH, ui } from "./theme";
+import { colors, radius, themed, tint, TOUCH, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 
@@ -114,6 +114,6 @@ const styles = themed(() => ({
   actions: { flexDirection: "row", gap: 10, marginTop: 8 },
   primary: { ...ui.button, flex: 1 },
   primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
-  secondary: { flex: 1, minHeight: TOUCH, alignItems: "center", justifyContent: "center", borderRadius: pillish(radius.md), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface },
+  secondary: { flex: 1, minHeight: TOUCH, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface },
   secondaryText: { color: colors.text, fontSize: 16, fontWeight: "600" },
 }));

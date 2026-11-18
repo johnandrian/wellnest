@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { colors, isSoft, pillish, radius, round, themed, TOUCH, ui } from "./theme";
+import { colors, radius, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { Enter } from "./Motion";
 
@@ -86,16 +86,19 @@ export function SignIn({ s, initialFlow = "signIn", onBack }: { s: Strings; init
 }
 
 const styles = themed(() => ({
+  // The form sits on a floating card in the middle of the page.
   container: {
-    flex: 1,
+    ...ui.card,
     justifyContent: "center",
-    padding: 24,
+    padding: 32,
     gap: 12,
     maxWidth: 420,
     width: "100%",
     alignSelf: "center",
-    // In the soft look the form sits on a floating card in the middle of the page.
-    ...(isSoft() ? { ...ui.card, flex: undefined, flexGrow: 0, flexShrink: 0, marginVertical: "auto" as const, padding: 32, borderRadius: radius.lg + 8 } : {}),
+    flexGrow: 0,
+    flexShrink: 0,
+    marginVertical: "auto" as const,
+    borderRadius: radius.lg + 8,
   },
   back: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: TOUCH, alignSelf: "flex-start" },
   backText: { color: colors.primary, fontSize: 15, fontWeight: "600" },
@@ -104,8 +107,8 @@ const styles = themed(() => ({
   wordmark: { color: colors.primary, fontSize: 36, fontWeight: "800", letterSpacing: -0.8 },
   tagline: { fontSize: 15, color: colors.muted, textAlign: "center", marginBottom: 12 },
   subtitle: { fontSize: 16, color: colors.muted, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: round(10), padding: 12, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
-  button: { backgroundColor: colors.primary, borderRadius: pillish(10), padding: 14, alignItems: "center", minHeight: TOUCH },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 15, padding: 12, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
+  button: { backgroundColor: colors.primary, borderRadius: radius.pill, padding: 14, alignItems: "center", minHeight: TOUCH },
   buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "600" },
   link: { color: colors.primary, textAlign: "center", marginTop: 8, fontSize: 14 },
   error: { color: colors.danger, fontSize: 14 },
