@@ -10,6 +10,7 @@
     "@expo/metro-runtime": "~58.0.15",
     "@expo/vector-icons": "^15.0.2",
     "@kingstinct/react-native-healthkit": "^16.2.0",
+    "@react-native-community/datetimepicker": "9.2.1",
     "convex": "^1.48.0",
     "expo": "~58.0.19",
     "expo-audio": "~58.0.10",

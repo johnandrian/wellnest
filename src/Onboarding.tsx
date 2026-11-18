@@ -18,6 +18,7 @@ import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 import { errorText } from "./feedback";
 import { useInsets } from "./safeArea";
+import { TimesField } from "./TimesField";
 
 const FOCUS = ["symptoms", "pain", "asthma", "seizures", "diabetes", "medications", "mood", "wellness", "caregiver"] as const;
 const AGES = ["under_18", "18_29", "30_44", "45_64", "65_plus"] as const;
@@ -332,10 +333,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <Enter key={editingMed ?? "new"} style={styles.medForm} from={8}>
               <TextInput style={styles.input} value={medName} onChangeText={setMedName} placeholder={s.ob_medName} placeholderTextColor={colors.muted} maxLength={80} />
               <DoseInput value={medDose} onChange={setMedDose} s={s} />
-              <View style={styles.row}>
-                <Ionicons name="time-outline" size={20} color={colors.muted} />
-                <TextInput style={[styles.input, styles.flex]} value={medTime} onChangeText={setMedTime} placeholder={s.ob_medTime} placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel={s.ob_medTime} autoCapitalize="none" />
-              </View>
+              <Text style={styles.small}>{s.ob_medTime}</Text>
+              <TimesField value={medTime} onChange={setMedTime} s={s} />
               {!!medDirections && <Text style={styles.small}>{s.medFromLabel.replace("{text}", medDirections)}</Text>}
               <View style={styles.row}>
                 <Tap style={[ui.addButton, styles.flex, !medName.trim() && styles.disabled]} onPress={() => void saveMed()} disabled={!medName.trim() || busy} accessibilityRole="button">
