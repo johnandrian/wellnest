@@ -12,6 +12,7 @@ import { Icon } from "./Icon";
 import { colors, radius, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { Enter, SwapIcon, usePresence } from "./Motion";
+import { useInsets } from "./safeArea";
 
 function confirmDelete(s: Strings): Promise<boolean> {
   if (Platform.OS === "web") return Promise.resolve(window.confirm(s.deleteChatBody));
@@ -36,6 +37,7 @@ const WIDTH = 340;
 
 export function ChatHistory({ open, s, onClose }: { open: boolean; s: Strings; onClose: () => void }) {
   const { t, mounted } = usePresence(open);
+  const insets = useInsets();
   if (!mounted) return null;
   return (
     <View style={styles.overlay} pointerEvents={open ? "auto" : "none"}>
@@ -43,7 +45,7 @@ export function ChatHistory({ open, s, onClose }: { open: boolean; s: Strings; o
         <Pressable style={styles.fill} onPress={onClose} accessibilityRole="button" accessibilityLabel={s.closeHistory} />
       </Animated.View>
       <Animated.View
-        style={[styles.drawer, { transform: [{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-WIDTH, 0] }) }] }]}
+        style={[styles.drawer, { paddingTop: 12 + insets.top, transform: [{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-WIDTH, 0] }) }] }]}
         accessibilityViewIsModal
       >
         <Drawer s={s} onClose={onClose} />

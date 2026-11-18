@@ -40,6 +40,7 @@ import { JoinPrompt } from "./JoinPrompt";
 import { Icon } from "./Icon";
 import { Tour, TourStop } from "./Tour";
 import { SideSheet, SIDE_SHEET_MIN_WIDTH } from "./SideSheet";
+import { barTop, useInsets } from "./safeArea";
 
 // The two screens: the dashboard (Health tools, where the app opens) and the chat. Moving between them slides
 // sideways, the dashboard from the left and the chat from the right.
@@ -84,6 +85,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const [history, setHistory] = useState(false);
   const { width } = useWindowDimensions();
   const narrow = width < 440;
+  const insets = useInsets();
   // In a wide browser window Settings opens over the right half; on phones it drops down full width under the header.
   const side = Platform.OS === "web" && width >= SIDE_SHEET_MIN_WIDTH;
   const openHub = (tab: HubTab) => {
@@ -227,7 +229,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, barTop(insets.top, 10)]}>
         <View style={styles.brand}>
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
@@ -402,7 +404,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           )}
         </View>
       )}
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, isSoft() ? { marginBottom: 10 + insets.bottom } : { paddingBottom: 12 + insets.bottom }]}>
         <Pressable
           style={({ pressed }) => [styles.iconButton, styles.photoButton, pressed && styles.pressed]}
           onPress={() => void addPhoto()}
@@ -734,8 +736,8 @@ const styles = themed(() => ({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    // Room for the status bar / notch on phones; the browser needs none.
-    paddingTop: Platform.OS === "web" ? 10 : 56,
+    // Plus the status bar / notch on a phone (barTop in ./safeArea.ts).
+    paddingTop: 10,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -815,7 +817,7 @@ const styles = themed(() => ({
     alignItems: "center",
     gap: 8,
     padding: 12,
-    paddingBottom: 28,
+    paddingBottom: 12, // plus the home indicator on a phone, added where it is drawn
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,

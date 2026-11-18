@@ -17,6 +17,8 @@ import { usePath } from "./src/route";
 import { DemoPage } from "./src/DemoPage";
 import { appDesign } from "./src/design";
 import { useSoftFonts } from "./src/soft";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useInsets } from "./src/safeArea";
 
 // The look (src/design.ts), fixed for this page load.
 const design = appDesign();
@@ -37,12 +39,14 @@ const secureStorage = {
 
 export default function App() {
   return (
-    <ConvexAuthProvider
-      client={convex}
-      storage={Platform.OS === "web" ? undefined : secureStorage}
-    >
-      <Themed />
-    </ConvexAuthProvider>
+    <SafeAreaProvider>
+      <ConvexAuthProvider
+        client={convex}
+        storage={Platform.OS === "web" ? undefined : secureStorage}
+      >
+        <Themed />
+      </ConvexAuthProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -64,6 +68,9 @@ function Themed() {
   applyTheme(scheme, pref?.textSize ?? 1, design);
   // The soft look's font is bundled with the app; wait the moment it takes to load so text doesn't jump.
   const fontsReady = useSoftFonts(design === "soft");
+  // The public pages and sign-in keep clear of the status bar and home indicator; signed-in screens place their own bars.
+  const insets = useInsets();
+  const clear = { flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom };
   useEffect(() => {
     // The page behind the app (overscroll on web) and the browser's own controls.
     if (Platform.OS === "web") {
@@ -74,25 +81,31 @@ function Themed() {
       document.documentElement.style.setProperty("--scrollbar-hover", colors.primary);
     }
   }, [scheme]);
+  const publicPage =
+    path === "/privacy" ? (
+      <Privacy s={pageLang} onBack={() => go("/")} />
+    ) : path === "/medication-list" ? (
+      <MedListTool s={pageLang} onBack={() => go("/")} onCreate={create} />
+    ) : path === "/appointment-checklist" ? (
+      <ChecklistPage s={pageLang} onBack={() => go("/")} onCreate={create} />
+    ) : path === "/demo" ? (
+      <DemoPage s={pageLang} onBack={() => go("/")} onCreate={create} />
+    ) : null;
   if (!fontsReady) return <View style={styles.root} />;
   return (
     <View style={styles.root}>
       {/* The privacy page, the free tools and the demo dashboard are open to everyone, signed in or not. */}
-      {path === "/privacy" ? (
-        <Privacy s={pageLang} onBack={() => go("/")} />
-      ) : path === "/medication-list" ? (
-        <MedListTool s={pageLang} onBack={() => go("/")} onCreate={create} />
-      ) : path === "/appointment-checklist" ? (
-        <ChecklistPage s={pageLang} onBack={() => go("/")} onCreate={create} />
-      ) : path === "/demo" ? (
-        <DemoPage s={pageLang} onBack={() => go("/")} onCreate={create} />
+      {publicPage ? (
+        <View style={clear}>{publicPage}</View>
       ) : (
         <>
           <AuthLoading>
             <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />
           </AuthLoading>
           <Unauthenticated>
-            <Welcome key={signUp ? "signUp" : "welcome"} onOpen={go} initialAuth={signUp ? "signUp" : null} />
+            <View style={clear}>
+              <Welcome key={signUp ? "signUp" : "welcome"} onOpen={go} initialAuth={signUp ? "signUp" : null} />
+            </View>
           </Unauthenticated>
           <Authenticated>
             <Home />
