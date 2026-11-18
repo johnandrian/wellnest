@@ -1,5 +1,5 @@
-// What both looks of the welcome page show (src/Welcome.tsx, src/WelcomeSoft.tsx): the icons for the features and
-// free tools, and the made-up week in the preview.
+// What the welcome page shows (src/Welcome.tsx): the icons for the features and free tools, and the made-up week in
+// the preview.
 import type { IconName } from "./Icon";
 import type { tint } from "./theme";
 
