@@ -23,6 +23,7 @@ import { CirclePanel } from "./CirclePanel";
 import { GuidesPanel } from "./GuidesPanel";
 import { AgentPanel } from "./AgentPanel";
 import { Enter, SwapIcon } from "./Motion";
+import { barTop, useInsets } from "./safeArea";
 
 export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "guides" | "visit" | "records" | "care" | "circle" | "agent";
 export type HubTab = "home" | ToolTab;
@@ -70,9 +71,10 @@ export function HubPanel({
   const tool = TOOLS.find((t) => t.tab === tab);
   // On a phone the Chat button is just its icon, so the greeting has room next to the gear.
   const narrow = useWindowDimensions().width < 440;
+  const insets = useInsets();
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
+      <View style={[styles.header, barTop(insets.top, 14)]}>
         <View style={styles.headerRow}>
           {tool ? (
             <Tap style={styles.round} onPress={() => onTab("home")} accessibilityRole="button" accessibilityLabel={s.dashboard}>
@@ -160,8 +162,8 @@ const styles = themed(() => ({
   // The teal band: it carries the greeting on the dashboard and the tool switcher inside a tool.
   header: {
     backgroundColor: colors.bar,
-    // Room for the status bar / notch on phones, like the chat header.
-    paddingTop: Platform.OS === "web" ? 14 : 56,
+    // Plus the status bar / notch on a phone (barTop in ./safeArea.ts).
+    paddingTop: 14,
     paddingBottom: 12,
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,

@@ -291,7 +291,7 @@ export const floatingBar = () =>
   current.design === "soft"
     ? {
         marginHorizontal: 10,
-        marginTop: Platform.OS === "web" ? 10 : 48,
+        marginTop: 10, // plus the status bar on a phone (barTop in ./safeArea.ts)
         marginBottom: 4,
         paddingTop: 8,
         paddingBottom: 8,

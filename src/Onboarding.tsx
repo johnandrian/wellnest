@@ -16,6 +16,7 @@ import { timesFor, useLabelScan } from "./labelScan";
 import { Icon } from "./Icon";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
+import { useInsets } from "./safeArea";
 
 const FOCUS = ["symptoms", "pain", "asthma", "seizures", "diabetes", "medications", "mood", "wellness", "caregiver"] as const;
 const AGES = ["under_18", "18_29", "30_44", "45_64", "65_plus"] as const;
@@ -44,6 +45,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const me = useQuery(api.chat.me);
   const state = useQuery(api.onboarding.state);
   const health = useHealthSync();
+  const insets = useInsets();
   const s = strings(me?.language);
 
   const setLanguage = useMutation(api.chat.setLanguage);
@@ -194,7 +196,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: 16 + insets.top }]}>
         <View style={styles.topRow}>
           <Text style={styles.stepText}>{s.ob_step.replace("{n}", String(index + 1)).replace("{total}", String(steps.length))}</Text>
           <Tap onPress={() => void done()} accessibilityRole="button" disabled={busy}>
@@ -429,7 +431,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {error && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
 
-      <View style={styles.bottom}>
+      <View style={[styles.bottom, { paddingBottom: 12 + insets.bottom }]}>
         <View style={styles.bottomInner}>
           {index > 0 ? (
             <Tap style={styles.back} onPress={() => (setError(null), setIndex(index - 1))} accessibilityRole="button" accessibilityLabel={s.ob_back}>

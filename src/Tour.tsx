@@ -10,6 +10,7 @@ import { Enter, usePresence } from "./Motion";
 import { colors, radius, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import type { HubTab } from "./HubPanel";
+import { useInsets } from "./safeArea";
 
 export type TourStop = { screen: "hub"; tab: HubTab } | { screen: "chat" } | { screen: "settings" };
 
@@ -40,6 +41,7 @@ export function Tour({
   onEnd: () => void;
 }) {
   const { t, mounted } = usePresence(open);
+  const insets = useInsets();
   useEffect(() => {
     if (open) onShow(STOPS[step].stop);
   }, [open, step]);
@@ -50,7 +52,7 @@ export function Tour({
   return (
     <Animated.View
       pointerEvents="box-none"
-      style={[styles.wrap, { opacity: t, transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}
+      style={[styles.wrap, { paddingBottom: 16 + insets.bottom, opacity: t, transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}
     >
       <View style={styles.card} accessibilityViewIsModal accessibilityLiveRegion="polite">
         <Enter key={step} style={styles.body} from={8}>

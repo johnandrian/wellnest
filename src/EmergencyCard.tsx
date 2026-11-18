@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { shareUrl } from "./ShareCard";
+import { useInsets } from "./safeArea";
 
 type Section = { title: string; steps: string[] };
 type Contact = { name: string; relation?: string; phone: string };
@@ -56,6 +57,7 @@ function PlanView({ sections, contacts, asthma, notes, s, big = false }: { secti
 }
 
 export function EmergencyCard({ s }: { s: Strings }) {
+  const insets = useInsets();
   const plan = useQuery(api.emergency.get);
   const save = useMutation(api.emergency.save);
   const createLink = useMutation(api.share.create);
@@ -229,7 +231,7 @@ export function EmergencyCard({ s }: { s: Strings }) {
 
       {plan.exists && (
         <Modal visible={full} animationType="slide" onRequestClose={() => setFull(false)}>
-          <ScrollView contentContainerStyle={styles.fullScreen}>
+          <ScrollView contentContainerStyle={[styles.fullScreen, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
             <View style={styles.fullHead}>
               <Text style={styles.fullTitle}>{s.emTitle}</Text>
               <Tap onPress={() => setFull(false)} accessibilityRole="button" accessibilityLabel={s.close}>
