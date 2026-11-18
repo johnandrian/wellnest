@@ -10,11 +10,11 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { confirmAsk, errorText } from "./feedback";
+import { formatDateTime } from "./format";
 
 type Visit = NonNullable<(typeof api.telehealth.get)["_returnType"]>;
 
-const timeOf = (ms: number) =>
-  new Date(ms).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+const timeOf = (ms: number, s: Strings) => formatDateTime(ms, s, { weekday: "short", hour: "numeric", minute: "2-digit" });
 
 
 
@@ -26,7 +26,7 @@ function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
   const pick = async (slot: Visit["slots"][number]) => {
     const message = s.visitConfirmBody
       .replace("{who}", slot.clinician)
-      .replace("{time}", timeOf(slot.startsAt))
+      .replace("{time}", timeOf(slot.startsAt, s))
       .replace("{provider}", visit.providerName ?? "");
     if (!(await confirmAsk({ title: s.visitConfirmTitle, message, ok: s.visitBook, cancel: s.cancel, destructive: false }))) return;
     setError(null);
@@ -55,7 +55,7 @@ function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
             <Tap key={slot.id} style={styles.slot} onPress={() => void pick(slot)} accessibilityRole="button">
               <Ionicons name="videocam-outline" size={18} color={colors.primary} />
               <Text style={styles.slotText}>
-                {timeOf(slot.startsAt)} · {slot.clinician}
+                {timeOf(slot.startsAt, s)} · {slot.clinician}
               </Text>
             </Tap>
           ))}
@@ -67,7 +67,7 @@ function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
       {visit.status === "booked" && (
         <>
           <Text style={styles.line}>
-            ✅ {s.visitBookedLine.replace("{who}", booked?.clinician ?? "").replace("{time}", visit.startsAt ? timeOf(visit.startsAt) : "")}
+            ✅ {s.visitBookedLine.replace("{who}", booked?.clinician ?? "").replace("{time}", visit.startsAt ? timeOf(visit.startsAt, s) : "")}
           </Text>
           <View style={styles.row}>
             {visit.joinUrl && (

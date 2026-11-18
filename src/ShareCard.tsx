@@ -10,6 +10,7 @@ import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import { errorText, showToast } from "./feedback";
 import type { Strings } from "./i18n";
 import { ReportSection, SectionChips } from "./ReportCard";
+import { formatDateTime } from "./format";
 
 const RANGES = [30, 90, 365];
 const EXPIRIES: (number | null)[] = [1, 7, 30, null];
@@ -23,7 +24,7 @@ export async function shareUrl(url: string, title: string) {
   return "shared";
 }
 
-const ago = (ms: number) => new Date(ms).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const ago = (ms: number, s: Strings) => formatDateTime(ms, s);
 
 export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; presetSections?: ReportSection[]; presetLabel?: string }) {
   const now = useMemo(() => Math.floor(Date.now() / 60_000) * 60_000, []);
@@ -118,9 +119,9 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
           <View style={styles.flex}>
             <Text style={styles.linkTitle}>{l.label ?? s.shareUnnamed}</Text>
             <Text style={styles.small}>
-              {l.sections.map((x) => s[`rsec_${x}`]).join(", ")} · {l.expiresAt ? s.shareUntil.replace("{when}", ago(l.expiresAt)) : s.shareNoExpiry}
+              {l.sections.map((x) => s[`rsec_${x}`]).join(", ")} · {l.expiresAt ? s.shareUntil.replace("{when}", ago(l.expiresAt, s)) : s.shareNoExpiry}
             </Text>
-            <Text style={styles.small}>{l.lastOpenedAt ? s.shareOpened.replace("{n}", String(l.opens)).replace("{when}", ago(l.lastOpenedAt)) : s.shareNotOpened}</Text>
+            <Text style={styles.small}>{l.lastOpenedAt ? s.shareOpened.replace("{n}", String(l.opens)).replace("{when}", ago(l.lastOpenedAt, s)) : s.shareNotOpened}</Text>
           </View>
           <Tap onPress={() => void send(l.url)} accessibilityRole="button" accessibilityLabel={Platform.OS === "web" ? s.copy : s.share}>
             <Ionicons name={Platform.OS === "web" ? "copy-outline" : "share-outline"} size={20} color={colors.primary} />
@@ -133,7 +134,7 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
       {old.map((l) => (
         <Text key={l._id} style={styles.small}>
           {l.label ?? s.shareUnnamed} · {l.status === "off" ? s.shareIsOff : s.shareIsExpired}
-          {l.opens ? ` · ${s.shareOpened.replace("{n}", String(l.opens)).replace("{when}", ago(l.lastOpenedAt!))}` : ""}
+          {l.opens ? ` · ${s.shareOpened.replace("{n}", String(l.opens)).replace("{when}", ago(l.lastOpenedAt!, s))}` : ""}
         </Text>
       ))}
     </View>

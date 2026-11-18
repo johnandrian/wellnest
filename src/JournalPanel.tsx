@@ -12,6 +12,7 @@ import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
 import { InsightsCard, useHasInsights } from "./InsightsCard";
 import { SymptomLog } from "./SymptomLog";
+import { axisDay } from "./format";
 
 const PERIODS = [14, 30, 90];
 
@@ -70,8 +71,8 @@ function Chart({ days, points, sleep, periodDays, s }: {
         </View>
       )}
       <View style={styles.axis}>
-        <Text style={styles.axisText}>{days[0].slice(5)}</Text>
-        <Text style={styles.axisText}>{days[days.length - 1].slice(5)}</Text>
+        <Text style={styles.axisText}>{axisDay(days[0], s)}</Text>
+        <Text style={styles.axisText}>{axisDay(days[days.length - 1], s)}</Text>
       </View>
     </View>
   );

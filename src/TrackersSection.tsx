@@ -12,6 +12,7 @@ import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
 import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } from "../convex/lib/units";
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
+import { formatDateTime } from "./format";
 
 type Tracker = "pain" | "asthma" | "seizure" | "glucose";
 const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
@@ -328,7 +329,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           {list.filter((e) => !isHidden(e._id)).slice(0, 15).map((e) => (
             <View key={e._id} style={styles.entry}>
               <Text style={[styles.line, styles.flex]}>
-                {new Date(e.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {line(tracker, e)}
+                {formatDateTime(e.at, s)} · {line(tracker, e)}
                 {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
               </Text>
               <Tap onPress={() => removeWithUndo({ key: e._id, text: s.removed, run: () => remove({ id: e._id as Id<"trackerEntries"> }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={s.remove}>

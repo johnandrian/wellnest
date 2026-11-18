@@ -30,7 +30,7 @@ export function MedPins({ dates, meds, size = 12, gap = 1 }: { dates: string[]; 
 // "Started metformin (Oct 3) · Lisinopril dose changed (Oct 20)" under the chart.
 export function MedLegend({ meds, s }: { meds: MedMark[]; s: Strings }) {
   if (!meds.length) return null;
-  const day = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  const day = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(s.locale, { month: "short", day: "numeric", timeZone: "UTC" });
   const text = meds
     .map((m) => `${(m.kind === "started" ? s.chartMedStarted : s.chartMedDose).replace("{name}", m.name)} (${day(m.date)})`)
     .join(" · ");

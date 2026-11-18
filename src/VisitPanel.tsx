@@ -13,6 +13,7 @@ import { printablePage } from "./printable";
 import type { Strings } from "./i18n";
 import { ReportCard } from "./ReportCard";
 import { ShareCard } from "./ShareCard";
+import { formatDateTime } from "./format";
 
 const PERIODS = [
   { days: 14, label: (s: Strings) => s.twoWeeks },
@@ -110,7 +111,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
       {latest?.status === "ready" && latest.text && !composing && (
         <View style={styles.result}>
           <Text style={styles.small}>
-            {s.madeAt.replace("{when}", new Date(latest._creationTime).toLocaleString()).replace("{n}", String(latest.days))}
+            {s.madeAt.replace("{when}", formatDateTime(latest._creationTime, s)).replace("{n}", String(latest.days))}
           </Text>
           <View style={styles.doc}>
             <Markdown text={latest.text} style={styles.docText} />

@@ -93,7 +93,7 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
     setError(null);
     setBusy(true);
     try {
-      const html = await convex.query(api.circle.report, { ownerId: person.ownerId, now: Date.now(), generated: new Date().toLocaleString() });
+      const html = await convex.query(api.circle.report, { ownerId: person.ownerId, now: Date.now(), generated: new Date().toLocaleString(s.locale) });
       if (Platform.OS === "web") {
         const win = window.open("", "_blank");
         if (!win) throw new Error(s.allowPopups);

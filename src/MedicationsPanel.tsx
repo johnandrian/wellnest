@@ -19,6 +19,7 @@ import { useLabelScan, timesFor } from "./labelScan";
 import { medListHtml, printHtml } from "./medList";
 import { Icon } from "./Icon";
 import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
+import { formatDate, formatTime } from "./format";
 
 type Mode = "daily" | "interval";
 type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
@@ -31,8 +32,8 @@ const describe = (r: Rule, s: Strings) =>
 
 function when(at: number, s: Strings) {
   const d = new Date(at);
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return d.toDateString() === new Date().toDateString() ? `${s.today} ${time}` : `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
+  const time = formatTime(at, s);
+  return d.toDateString() === new Date().toDateString() ? `${s.today} ${time}` : `${formatDate(at, s, { weekday: "short" })} ${time}`;
 }
 
 
@@ -305,7 +306,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
       {med.sideEffects.filter((e) => !isHidden(e._id)).map((e) => (
         <View key={e._id} style={styles.inline}>
           <Text style={[styles.line, styles.flex]}>
-            {e.date.slice(5)} · {e.effect}
+            {formatDate(e.date, s)} · {e.effect}
             {e.severity !== null ? ` ${e.severity}/10` : ""}
           </Text>
           <Tap onPress={() => removeWithUndo({ key: e._id, text: `${s.removed}: ${e.effect}`, run: () => removeEffect({ id: e._id }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={s.remove}>
@@ -323,7 +324,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
       {med.events.length > 0 && <Text style={styles.section}>{s.medHistory}</Text>}
       {med.events.map((e) => (
         <Text key={e._id} style={styles.small}>
-          {new Date(e.at).toLocaleDateString()} · {eventLabel(e.kind)}
+          {formatDate(e.at, s, { year: "numeric", month: "short", day: "numeric" })} · {eventLabel(e.kind)}
           {e.note ? ` (${e.note})` : ""}
         </Text>
       ))}

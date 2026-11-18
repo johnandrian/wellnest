@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 import { colors, round, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { MedBand, MedLegend, MedPins, TrendDot, type MedMark } from "./ChartMarks";
+import { axisDay } from "./format";
 
 export type ChartData = {
   title: string;
@@ -79,8 +80,8 @@ export function ChartCard({ chart, s }: { chart: ChartData; s: Strings }) {
         })}
       </View>
       <View style={styles.axis}>
-        <Text style={styles.small}>{chart.from.slice(5)}</Text>
-        <Text style={styles.small}>{chart.to.slice(5)}</Text>
+        <Text style={styles.small}>{axisDay(chart.from, s)}</Text>
+        <Text style={styles.small}>{axisDay(chart.to, s)}</Text>
       </View>
       <Text style={styles.small}>
         {s.chartAvg} {fmt(avg)}
