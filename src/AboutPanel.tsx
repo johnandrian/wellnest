@@ -139,7 +139,7 @@ export function AboutPanel({ s }: { s: Strings }) {
               autoFocus
               onSubmitEditing={() => void run("fact", async () => (await updateFact({ id: f._id, text: editing.text }), setEditing(null)))}
             />
-            <Pressable onPress={() => void run("fact", async () => (await updateFact({ id: f._id, text: editing.text }), setEditing(null)))} accessibilityRole="button" accessibilityLabel={s.save}>
+            <Pressable hitSlop={12} onPress={() => void run("fact", async () => (await updateFact({ id: f._id, text: editing.text }), setEditing(null)))} accessibilityRole="button" accessibilityLabel={s.save}>
               <Ionicons name="checkmark" size={22} color={colors.primary} />
             </Pressable>
           </View>
@@ -149,7 +149,7 @@ export function AboutPanel({ s }: { s: Strings }) {
               {f.text}
               <Text style={styles.small}>  {f.source === "assistant" ? s.savedByWellnest : s.addedByYou}</Text>
             </Text>
-            <Pressable onPress={() => setEditing({ id: f._id, text: f.text })} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${f.text}`}>
+            <Pressable hitSlop={12} onPress={() => setEditing({ id: f._id, text: f.text })} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${f.text}`}>
               <Ionicons name="create-outline" size={19} color={colors.muted} />
             </Pressable>
             <Pressable hitSlop={12} onPress={() => removeWithUndo({ key: f._id, text: `${s.removed}: ${f.text}`, run: () => deleteFact({ id: f._id }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${f.text}`}>
@@ -168,7 +168,7 @@ export function AboutPanel({ s }: { s: Strings }) {
           onSubmitEditing={() => void save()}
           maxLength={300}
         />
-        <Pressable onPress={() => void save()} accessibilityRole="button" accessibilityLabel={s.addFact}>
+        <Pressable hitSlop={12} onPress={() => void save()} accessibilityRole="button" accessibilityLabel={s.addFact}>
           <Ionicons name="add-circle" size={26} color={colors.primary} />
         </Pressable>
       </View>
@@ -185,14 +185,14 @@ export function AboutPanel({ s }: { s: Strings }) {
           <Text style={styles.dataLabel}>{r.label}</Text>
           <Text style={[styles.small, styles.flex]}>{r.value}</Text>
           {r.category && (
-            <Pressable onPress={() => void remove(r.category!, r.what!)} disabled={!!busy} accessibilityRole="button" accessibilityLabel={s.deleteWhatTitle.replace("{what}", r.what!)}>
+            <Pressable hitSlop={12} onPress={() => void remove(r.category!, r.what!)} disabled={!!busy} accessibilityRole="button" accessibilityLabel={s.deleteWhatTitle.replace("{what}", r.what!)}>
               {busy === r.category ? <ActivityIndicator size="small" /> : <Ionicons name="trash-outline" size={18} color={colors.danger} />}
             </Pressable>
           )}
         </View>
       ))}
       {facts.length > 0 && (
-        <Pressable onPress={() => void remove("facts", s.whatFacts)} accessibilityRole="button">
+        <Pressable hitSlop={12} onPress={() => void remove("facts", s.whatFacts)} accessibilityRole="button">
           <Text style={[styles.link, styles.danger]}>{s.deleteAllFacts}</Text>
         </Pressable>
       )}

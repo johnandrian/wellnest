@@ -419,11 +419,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <Text style={styles.title} accessibilityRole="header">{s.ob_prefsTitle}</Text>
             <View style={styles.switchRow}>
               <Text style={[styles.optionText, styles.flex]}>{s.dailyCheckins}</Text>
-              <Switch value={state.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
+              <Switch accessibilityLabel={s.dailyCheckins} value={state.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
             </View>
             <View style={styles.switchRow}>
               <Text style={[styles.optionText, styles.flex]}>{s.weeklySummary}</Text>
-              <Switch value={state.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
+              <Switch accessibilityLabel={s.weeklySummary} value={state.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
             </View>
           </>
         )}

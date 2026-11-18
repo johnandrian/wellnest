@@ -3,7 +3,8 @@
 import { Pressable, PressableProps, PressableStateCallbackType, StyleProp, ViewStyle } from "react-native";
 import { colors } from "./theme";
 
-const HIT = 6;
+// Text links are about 20pt tall; 10pt more on each side brings them to about 40pt.
+const HIT = 10;
 
 export function Tap({ style, hitSlop = HIT, android_ripple, disabled, ...rest }: PressableProps) {
   return (
