@@ -10,6 +10,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, pillish, round, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
+import { formatDate } from "./format";
 
 type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "records" | "everything";
 
@@ -88,7 +89,7 @@ export function AboutPanel({ s }: { s: Strings }) {
     {
       label: s.rowMessages,
       value:
-        (data.since ? s.messagesValue.replace("{n}", count(counts.messages)).replace("{date}", new Date(data.since).toLocaleDateString()) : count(counts.messages)) +
+        (data.since ? s.messagesValue.replace("{n}", count(counts.messages)).replace("{date}", formatDate(data.since, s, { year: "numeric", month: "short", day: "numeric" })) : count(counts.messages)) +
         (data.chatClearedAt ? s.clearedNote : ""),
       category: "chat",
       what: s.whatChat,

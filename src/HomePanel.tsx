@@ -18,6 +18,7 @@ import { DailyCard, localDate } from "./DailyCard";
 import { TOOLS, type HubTab } from "./HubPanel";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
+import { axisDay } from "./format";
 
 // Questions show on the dashboard in the week before an appointment.
 const QUESTIONS_DAYS = 7;
@@ -376,8 +377,8 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
         })}
       </View>
       <View style={styles.axis}>
-        <Text style={styles.axisText}>{chart.from.slice(5)}</Text>
-        <Text style={styles.axisText}>{chart.to.slice(5)}</Text>
+        <Text style={styles.axisText}>{axisDay(chart.from, s)}</Text>
+        <Text style={styles.axisText}>{axisDay(chart.to, s)}</Text>
       </View>
       {trendBy.size > 0 && <Text style={styles.axisText}>● {s.chartTrend}</Text>}
       <MedLegend meds={chart.meds} s={s} />

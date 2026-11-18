@@ -12,12 +12,13 @@ import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
 import { confirmAsk, errorText } from "./feedback";
+import { formatDateTime } from "./format";
 
 type Kind = "in_person" | "video" | "phone";
 type Item = NonNullable<(typeof api.visits.list)["_returnType"]>["upcoming"][number];
 const KIND_ICON: Record<Kind, keyof typeof Ionicons.glyphMap> = { in_person: "business-outline", video: "videocam-outline", phone: "call-outline" };
 
-const whenText = (ms: number) => new Date(ms).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const whenText = (ms: number, s: Strings) => formatDateTime(ms, s, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 // A local date + time typed in the app, as a timestamp.
 function toMs(date: string, time: string) {
@@ -52,7 +53,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
             {item.title}
             {item.status !== "upcoming" && <Text style={styles.tag}>  {item.status === "done" ? s.visitDone : s.visitCancelledTag}</Text>}
           </Text>
-          <Text style={styles.small}>{[whenText(item.startsAt), item.clinician, item.location].filter(Boolean).join(" · ")}</Text>
+          <Text style={styles.small}>{[whenText(item.startsAt, s), item.clinician, item.location].filter(Boolean).join(" · ")}</Text>
         </View>
         <SwapIcon id={open ? "up" : "down"}>
           <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Linking, Platform, ScrollView, Text, View } from "react-native";
 import { Tap } from "./Tap";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
@@ -14,6 +14,7 @@ import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
 import { Icon, IconName } from "./Icon";
 import { SwapIcon } from "./Motion";
+import { formatDistance } from "./format";
 
 type Kind = "er" | "urgent_care" | "pharmacy" | "doctor";
 type Place = { name: string; lat: number; lon: number; km: number; phone?: string; address?: string; hours?: string; open24?: boolean };
@@ -36,6 +37,8 @@ async function here(): Promise<{ lat: number; lon: number } | null> {
 
 export function CarePanel({ s }: { s: Strings }) {
   const search = useAction(api.care.search);
+  // Miles for people who chose pounds in Settings.
+  const imperial = useQuery(api.chat.me)?.units.weight === "lb";
   const [kind, setKind] = useState<Kind | null>(null);
   const [useHere, setUseHere] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -116,7 +119,7 @@ export function CarePanel({ s }: { s: Strings }) {
             <View key={`${p.name}-${p.lat}`} style={styles.card}>
               <Text style={styles.name}>{p.name}</Text>
               <Text style={styles.small}>
-                {p.km} km{p.address ? ` · ${p.address}` : ""}
+                {formatDistance(p.km, imperial)}{p.address ? ` · ${p.address}` : ""}
                 {p.open24 ? ` · ${s.careOpen24}` : p.hours ? ` · ${p.hours}` : ""}
               </Text>
               <View style={styles.actions}>

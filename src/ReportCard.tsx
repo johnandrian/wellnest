@@ -76,7 +76,7 @@ export function ReportCard({ s }: { s: Strings }) {
     setError(null);
     setBusy(true);
     try {
-      const html = await convex.query(api.reports.html, { from, to, sections, generated: new Date().toLocaleString() });
+      const html = await convex.query(api.reports.html, { from, to, sections, generated: new Date().toLocaleString(s.locale) });
       if (Platform.OS === "web") {
         const win = window.open("", "_blank");
         if (!win) throw new Error(s.allowPopups);
