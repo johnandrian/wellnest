@@ -399,7 +399,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           <Image source={{ uri: photo.uri }} style={styles.attachmentThumb} />
           <Text style={styles.attachmentText}>{sending ? s.uploadingPhoto : s.photoAttached}</Text>
           {!sending && (
-            <Pressable onPress={() => setPhoto(null)} accessibilityRole="button" accessibilityLabel={s.removePhoto}>
+            <Pressable hitSlop={12} onPress={() => setPhoto(null)} accessibilityRole="button" accessibilityLabel={s.removePhoto}>
               <Ionicons name="close-circle" size={22} color={colors.muted} />
             </Pressable>
           )}
@@ -472,11 +472,11 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             {voice.error.text}
           </Text>
           {voice.error.openSettings && (
-            <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="link">
+            <Pressable hitSlop={12} onPress={() => void Linking.openSettings()} accessibilityRole="link">
               <Text style={styles.errorAction}>{s.openSettings}</Text>
             </Pressable>
           )}
-          <Pressable onPress={voice.dismissError} accessibilityRole="button" accessibilityLabel={s.dismiss}>
+          <Pressable hitSlop={12} onPress={voice.dismissError} accessibilityRole="button" accessibilityLabel={s.dismiss}>
             <Text style={styles.errorAction}>✕</Text>
           </Pressable>
         </View>
@@ -665,6 +665,8 @@ function Settings({
         <TextInput
           style={styles.locationInput}
           placeholder={s.locationPlaceholder}
+          placeholderTextColor={colors.muted}
+          accessibilityLabel={s.locationLabel}
           value={location}
           onChangeText={setLocationText}
           onBlur={saveLocation}
@@ -690,34 +692,36 @@ function Settings({
       </Pressable>
       <View style={styles.settingRow}>
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>
-        <Switch value={me.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
+        <Switch accessibilityLabel={s.dailyCheckins} value={me.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
       </View>
       <View style={styles.settingRow}>
         <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.weeklySummary}</Text>
-        <Switch value={me.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
+        <Switch accessibilityLabel={s.weeklySummary} value={me.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
       </View>
       <View style={styles.settingRow}>
         <View style={styles.settingLabelWrap}>
           <Text style={styles.settingLabel}>{s.flareForecast}</Text>
           <Text style={styles.settingHint}>{s.flareForecastHint}</Text>
         </View>
-        <Switch value={me.flareForecast} onValueChange={(enabled) => void setForecast({ enabled })} />
+        <Switch accessibilityLabel={s.flareForecast} value={me.flareForecast} onValueChange={(enabled) => void setForecast({ enabled })} />
       </View>
       <View style={styles.settingRow}>
         <View style={styles.settingLabelWrap}>
           <Text style={styles.settingLabel}>{s.airAlerts}</Text>
           <Text style={styles.settingHint}>{s.airAlertsHint}</Text>
         </View>
-        <Switch value={me.airAlerts} onValueChange={(enabled) => void setAirAlerts({ enabled })} />
+        <Switch accessibilityLabel={s.airAlerts} value={me.airAlerts} onValueChange={(enabled) => void setAirAlerts({ enabled })} />
       </View>
       {pushSupported &&
         (["reminders", "appointments"] as const).map((kind) => (
           <View key={kind} style={styles.settingRow}>
             <Text style={styles.settingLabel}>{kind === "reminders" ? s.notifyReminders : s.notifyAppointments}</Text>
-            <Switch value={me.notifications[kind]} onValueChange={(enabled) => void setPushPreference({ kind, enabled })} />
+            <Switch accessibilityLabel={kind === "reminders" ? s.notifyReminders : s.notifyAppointments} value={me.notifications[kind]} onValueChange={(enabled) => void setPushPreference({ kind, enabled })} />
           </View>
         ))}
       <Pressable
+        style={styles.signOut}
+        accessibilityRole="button"
         onPress={async () => {
           // This phone stops getting the account's notifications.
           if (pushToken.current) await unregisterPush({ token: pushToken.current }).catch(() => {});
@@ -760,6 +764,7 @@ const styles = themed(() => ({
   dashButtonNarrow: { width: 40, paddingHorizontal: 0, justifyContent: "center" },
   dashText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   headerLink: { color: colors.primary, fontSize: 16 },
+  signOut: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   // Above the chat while it drops open, so it slides over the messages rather than pushing them.
   settingsWrap: { zIndex: 5, maxHeight: "70%" },
   aboutWrap: { zIndex: 5, maxHeight: "80%" },

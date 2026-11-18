@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, round, scaleColor, themed, ui } from "./theme";
+import { colors, round, scaleColor, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
@@ -68,7 +68,7 @@ export function DailyCardView({ s, values, onPick, onSkip, inset = false }: {
         </View>
       ))}
       {onSkip && (
-        <Tap onPress={onSkip} accessibilityRole="button">
+        <Tap style={styles.skip} onPress={onSkip} accessibilityRole="button">
           <Text style={styles.link}>{s.dailyNotToday}</Text>
         </Tap>
       )}
@@ -111,7 +111,9 @@ const styles = themed(() => ({
   face: { width: 34, height: 34, borderRadius: round(17), alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
   faceOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   faceText: { fontSize: 20 },
-  link: { color: colors.muted, fontSize: 13, alignSelf: "flex-end" },
+  // "Not today": small words, but a full-size tap area.
+  skip: { alignSelf: "flex-end", minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 8 },
+  link: { color: colors.muted, fontSize: 14 },
   chart: { gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: round(10), padding: 10 },
   chartRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   chartLabel: { width: 70, fontSize: 12, color: colors.muted },

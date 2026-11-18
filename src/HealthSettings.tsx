@@ -61,16 +61,16 @@ export function HealthSettings({ health, s }: { health: HealthSync; s: Strings }
           </Text>
           <View style={styles.row}>
             <Text style={styles.label}>{s.healthShare}</Text>
-            <Switch value={status.shareWithAnalysis} onValueChange={(enabled) => void setShare({ enabled })} />
+            <Switch accessibilityLabel={s.healthShare} value={status.shareWithAnalysis} onValueChange={(enabled) => void setShare({ enabled })} />
           </View>
           <Text style={styles.small}>{s.healthShareNote}</Text>
           <View style={styles.actions}>
             {health.supported && (
-              <Pressable onPress={() => void health.syncNow()} disabled={health.syncing} accessibilityRole="button">
+              <Pressable hitSlop={12} onPress={() => void health.syncNow()} disabled={health.syncing} accessibilityRole="button">
                 <Text style={styles.link}>{s.syncNow}</Text>
               </Pressable>
             )}
-            <Pressable onPress={() => void onDisconnect()} accessibilityRole="button">
+            <Pressable hitSlop={12} onPress={() => void onDisconnect()} accessibilityRole="button">
               <Text style={[styles.link, styles.danger]}>{s.disconnectDelete}</Text>
             </Pressable>
           </View>
