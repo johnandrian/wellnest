@@ -10,7 +10,7 @@ import { Tap } from "./Tap";
 import { Icon, IconName } from "./Icon";
 import { SETTLE, useReducedMotion } from "./Motion";
 import { Bezel } from "./soft";
-import { colors, isSoft, kicker, pillish, radius, severityColor, tint, themed, ui } from "./theme";
+import { colors, kicker, radius, severityColor, tint, themed, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { STORIES, type Story } from "./landing";
 import { MedBand } from "./ChartMarks";
@@ -43,7 +43,7 @@ export function LandingStory({ s }: { s: Strings }) {
       <Played key={pick} s={s} story={STORIES[pick]} text={s.landStories[pick]} />
     </>
   );
-  return isSoft() ? <Bezel core={styles.core}>{content}</Bezel> : <View style={styles.card}>{content}</View>;
+  return <Bezel core={styles.core}>{content}</Bezel>;
 }
 
 function Played({ s, story, text }: { s: Strings; story: Story; text: Strings["landStories"][number] }) {
@@ -139,10 +139,9 @@ function Beat({ t, icon, tintKey, label, children }: { t: Animated.Value; icon: 
 }
 
 const styles = themed(() => ({
-  card: { ...ui.card, padding: 16, gap: 12, borderRadius: radius.lg },
   core: { padding: 20, gap: 12 },
   tabs: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: pillish(radius.md), borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface },
+  tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface },
   tabOn: { backgroundColor: colors.primary },
   tabText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
   tabTextOn: { color: colors.onPrimary },
@@ -163,6 +162,6 @@ const styles = themed(() => ({
   beat: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   beatIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 2 },
   beatText: { flex: 1, minWidth: 0 },
-  beatLabel: { color: colors.muted, fontSize: 12, fontWeight: "700", ...kicker() },
+  beatLabel: { color: colors.muted, fontWeight: "700", ...kicker() },
   beatBody: { color: colors.text, fontSize: 14, lineHeight: 20 },
 }));

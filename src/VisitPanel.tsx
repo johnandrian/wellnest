@@ -6,7 +6,7 @@ import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
+import { colors, themed, TOUCH, ui, radius } from "./theme";
 import { errorText, showToast } from "./feedback";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
@@ -153,17 +153,17 @@ const styles = themed(() => ({
   note: { color: colors.muted, fontSize: 14, lineHeight: 19, flexShrink: 1 },
   small: { color: colors.muted, fontSize: 12 },
   form: { gap: 10 },
-  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 9, fontSize: 15 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9, fontSize: 15 },
   chips: { flexDirection: "row", gap: 8 },
   chip: { ...ui.chip },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 14 },
   chipTextOn: { color: colors.primary, fontWeight: "600" },
-  button: { backgroundColor: colors.primary, borderRadius: pillish(10), padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
+  button: { backgroundColor: colors.primary, borderRadius: radius.pill, padding: 11, alignItems: "center", minHeight: TOUCH, justifyContent: "center" },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   generating: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   result: { gap: 8 },
-  doc: { borderWidth: 1, borderColor: colors.border, borderRadius: round(10), padding: 14, backgroundColor: colors.bg },
+  doc: { borderWidth: 1, borderColor: colors.border, borderRadius: 15, padding: 14, backgroundColor: colors.bg },
   docText: { color: colors.text, fontSize: 15, lineHeight: 21 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 18 },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },

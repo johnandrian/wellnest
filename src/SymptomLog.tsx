@@ -8,7 +8,7 @@ import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { Tap } from "./Tap";
-import { colors, inkOn, pillish, radius, round, severityColor, themed, TOUCH, ui } from "./theme";
+import { colors, inkOn, radius, severityColor, themed, TOUCH, ui } from "./theme";
 import { errorText, removeWithUndo, useHidden } from "./feedback";
 import type { Strings } from "./i18n";
 import { Enter, Reveal, SwapIcon } from "./Motion";
@@ -230,7 +230,7 @@ export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; re
 const styles = themed(() => ({
   card: { ...ui.card, padding: 16, gap: 10 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
-  headIcon: { width: 34, height: 34, borderRadius: round(17), alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  headIcon: { width: 34, height: 34, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   title: { fontSize: 18, fontWeight: "700", color: colors.text },
   question: { fontSize: 16, fontWeight: "600", color: colors.text, marginTop: 6 },
   choices: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -246,21 +246,21 @@ const styles = themed(() => ({
   stepText: { fontSize: 16, fontWeight: "700", color: colors.text },
   ends: { flexDirection: "row", justifyContent: "space-between" },
   levelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  levelDot: { width: 12, height: 12, borderRadius: round(6) },
+  levelDot: { width: 12, height: 12, borderRadius: 9 },
   level: { fontSize: 16, fontWeight: "700", color: colors.text },
   small: { fontSize: 13, color: colors.muted },
-  save: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, borderRadius: pillish(radius.md), backgroundColor: colors.primary, paddingHorizontal: 16, marginTop: 6 },
+  save: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, borderRadius: radius.pill, backgroundColor: colors.primary, paddingHorizontal: 16, marginTop: 6 },
   saveOff: { backgroundColor: colors.border },
   saveText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", flexShrink: 1 },
   saveTextOff: { color: colors.muted },
-  saved: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: pillish(radius.md), backgroundColor: colors.primarySoft },
+  saved: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
   savedText: { fontSize: 15, color: colors.text },
   flex: { flex: 1, minWidth: 0 },
   error: { color: colors.danger, fontSize: 14 },
   section: { ...ui.section },
   list: { gap: 8 },
   entry: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingLeft: 12, paddingRight: 4 },
-  badge: { width: 40, height: 40, borderRadius: round(20), alignItems: "center", justifyContent: "center" },
+  badge: { width: 40, height: 40, borderRadius: 30, alignItems: "center", justifyContent: "center" },
   badgeText: { fontSize: 16, fontWeight: "800", color: colors.text },
   entryName: { fontSize: 16, fontWeight: "600", color: colors.text },
   entryNote: { fontSize: 14, color: colors.text, marginTop: 2 },

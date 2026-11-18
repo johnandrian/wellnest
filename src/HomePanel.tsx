@@ -11,7 +11,7 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
-import { colors, radius, round, scaleColor, themed, tint, ui } from "./theme";
+import { colors, radius, scaleColor, themed, tint, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
@@ -402,7 +402,7 @@ const styles = themed(() => ({
   half2: { flexBasis: "47%", flexGrow: 1 },
   full: { flexBasis: "100%" },
   stat: { ...ui.card, padding: 12, gap: 4, minHeight: 124 },
-  iconDot: { width: 34, height: 34, borderRadius: round(17), alignItems: "center", justifyContent: "center" },
+  iconDot: { width: 34, height: 34, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   statLabel: { color: colors.muted, fontSize: 13, fontWeight: "600", marginTop: 4 },
   statValue: { color: colors.text, fontSize: 17, fontWeight: "700" },
   statSub: { color: colors.muted, fontSize: 13 },

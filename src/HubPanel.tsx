@@ -74,7 +74,7 @@ export function HubPanel({
   const insets = useInsets();
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, barTop(insets.top, 14)]}>
+      <View style={[styles.header, barTop(insets.top)]}>
         <View style={styles.headerRow}>
           {tool ? (
             <Tap style={styles.round} onPress={() => onTab("home")} accessibilityRole="button" accessibilityLabel={s.dashboard}>
@@ -159,12 +159,10 @@ export function HubPanel({
 const styles = themed(() => ({
   wrap: { flex: 1 },
   body: { flex: 1 },
-  // The teal band: it carries the greeting on the dashboard and the tool switcher inside a tool.
+  // The floating top bar: it carries the greeting on the dashboard and the tool switcher inside a tool.
   header: {
     backgroundColor: colors.bar,
-    // Plus the status bar / notch on a phone (barTop in ./safeArea.ts).
-    paddingTop: 14,
-    paddingBottom: 12,
+    // Floats below the status bar / notch on a phone (barTop in ./safeArea.ts).
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
     ...floatingBar(),
@@ -173,7 +171,7 @@ const styles = themed(() => ({
   round: { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.barFill },
   badge: { width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.barFill },
   titles: { flex: 1, minWidth: 0 },
-  kicker: { color: colors.onBarMuted, fontSize: 13, fontWeight: "600", ...kicker() },
+  kicker: { color: colors.onBarMuted, fontWeight: "600", ...kicker() },
   title: { color: colors.onBar, fontSize: 21, fontWeight: "700", marginTop: 1 },
   chat: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.barAction },
   chatNarrow: { width: TOUCH, paddingHorizontal: 0, justifyContent: "center" },

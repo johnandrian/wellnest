@@ -2,7 +2,7 @@
 // by how good or bad the value is for that measure, with the average, high and low underneath. Medication starts and
 // dose changes are marked in green above their day, and weight gets its 7-day average as a line of dots.
 import { Text, View } from "react-native";
-import { colors, round, themed } from "./theme";
+import { colors, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { MedBand, MedLegend, MedPins, TrendDot, type MedMark } from "./ChartMarks";
 import { axisDay } from "./format";
@@ -94,7 +94,7 @@ export function ChartCard({ chart, s }: { chart: ChartData; s: Strings }) {
 }
 
 const styles = themed(() => ({
-  card: { marginTop: 8, padding: 10, borderRadius: round(10), backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
+  card: { marginTop: 8, padding: 10, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
   title: { fontSize: 14, fontWeight: "700", color: colors.text },
   unit: { fontWeight: "400", color: colors.muted },
   bars: { flexDirection: "row", alignItems: "flex-end", height: 90 },

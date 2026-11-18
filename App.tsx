@@ -15,14 +15,10 @@ import { strings } from "./src/i18n";
 import { takeInviteFromUrl } from "./src/invite";
 import { usePath } from "./src/route";
 import { DemoPage } from "./src/DemoPage";
-import { appDesign } from "./src/design";
-import { useSoftFonts } from "./src/soft";
+import { useAppFonts } from "./src/soft";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastHost } from "./src/feedback";
 import { useInsets } from "./src/safeArea";
-
-// The look (src/design.ts), fixed for this page load.
-const design = appDesign();
 
 // A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
 takeInviteFromUrl();
@@ -66,9 +62,9 @@ function Themed() {
   const pageLang = strings(me?.language ?? deviceLang());
   const pref = me?.appearance;
   const scheme = pref && pref.theme !== "system" ? pref.theme : system === "dark" ? "dark" : "light";
-  applyTheme(scheme, pref?.textSize ?? 1, design);
-  // The soft look's font is bundled with the app; wait the moment it takes to load so text doesn't jump.
-  const fontsReady = useSoftFonts(design === "soft");
+  applyTheme(scheme, pref?.textSize ?? 1);
+  // The app's font is bundled with it; wait the moment it takes to load so text doesn't jump.
+  const fontsReady = useAppFonts();
   // The public pages and sign-in keep clear of the status bar and home indicator; signed-in screens place their own bars.
   const insets = useInsets();
   const clear = { flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom };

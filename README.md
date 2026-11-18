@@ -146,7 +146,7 @@ flowchart LR
 
 ## Layout
 - `App.tsx`, `src/` — the Expo app.
-  - `Welcome.tsx` — the welcome page before sign-in (`WelcomeSoft.tsx` — its soft look, `soft.tsx` — that look's cards and buttons, `design.ts` — which look shows, `landing.ts` — what both show); `SignIn.tsx`; `Privacy.tsx` — the privacy page (`/privacy`); `route.ts` — that address.
+  - `Welcome.tsx` — the welcome page before sign-in (`WelcomeSoft.tsx` — its soft look, `soft.tsx` — that look's cards and buttons, `landing.ts` — what both show); `SignIn.tsx`; `Privacy.tsx` — the privacy page (`/privacy`); `route.ts` — that address.
   - `Chat.tsx` — the chat, header, Settings; `HubPanel.tsx` — the **Health tools** screen (dashboard home in `HomePanel.tsx`, then one screen per tool); `ChatHistory.tsx` — the chat history drawer; `Icon.tsx` — one icon per idea.
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
@@ -275,7 +275,7 @@ Settings has **Appearance** (system, light or dark) and **Text size** (four size
 
 **Undo:** deleting a symptom entry, a tracker entry, a side effect, or a saved fact hides it at once and shows "Removed · Undo" for five seconds; the delete runs only after that (`removeWithUndo` in `src/feedback.tsx`).
 
-**Two looks**, for developers only (people using the app never choose): **soft**, the default, after the "soft" style from Taste Skill (`.claude/skills/soft-skill/`, MIT), and **classic**, the original. `DESIGN` in `src/design.ts` sets it for every build; `EXPO_PUBLIC_DESIGN=classic` (or `soft`) overrides it for one build or dev server; on a local web dev server `?design=classic` or `?design=soft` overrides it for that page load (production builds ignore it). The look is part of the theme (`applyTheme`), so every screen follows it: in the soft look the top bars and the chat's message box float as rounded white panels (the `bar*` colour tokens, `floatingBar()`), corners are rounder (`radius`, `round()`), buttons and chips are pills (`ui.button`, `pillish()`), cards get a wide faint shadow, the small line over a title is in spaced capitals (`kicker()`), and every text style uses Plus Jakarta Sans, bundled with the app and loaded before the first screen (`useSoftFonts`). Words, colours, dark mode, contrast and text size are the same in both.
+**The look** follows the "soft" style from Taste Skill (`.claude/skills/soft-skill/`, MIT) and is part of the theme (`src/theme.ts`), so every screen follows it: the top bars and the chat's message box float as rounded white panels (the `bar*` color tokens, `floatingBar()`), corners are round (`radius`), buttons and chips are pills (`ui.button`, `radius.pill`), cards get a wide faint shadow, the small line over a title is in spaced capitals (`kicker()`), and every text style uses Plus Jakarta Sans, bundled with the app and loaded before the first screen (`useAppFonts`).
 
 ## Photos
 Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a wound.
