@@ -1,7 +1,7 @@
 // "What Wellnest knows about me" (convex/me.ts): saved facts (editable), everything stored, who sees what,
 // export, and deletion by category or of the whole account.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,18 +9,10 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { colors, pillish, round, themed } from "./theme";
 import type { Strings } from "./i18n";
+import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
 
 type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "records" | "everything";
 
-function confirm(title: string, message: string, action: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: action, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 const SHARING = ["shareCortex", "shareJina", "shareCartesia", "shareJev", "shareCreao", "shareTelehealth", "shareMaps", "shareTelegram"] as const;
 
@@ -38,10 +30,12 @@ export function AboutPanel({ s }: { s: Strings }) {
   const [editing, setEditing] = useState<{ id: Id<"memoryFacts">; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isHidden = useHidden();
 
   if (data === undefined) return <ActivityIndicator style={styles.loading} />;
   if (data === null) return null;
-  const { profile, counts, facts } = data;
+  const { profile, counts } = data;
+  const facts = data.facts.filter((f) => !isHidden(f._id));
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
     setError(null);
@@ -49,7 +43,7 @@ export function AboutPanel({ s }: { s: Strings }) {
     try {
       await fn();
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     } finally {
       setBusy(null);
     }
@@ -78,8 +72,8 @@ export function AboutPanel({ s }: { s: Strings }) {
   const remove = async (category: Category, what: string) => {
     if (category === "everything") {
       const ok =
-        (await confirm(s.deleteAccountTitle, s.deleteAccountBody, s.continue, s.cancel)) &&
-        (await confirm(s.areYouSure, s.deleteAllBody, s.deleteEverything, s.cancel));
+        (await confirmAsk({ title: s.deleteAccountTitle, message: s.deleteAccountBody, ok: s.continue, cancel: s.cancel })) &&
+        (await confirmAsk({ title: s.areYouSure, message: s.deleteAllBody, ok: s.deleteEverything, cancel: s.cancel }));
       if (!ok) return;
       await run(category, async () => {
         await deleteData({ category });
@@ -87,7 +81,7 @@ export function AboutPanel({ s }: { s: Strings }) {
       });
       return;
     }
-    if (await confirm(s.deleteWhatTitle.replace("{what}", what), s.cantUndo, s.delete, s.cancel)) await run(category, () => deleteData({ category }));
+    if (await confirmAsk({ title: s.deleteWhatTitle.replace("{what}", what), message: s.cantUndo, ok: s.delete, cancel: s.cancel })) await run(category, () => deleteData({ category }));
   };
 
   const rows: { label: string; value: string; category?: Category; what?: string }[] = [
@@ -157,7 +151,7 @@ export function AboutPanel({ s }: { s: Strings }) {
             <Pressable onPress={() => setEditing({ id: f._id, text: f.text })} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${f.text}`}>
               <Ionicons name="create-outline" size={19} color={colors.muted} />
             </Pressable>
-            <Pressable onPress={() => void run("fact", () => deleteFact({ id: f._id }))} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${f.text}`}>
+            <Pressable hitSlop={12} onPress={() => removeWithUndo({ key: f._id, text: `${s.removed}: ${f.text}`, run: () => deleteFact({ id: f._id }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${f.text}`}>
               <Ionicons name="close" size={20} color={colors.danger} />
             </Pressable>
           </View>

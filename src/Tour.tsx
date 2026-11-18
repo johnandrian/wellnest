@@ -2,7 +2,7 @@
 // logging in the journal, medications, the health tools, the chat, settings), moving the app to each one as the
 // user taps Next. Skipping or finishing marks it seen (convex/onboarding.ts tourDone); Settings can play it again.
 import { useEffect } from "react";
-import { Animated, Platform, Text, View } from "react-native";
+import { Animated, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Tap } from "./Tap";
 import { Icon, IconName } from "./Icon";
@@ -92,7 +92,7 @@ export function Tour({
 }
 
 const styles = themed(() => ({
-  wrap: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 30, paddingHorizontal: 12, paddingBottom: Platform.OS === "web" ? 16 : 36, alignItems: "center" },
+  wrap: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 30, paddingHorizontal: 12, alignItems: "center" },
   card: { ...ui.card, width: "100%", maxWidth: 520, padding: 16, gap: 14, borderRadius: radius.lg, borderColor: colors.primary },
   body: { gap: 6 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },

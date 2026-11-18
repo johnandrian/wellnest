@@ -12,10 +12,10 @@ import { Icon } from "./Icon";
 import { Enter, Reveal, SwapIcon } from "./Motion";
 import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
+import { errorText } from "./feedback";
 
 type Action = Doc<"agentActions">;
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 export function AgentPanel({ s }: { s: Strings }) {
   const actions = useQuery(api.agent.list);
@@ -73,7 +73,7 @@ function ActionCard({ s, action }: { s: Strings; action: Action }) {
     try {
       await (which === "approve" ? approve : dismiss)({ id });
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     } finally {
       setBusy(null);
     }

@@ -1,7 +1,7 @@
 // Telehealth video visits (convex/telehealth.ts). AppointmentCard sits under the chat message that offers times;
 // TelehealthCard is the Care tab's view of the current visit, with a way to ask for one.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,23 +9,14 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
+import { confirmAsk, errorText } from "./feedback";
 
 type Visit = NonNullable<(typeof api.telehealth.get)["_returnType"]>;
 
 const timeOf = (ms: number) =>
   new Date(ms).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
 
-function ask(title: string, message: string, ok: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: ok, onPress: () => resolve(true) },
-    ]),
-  );
-}
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
   const confirm = useMutation(api.telehealth.confirm);
@@ -37,15 +28,15 @@ function VisitBody({ visit, s }: { visit: Visit; s: Strings }) {
       .replace("{who}", slot.clinician)
       .replace("{time}", timeOf(slot.startsAt))
       .replace("{provider}", visit.providerName ?? "");
-    if (!(await ask(s.visitConfirmTitle, message, s.visitBook, s.cancel))) return;
+    if (!(await confirmAsk({ title: s.visitConfirmTitle, message, ok: s.visitBook, cancel: s.cancel, destructive: false }))) return;
     setError(null);
-    await confirm({ id: visit._id, slotId: slot.id }).catch((e) => setError(cleanError(e)));
+    await confirm({ id: visit._id, slotId: slot.id }).catch((e) => setError(errorText(e)));
   };
 
   const stop = async () => {
-    if (visit.status === "booked" && !(await ask(s.visitCancelTitle, s.visitCancelBody, s.visitCancelYes, s.visitKeep))) return;
+    if (visit.status === "booked" && !(await confirmAsk({ title: s.visitCancelTitle, message: s.visitCancelBody, ok: s.visitCancelYes, cancel: s.visitKeep }))) return;
     setError(null);
-    await cancel({ id: visit._id }).catch((e) => setError(cleanError(e)));
+    await cancel({ id: visit._id }).catch((e) => setError(errorText(e)));
   };
 
   const booked = visit.slots.find((x) => x.id === visit.slotId);
@@ -122,7 +113,7 @@ export function TelehealthCard({ s }: { s: Strings }) {
       setAsking(false);
       setReason("");
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 

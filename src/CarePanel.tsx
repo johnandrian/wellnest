@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
 import { colors, round, themed, ui } from "./theme";
+import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
@@ -56,7 +57,7 @@ export function CarePanel({ s }: { s: Strings }) {
       if ("error" in res) setError(res.error);
       else setResult(res);
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

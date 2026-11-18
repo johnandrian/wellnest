@@ -1,22 +1,14 @@
 // The phone health data part of Settings (Apple Health on iPhone, Health Connect on Android): connect, sync status,
 // sharing with analyses, disconnect. The web app shows the status and can disconnect.
-import { ActivityIndicator, Alert, Platform, Pressable, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Switch, Text, View } from "react-native";
 import { useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors, pillish, round, themed } from "./theme";
 import type { HealthSync } from "./useHealthSync";
 import type { Strings } from "./i18n";
+import { confirmAsk } from "./feedback";
 
-function confirm(title: string, message: string, action: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(message));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: action, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 export function ago(ms: number, s: Strings, now = Date.now()) {
   const min = Math.round((now - ms) / 60_000);
@@ -33,12 +25,12 @@ export function HealthSettings({ health, s }: { health: HealthSync; s: Strings }
   if (!status) return null;
 
   const onDisconnect = async () => {
-    const ok = await confirm(
-      s.healthDisconnectTitle.replace("{name}", health.name),
-      s.healthDisconnectBody.replace("{name}", health.name),
-      s.disconnect,
-      s.cancel,
-    );
+    const ok = await confirmAsk({
+      title: s.healthDisconnectTitle.replace("{name}", health.name),
+      message: s.healthDisconnectBody.replace("{name}", health.name),
+      ok: s.disconnect,
+      cancel: s.cancel,
+    });
     if (ok) await disconnect();
   };
 

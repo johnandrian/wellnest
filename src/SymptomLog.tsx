@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { Tap } from "./Tap";
 import { colors, inkOn, pillish, radius, round, severityColor, themed, TOUCH, ui } from "./theme";
+import { errorText, removeWithUndo, useHidden } from "./feedback";
 import type { Strings } from "./i18n";
 import { Enter, Reveal, SwapIcon } from "./Motion";
 import { localDate } from "./DailyCard";
@@ -42,6 +43,8 @@ export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; re
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const isHidden = useHidden();
+  const shown = recent.filter((e) => !isHidden(e._id));
 
   // Their own symptoms first, then common ones, without repeats.
   const seen = new Set<string>();
@@ -76,7 +79,7 @@ export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; re
       setNote("");
       setYesterday(false);
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -195,11 +198,11 @@ export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; re
         {error && <Text style={styles.error}>{error}</Text>}
       </View>
 
-      {recent.length > 0 && (
+      {shown.length > 0 && (
         <>
           <Text style={styles.section}>{s.journalRecent}</Text>
           <View style={styles.list}>
-            {recent.map((e) => (
+            {shown.map((e) => (
               <View key={e._id} style={styles.entry}>
                 <View style={[styles.badge, { backgroundColor: e.severity === null ? colors.border : severityColor(e.severity) }]}>
                   <Text style={[styles.badgeText, { color: e.severity === null ? colors.muted : inkOn(severityColor(e.severity)) }]}>{e.severity ?? "–"}</Text>
@@ -212,7 +215,7 @@ export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; re
                   </Text>
                   {!!e.note && <Text style={styles.entryNote}>{e.note}</Text>}
                 </View>
-                <Tap style={styles.trash} onPress={() => void remove({ id: e._id })} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${e.symptom}, ${dayName(e.date, s)}`}>
+                <Tap style={styles.trash} onPress={() => removeWithUndo({ key: e._id, text: `${s.removed}: ${cap(e.symptom)}`, run: () => remove({ id: e._id }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={`${s.remove}: ${e.symptom}, ${dayName(e.date, s)}`}>
                   <Ionicons name="trash-outline" size={20} color={colors.muted} />
                 </Tap>
               </View>

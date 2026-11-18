@@ -3,7 +3,7 @@
 // on the account (language, city, facts, medications, emergency contacts) start filled in. Medications can be
 // typed or scanned from the pill bottle, and the ones added can be edited or removed before moving on.
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
@@ -16,6 +16,7 @@ import { timesFor, useLabelScan } from "./labelScan";
 import { Icon } from "./Icon";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
+import { errorText } from "./feedback";
 import { useInsets } from "./safeArea";
 
 const FOCUS = ["symptoms", "pain", "asthma", "seizures", "diabetes", "medications", "mood", "wellness", "caregiver"] as const;
@@ -30,7 +31,6 @@ let contactKey = 0;
 const blankContact = (): ContactRow => ({ key: ++contactKey, name: "", phone: "", relation: "" });
 type Step = "language" | "about" | "focus" | "conditions" | "meds" | "contact" | "city" | "phone" | "prefs";
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 function Chip({ label, on, onPress, icon }: { label: string; on: boolean; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
@@ -122,7 +122,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       await fn();
       return true;
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
       return false;
     } finally {
       setBusy(false);
@@ -456,7 +456,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
 const styles = themed(() => ({
   screen: { flex: 1, backgroundColor: colors.bg },
-  top: { paddingTop: Platform.OS === "web" ? 16 : 56, paddingHorizontal: 20, paddingBottom: 12, gap: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  top: { paddingHorizontal: 20, paddingBottom: 12, gap: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", maxWidth: 560, width: "100%", alignSelf: "center" },
   stepText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
   track: { height: 6, borderRadius: radius.pill, backgroundColor: colors.primarySoft, overflow: "hidden", maxWidth: 560, width: "100%", alignSelf: "center" },
@@ -495,7 +495,7 @@ const styles = themed(() => ({
   link: { color: colors.primary, fontWeight: "600", fontSize: 15 },
   small: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   error: { color: colors.danger, fontSize: 14 },
-  bottom: { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === "web" ? 12 : 32 },
+  bottom: { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 },
   bottomInner: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   back: { width: TOUCH, height: TOUCH, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
   skip: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 14 },

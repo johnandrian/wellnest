@@ -3,7 +3,7 @@
 // opens Settings under the header and the Chat button at the top right goes to the conversation.
 // Inside a tool, the back button returns to the dashboard and the row under the header switches tools.
 import { ReactNode, useState } from "react";
-import { Platform, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";

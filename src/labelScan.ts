@@ -8,6 +8,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadPhoto } from "./photo";
+import { errorText } from "./feedback";
 
 export type Label = NonNullable<FunctionReturnType<typeof api.medScan.read>>;
 
@@ -15,7 +16,6 @@ export type Label = NonNullable<FunctionReturnType<typeof api.medScan.read>>;
 export const TIMES_FOR = ["08:00", "08:00, 20:00", "08:00, 14:00, 20:00", "08:00, 12:00, 16:00, 20:00"];
 export const timesFor = (perDay: number) => TIMES_FOR[Math.min(perDay, TIMES_FOR.length) - 1];
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 export function useLabelScan(s: Strings, onLabel: (label: Label) => void) {
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
@@ -35,7 +35,7 @@ export function useLabelScan(s: Strings, onLabel: (label: Label) => void) {
       if (label) onLabel(label);
       else setError(s.medScanNone);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     } finally {
       setScanning(false);
     }

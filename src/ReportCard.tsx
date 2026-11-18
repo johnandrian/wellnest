@@ -9,6 +9,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { api } from "../convex/_generated/api";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
+import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -89,7 +90,7 @@ export function ReportCard({ s }: { s: Strings }) {
         else await Print.printAsync({ uri });
       }
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

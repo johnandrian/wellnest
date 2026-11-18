@@ -18,6 +18,7 @@ import { DemoPage } from "./src/DemoPage";
 import { appDesign } from "./src/design";
 import { useSoftFonts } from "./src/soft";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ToastHost } from "./src/feedback";
 import { useInsets } from "./src/safeArea";
 
 // The look (src/design.ts), fixed for this page load.
@@ -112,6 +113,8 @@ function Themed() {
           </Authenticated>
         </>
       )}
+      {/* "Copied", "Saved", and Undo for deletes, over every screen (src/feedback.tsx). */}
+      <ToastHost s={pageLang} />
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
     </View>
   );

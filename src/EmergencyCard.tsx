@@ -1,7 +1,7 @@
 // Emergency action plan (convex/emergency.ts) in the Care tab: write your steps (templates to start from), contacts
 // and asthma action plan; show it full screen with call buttons; share it with carers through a private link.
 import { useState } from "react";
-import { Linking, Modal, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { Linking, Modal, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { api } from "../convex/_generated/api";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { shareUrl } from "./ShareCard";
+import { errorText, showToast } from "./feedback";
 import { useInsets } from "./safeArea";
 
 type Section = { title: string; steps: string[] };
@@ -16,7 +17,6 @@ type Contact = { name: string; relation?: string; phone: string };
 type Asthma = { preventer?: string; reliever?: string; green?: string; yellow?: string; red?: string; best?: number };
 
 const tel = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 function PlanView({ sections, contacts, asthma, notes, s, big = false }: { sections: Section[]; contacts: Contact[]; asthma?: Asthma; notes?: string; s: Strings; big?: boolean }) {
   return (
@@ -68,7 +68,6 @@ export function EmergencyCard({ s }: { s: Strings }) {
   const [asthma, setAsthma] = useState<Asthma | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const templates: Section[] = [
     { title: s.tplSeizureTitle, steps: s.tplSeizureSteps.split("\n") },
@@ -97,7 +96,7 @@ export function EmergencyCard({ s }: { s: Strings }) {
       await save({ sections, contacts, notes: notes || undefined, ...(asthma && { asthma }) });
       setEditing(false);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 
@@ -105,12 +104,9 @@ export function EmergencyCard({ s }: { s: Strings }) {
     setError(null);
     try {
       const { url } = await createLink({ label: s.emShareLabel, sections: ["emergency"], rangeDays: 1, expiresInDays: null });
-      if ((await shareUrl(url, s.emTitle)) === "copied") {
-        setNotice(s.emLinkCopied);
-        setTimeout(() => setNotice(null), 3000);
-      }
+      if ((await shareUrl(url, s.emTitle)) === "copied") showToast(s.emLinkCopied);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 
@@ -217,7 +213,6 @@ export function EmergencyCard({ s }: { s: Strings }) {
               <Text style={styles.link}>{s.edit}</Text>
             </Tap>
           </View>
-          {notice && <Text style={styles.small}>✓ {notice}</Text>}
         </>
       ) : (
         <>
@@ -282,7 +277,7 @@ const styles = themed(() => ({
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   error: { color: colors.danger, fontSize: 13 },
-  fullScreen: { padding: 20, paddingTop: Platform.OS === "web" ? 20 : 60, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
+  fullScreen: { padding: 20, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   fullHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   fullTitle: { fontSize: 26, fontWeight: "800", color: colors.danger },
   call911: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: colors.danger, borderRadius: round(14), padding: 18 },

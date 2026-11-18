@@ -9,6 +9,7 @@ import { Icon } from "./Icon";
 import { usePresence } from "./Motion";
 import { clearInvite, pendingInvite } from "./invite";
 import { colors, pillish, radius, themed, tint, TOUCH, ui } from "./theme";
+import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 
 export function JoinPrompt({ s, onOpenCircle }: { s: Strings; onOpenCircle: () => void }) {
@@ -46,7 +47,7 @@ export function JoinPrompt({ s, onOpenCircle }: { s: Strings; onOpenCircle: () =
       clearInvite();
       setJoined(res.name);
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
