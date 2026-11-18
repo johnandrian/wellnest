@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import { colors, floatingBar, isSoft, softShadow, pillish, radius, round, TEXT_SIZES, themed, themeVersion } from "./theme";
+import { errorText } from "./feedback";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
@@ -158,7 +159,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
       }
     } catch (e) {
       setText(value);
-      setNotice((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setNotice(errorText(e));
     }
   };
 
@@ -822,7 +823,7 @@ const styles = themed(() => ({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     // In the soft look the message box floats like the top bar, with room below it.
-    ...(isSoft() ? { marginHorizontal: 10, marginTop: 4, marginBottom: Platform.OS === "web" ? 10 : 28, paddingBottom: 12, borderRadius: 32, borderWidth: 1, borderColor: colors.hairline, ...softShadow() } : {}),
+    ...(isSoft() ? { marginHorizontal: 10, marginTop: 4, marginBottom: 10, paddingBottom: 12, borderRadius: 32, borderWidth: 1, borderColor: colors.hairline, ...softShadow() } : {}),
   },
   input: {
     color: colors.text,

@@ -1,7 +1,7 @@
 // Appointments and care team (convex/visits.ts): upcoming and past visits with questions to ask beforehand and
 // notes afterwards, a shortcut to a visit summary for each, and the people in your care with tap-to-call.
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,11 +11,11 @@ import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
+import { confirmAsk, errorText } from "./feedback";
 
 type Kind = "in_person" | "video" | "phone";
 type Item = NonNullable<(typeof api.visits.list)["_returnType"]>["upcoming"][number];
 const KIND_ICON: Record<Kind, keyof typeof Ionicons.glyphMap> = { in_person: "business-outline", video: "videocam-outline", phone: "call-outline" };
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 const whenText = (ms: number) => new Date(ms).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -27,15 +27,6 @@ function toMs(date: string, time: string) {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(t[1]), Number(t[2])).getTime();
 }
 
-function confirm(title: string, ok: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(title));
-  return new Promise((resolve) =>
-    Alert.alert(title, undefined, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: ok, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: (reason: string) => void }) {
   const update = useMutation(api.visits.update);
@@ -50,7 +41,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
   const [error, setError] = useState<string | null>(null);
   const id = item._id as Id<"visits">;
   const isVisit = item.source === "visit";
-  const run = (fn: () => Promise<unknown>) => fn().catch((e) => setError(cleanError(e)));
+  const run = (fn: () => Promise<unknown>) => fn().catch((e) => setError(errorText(e)));
 
   return (
     <View style={[styles.card, item.status === "cancelled" && styles.faded]}>
@@ -136,7 +127,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
                     <Text style={styles.link}>{s.visitsReopen}</Text>
                   </Tap>
                 )}
-                <Tap onPress={async () => (await confirm(s.visitsDeleteConfirm, s.delete, s.cancel)) && void run(() => remove({ id }))} accessibilityRole="button">
+                <Tap onPress={async () => (await confirmAsk({ title: s.visitsDeleteConfirm, ok: s.delete, cancel: s.cancel })) && void run(() => remove({ id }))} accessibilityRole="button">
                   <Text style={[styles.link, styles.danger]}>{s.delete}</Text>
                 </Tap>
               </View>
@@ -168,7 +159,7 @@ function TeamSection({ s }: { s: Strings }) {
       setDraft(empty);
       setEditing(false);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 
@@ -195,7 +186,7 @@ function TeamSection({ s }: { s: Strings }) {
           <Tap onPress={() => (setDraft({ id: m._id, name: m.name, role: m.role ?? "", phone: m.phone ?? "", email: m.email ?? "", clinic: m.clinic ?? "" }), setEditing(true))} accessibilityRole="button" accessibilityLabel={`${s.edit} ${m.name}`}>
             <Ionicons name="create-outline" size={19} color={colors.muted} />
           </Tap>
-          <Tap onPress={async () => (await confirm(s.careTeamRemoveConfirm.replace("{name}", m.name), s.remove, s.cancel)) && void remove({ id: m._id })} accessibilityRole="button" accessibilityLabel={`${s.remove} ${m.name}`}>
+          <Tap onPress={async () => (await confirmAsk({ title: s.careTeamRemoveConfirm.replace("{name}", m.name), ok: s.remove, cancel: s.cancel })) && void remove({ id: m._id })} accessibilityRole="button" accessibilityLabel={`${s.remove} ${m.name}`}>
             <Ionicons name="close" size={20} color={colors.danger} />
           </Tap>
         </View>
@@ -263,7 +254,7 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
       setPrep("");
       setClinicianId(null);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 

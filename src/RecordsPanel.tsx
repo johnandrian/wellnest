@@ -1,7 +1,7 @@
 // Records (convex/records.ts): lab reports and clinic letters added as a photo or PDF. Each is read into a plain
 // summary and its test results; tests seen more than once (or out of range) get a small trend at the top.
 import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, ScrollView, Text, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -13,22 +13,13 @@ import { colors, radius, tint, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadFile, uploadPhoto } from "./photo";
 import { Enter, Reveal, SwapIcon } from "./Motion";
+import { confirmAsk, errorText } from "./feedback";
 
 type Flag = "low" | "normal" | "high" | "abnormal";
 const KIND_ICON: Record<string, IconName> = { lab: "recordLab", letter: "recordLetter", imaging: "recordImaging", other: "recordOther" };
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const out = (f: Flag | null | undefined) => !!f && f !== "normal";
 
-function confirm(title: string, message: string, ok: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: ok, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 const shortDate = (date: string, s: Strings) => new Date(`${date}T12:00:00`).toLocaleDateString(s.locale, { month: "short", year: "2-digit" });
 const longDate = (date: string, s: Strings) => new Date(`${date}T12:00:00`).toLocaleDateString(s.locale, { day: "numeric", month: "short", year: "numeric" });
@@ -128,7 +119,7 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
         <Tap
           style={styles.action}
           onPress={async () => {
-            if (await confirm(s.recordsDeleteTitle, s.recordsDeleteBody, s.remove, s.cancel)) await remove({ id });
+            if (await confirmAsk({ title: s.recordsDeleteTitle, message: s.recordsDeleteBody, ok: s.remove, cancel: s.cancel })) await remove({ id });
           }}
           accessibilityRole="button"
         >
@@ -169,7 +160,7 @@ export function RecordsPanel({ s }: { s: Strings }) {
       }
       await add({ storageId: storageId as Id<"_storage"> });
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     } finally {
       setBusy(null);
     }

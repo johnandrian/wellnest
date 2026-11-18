@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
+import { errorText, showToast } from "./feedback";
 import type { Strings } from "./i18n";
 import { ReportSection, SectionChips } from "./ReportCard";
 
@@ -35,7 +36,6 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
   const [rangeDays, setRangeDays] = useState(90);
   const [expires, setExpires] = useState<number | null>(7);
   const [made, setMade] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const make = async () => {
@@ -46,16 +46,13 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
       setMaking(false);
       setLabel("");
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     }
   };
 
   const send = async (url: string) => {
     const how = await shareUrl(url, s.shareTitle).catch(() => null);
-    if (how === "copied") {
-      setNotice(s.copied);
-      setTimeout(() => setNotice(null), 2000);
-    }
+    if (how === "copied") showToast(s.copied);
   };
 
   const active = links?.filter((l) => l.status === "active") ?? [];
@@ -78,7 +75,6 @@ export function ShareCard({ s, presetSections, presetLabel }: { s: Strings; pres
           </Tap>
         </View>
       )}
-      {notice && <Text style={styles.small}>✓ {notice}</Text>}
 
       {making ? (
         <View style={styles.form}>

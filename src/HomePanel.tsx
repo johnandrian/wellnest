@@ -12,6 +12,7 @@ import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
 import { colors, radius, round, scaleColor, themed, tint, ui } from "./theme";
+import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
 import { TOOLS, type HubTab } from "./HubPanel";
@@ -224,7 +225,7 @@ function VisitQuestions({ visit, s, onOpen, demo }: { visit: Visit; s: Strings; 
     try {
       await suggest({ id: visit._id as Id<"visits"> });
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

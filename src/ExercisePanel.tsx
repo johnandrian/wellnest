@@ -10,8 +10,8 @@ import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
+import { errorText } from "./feedback";
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const num = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
 
 export function ExercisePanel({ s }: { s: Strings }) {
@@ -37,7 +37,7 @@ export function ExercisePanel({ s }: { s: Strings }) {
       setAdding(false);
       setName(""); setSets(""); setReps(""); setMinutes(""); setDays([]); setNotes("");
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 

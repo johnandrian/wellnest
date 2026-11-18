@@ -4,7 +4,7 @@
 // refills, the eScript photo, side effects and history. A pill bottle scan fills the add form, and the medication
 // list prints or saves as a PDF (./medList.ts). Reminder messages with Taken / Skip appear in the chat.
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, Platform, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Image, Platform, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,13 +18,13 @@ import { DoseInput } from "./DoseInput";
 import { useLabelScan, timesFor } from "./labelScan";
 import { medListHtml, printHtml } from "./medList";
 import { Icon } from "./Icon";
+import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
 
 type Mode = "daily" | "interval";
 type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
 const FORMS = ["tablet", "capsule", "liquid", "inhaler", "patch", "injection", "cream", "drops", "other"] as const;
 type Form = (typeof FORMS)[number];
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 const describe = (r: Rule, s: Strings) =>
   r.kind === "daily" ? s.dailyAt.replace("{times}", r.times.join(", ")) : s.everyNHours.replace("{n}", String(r.everyHours));
@@ -35,15 +35,6 @@ function when(at: number, s: Strings) {
   return d.toDateString() === new Date().toDateString() ? `${s.today} ${time}` : `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
 }
 
-function confirm(title: string, message: string, ok: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: ok, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 const parseTimes = (text: string) => text.split(/[,\s]+/).filter(Boolean);
 
@@ -139,6 +130,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
   const [supplyDraft, setSupplyDraft] = useState<{ left: string; perDose: string; warnDays: string } | null>(null);
   const [refillAmount, setRefillAmount] = useState("");
   const [busy, setBusy] = useState(false);
+  const isHidden = useHidden();
   const [error, setError] = useState<string | null>(null);
 
   if (med === undefined) return <ActivityIndicator color={colors.primary} />;
@@ -150,7 +142,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
     try {
       await fn();
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -310,13 +302,13 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
       )}
 
       <Text style={styles.section}>{s.medSideEffects}</Text>
-      {med.sideEffects.map((e) => (
+      {med.sideEffects.filter((e) => !isHidden(e._id)).map((e) => (
         <View key={e._id} style={styles.inline}>
           <Text style={[styles.line, styles.flex]}>
             {e.date.slice(5)} · {e.effect}
             {e.severity !== null ? ` ${e.severity}/10` : ""}
           </Text>
-          <Tap onPress={() => void run(() => removeEffect({ id: e._id }))} accessibilityRole="button" accessibilityLabel={s.remove}>
+          <Tap onPress={() => removeWithUndo({ key: e._id, text: `${s.removed}: ${e.effect}`, run: () => removeEffect({ id: e._id }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={s.remove}>
             <Ionicons name="close" size={18} color={colors.muted} />
           </Tap>
         </View>
@@ -349,7 +341,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
           )}
           <Tap
             onPress={async () => {
-              if (await confirm(s.medStopTitle.replace("{name}", med.name), s.medStopBody, s.medStop, s.cancel)) await run(() => stop({ id }));
+              if (await confirmAsk({ title: s.medStopTitle.replace("{name}", med.name), message: s.medStopBody, ok: s.medStop, cancel: s.cancel })) await run(() => stop({ id }));
             }}
             accessibilityRole="button"
           >
@@ -422,7 +414,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       }));
       await printHtml(medListHtml(rows, s, me?.name ?? undefined), s, s.medList);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     } finally {
       setPrinting(false);
     }
@@ -456,7 +448,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       setTimeDoses({});
       setFromLabel(null);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 

@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
+import { errorText, showToast } from "./feedback";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
 import type { Strings } from "./i18n";
@@ -26,7 +27,6 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
   const [reason, setReason] = useState(initialReason ?? "");
   const [days, setDays] = useState(30);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [composing, setComposing] = useState(!!initialReason);
 
   const generating = latest?.status === "generating";
@@ -38,7 +38,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
       await create({ reason: reason.trim() || undefined, days });
       setComposing(false);
     } catch (e) {
-      setError((e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0]);
+      setError(errorText(e));
     }
   };
 
@@ -57,8 +57,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
 
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    showToast(s.copied);
   };
 
   return (
@@ -124,7 +123,7 @@ export function VisitPanel({ s, initialReason }: { s: Strings; initialReason?: s
             {Platform.OS === "web" && (
               <Tap style={styles.action} onPress={() => void copy(latest.text!)} accessibilityRole="button">
                 <Ionicons name="copy-outline" size={18} color={colors.primary} />
-                <Text style={styles.link}>{copied ? s.copied : s.copy}</Text>
+                <Text style={styles.link}>{s.copy}</Text>
               </Tap>
             )}
             <Tap style={styles.action} onPress={() => setComposing(true)} accessibilityRole="button">

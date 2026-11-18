@@ -11,6 +11,7 @@ import { colors, pillish, round, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
 import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } from "../convex/lib/units";
+import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 
 type Tracker = "pain" | "asthma" | "seizure" | "glucose";
 const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
@@ -21,7 +22,6 @@ const TYPES = ["aching", "burning", "stabbing", "throbbing", "shooting", "tingli
 const SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathless"] as const;
 const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] as const;
 const PAIN_FLAGS = ["flare", "swelling", "colourChange", "temperatureChange", "touchSensitive"] as const;
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const numOrUndef = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
 const sevColor = (n: number) => (n >= 7 ? colors.danger : n >= 4 ? colors.amber : colors.mint);
 
@@ -73,7 +73,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const setBest = useMutation(api.trackers.setPeakFlowBest);
   const [tracker, setTracker] = useState<Tracker | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const isHidden = useHidden();
 
   // Pain form
   const [severity, setSeverity] = useState<number | null>(null);
@@ -148,10 +148,9 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
         });
       }
       reset();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      showToast(s.trkSaved);
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 
@@ -250,7 +249,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           <View style={styles.inline}>
             <Text style={styles.label}>{s.trkBest}</Text>
             <TextInput style={[styles.input, styles.short]} value={best || (bestFlow ? String(bestFlow) : "")} onChangeText={setBestText} keyboardType="numeric" accessibilityLabel={s.trkBest} />
-            <Tap onPress={() => void setBest({ value: numOrUndef(best) ?? null }).catch((e) => setError(cleanError(e)))} accessibilityRole="button">
+            <Tap onPress={() => void setBest({ value: numOrUndef(best) ?? null }).catch((e) => setError(errorText(e)))} accessibilityRole="button">
               <Text style={styles.link}>{s.save}</Text>
             </Tap>
           </View>
@@ -324,16 +323,15 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
             <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.journalSave}</Text>
             </Tap>
-            {saved && <Text style={styles.small}>✓ {s.trkSaved}</Text>}
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
-          {list.slice(0, 15).map((e) => (
+          {list.filter((e) => !isHidden(e._id)).slice(0, 15).map((e) => (
             <View key={e._id} style={styles.entry}>
               <Text style={[styles.line, styles.flex]}>
                 {new Date(e.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {line(tracker, e)}
                 {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
               </Text>
-              <Tap onPress={() => void remove({ id: e._id as Id<"trackerEntries"> })} accessibilityRole="button" accessibilityLabel={s.remove}>
+              <Tap onPress={() => removeWithUndo({ key: e._id, text: s.removed, run: () => remove({ id: e._id as Id<"trackerEntries"> }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={s.remove}>
                 <Ionicons name="close" size={18} color={colors.muted} />
               </Tap>
             </View>

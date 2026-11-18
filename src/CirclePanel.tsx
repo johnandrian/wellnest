@@ -15,11 +15,11 @@ import { Enter, Reveal, SwapIcon } from "./Motion";
 import { shareUrl } from "./ShareCard";
 import { colors, pillish, radius, round, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
+import { errorText, showToast } from "./feedback";
 
 type Alerts = { missedDoses: boolean; forecast: boolean };
 type Person = { ownerId: Id<"users">; name: string };
 
-const errorText = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 const shortDate = (at: number | string, locale: string) =>
   new Date(typeof at === "string" ? `${at}T12:00:00` : at).toLocaleDateString(locale, { month: "short", day: "numeric" });
 const alertList = (a: Alerts, s: Strings) =>
@@ -292,7 +292,6 @@ function MyCircle({ s }: { s: Strings }) {
   const [alerts, setNewAlerts] = useState<Alerts>({ missedDoses: true, forecast: true });
   const [made, setMade] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const create = async () => {
@@ -309,10 +308,7 @@ function MyCircle({ s }: { s: Strings }) {
 
   const send = async (url: string) => {
     const how = await shareUrl(url, s.circleInviteShareTitle).catch(() => null);
-    if (how === "copied") {
-      setNotice(s.copied);
-      setTimeout(() => setNotice(null), 2000);
-    }
+    if (how === "copied") showToast(s.copied);
   };
 
   return (
@@ -398,7 +394,6 @@ function MyCircle({ s }: { s: Strings }) {
           </View>
         )}
       </Reveal>
-      {notice && <Text style={styles.small}>✓ {notice}</Text>}
 
       {!making && (
         <Tap style={styles.addButton} onPress={() => (setMaking(true), setMade(null))} accessibilityRole="button">

@@ -2,7 +2,7 @@
 // the trash button deletes it after a yes. It slides in over a dimmed chat and slides back out when closed.
 // The search box above "New chat" finds chats by their title or anything said in them.
 import { useState } from "react";
-import { Alert, Animated, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
@@ -12,17 +12,9 @@ import { Icon } from "./Icon";
 import { colors, radius, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { Enter, SwapIcon, usePresence } from "./Motion";
+import { confirmAsk } from "./feedback";
 import { useInsets } from "./safeArea";
 
-function confirmDelete(s: Strings): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(s.deleteChatBody));
-  return new Promise((resolve) =>
-    Alert.alert(s.deleteChat, s.deleteChatBody, [
-      { text: s.cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: s.delete, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 function dayLabel(at: number, s: Strings) {
   const d = new Date(at);
@@ -143,7 +135,7 @@ function Drawer({ s, onClose }: { s: Strings; onClose: () => void }) {
               <Tap
                 style={styles.trash}
                 onPress={async () => {
-                  if (await confirmDelete(s)) await remove({ chatId: c._id as Id<"chats"> });
+                  if (await confirmAsk({ title: s.deleteChat, message: s.deleteChatBody, ok: s.delete, cancel: s.cancel })) await remove({ chatId: c._id as Id<"chats"> });
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={`${s.deleteChat}: ${c.title || s.chatUntitled}`}
@@ -168,7 +160,7 @@ const styles = themed(() => ({
     maxWidth: WIDTH,
     height: "100%",
     backgroundColor: colors.surface,
-    paddingTop: Platform.OS === "web" ? 12 : 56,
+    paddingTop: 12, // plus the status bar on a phone, added where it is drawn
     borderTopRightRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
   },

@@ -5,7 +5,7 @@
 // Each ends with an invitation to keep it in Wellnest instead. Both follow the welcome page's look (src/design.ts):
 // in the soft one, the cards sit in trays, the buttons are pills and the headings are larger.
 import { ReactNode, useEffect, useState } from "react";
-import { Alert, Image, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { Image, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
@@ -15,6 +15,7 @@ import type { Strings } from "./i18n";
 import { MedRow, medListHtml, printHtml } from "./medList";
 import { Checklist } from "./GuidesPanel";
 import { Bezel, Eyebrow, font, Pill } from "./soft";
+import { confirmAsk } from "./feedback";
 
 const LIST_KEY = "wellnest.medList";
 const CHECK_KEY = "wellnest.checklist";
@@ -37,15 +38,6 @@ function save(key: string, value: unknown) {
   }
 }
 
-function confirm(text: string, ok: string, cancel: string): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(window.confirm(text));
-  return new Promise((resolve) =>
-    Alert.alert(text, undefined, [
-      { text: cancel, style: "cancel", onPress: () => resolve(false) },
-      { text: ok, style: "destructive", onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 function Page({ s, onBack, children }: { s: Strings; onBack: () => void; children: ReactNode }) {
   if (isSoft()) {
@@ -166,7 +158,7 @@ export function MedListTool({ s, onBack, onCreate }: { s: Strings; onBack: () =>
           <Tap
             style={styles.clear}
             onPress={async () => {
-              if (await confirm(s.mlClearAsk, s.mlClear, s.cancel)) {
+              if (await confirmAsk({ title: s.mlClearAsk, ok: s.mlClear, cancel: s.cancel })) {
                 setWho("");
                 setRows([EMPTY]);
               }
@@ -189,7 +181,7 @@ export function MedListTool({ s, onBack, onCreate }: { s: Strings; onBack: () =>
         <Tap
           style={styles.clear}
           onPress={async () => {
-            if (await confirm(s.mlClearAsk, s.mlClear, s.cancel)) {
+            if (await confirmAsk({ title: s.mlClearAsk, ok: s.mlClear, cancel: s.cancel })) {
               setWho("");
               setRows([EMPTY]);
             }

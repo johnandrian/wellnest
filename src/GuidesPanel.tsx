@@ -14,11 +14,11 @@ import { Enter, SwapIcon } from "./Motion";
 import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import type { HubTab } from "./HubPanel";
+import { errorText } from "./feedback";
 
 // Which condition extras go with which focus picked in account setup (src/Onboarding.tsx).
 const EXTRA_FOR = ["pain", "asthma", "seizures"] as const;
 
-const cleanError = (e: unknown) => (e as Error).message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
 
 export function checklistItems(s: Strings, extras: number[]) {
   return [
@@ -90,7 +90,7 @@ export function GuidesPanel({ s, onOpen }: { s: Strings; onOpen: (t: HubTab) => 
     try {
       await fn();
     } catch (e) {
-      setError(cleanError(e));
+      setError(errorText(e));
     }
   };
 
