@@ -20,6 +20,7 @@ import { medListHtml, printHtml } from "./medList";
 import { Icon } from "./Icon";
 import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
 import { formatDate, formatTime } from "./format";
+import { TimesField } from "./TimesField";
 
 type Mode = "daily" | "interval";
 type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
@@ -560,7 +561,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
           </View>
           {mode === "daily" ? (
             <>
-              <TextInput style={styles.input} placeholder={s.timesPlaceholder} placeholderTextColor={colors.muted} value={times} onChangeText={setTimes} autoCapitalize="none" />
+              <TimesField value={times} onChange={setTimes} s={s} />
               {parsedTimes.length > 1 && (
                 <>
                   <Text style={styles.small}>{s.medDosePerTime}</Text>

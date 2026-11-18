@@ -1,7 +1,7 @@
 // PDF reports (convex/reports.ts): pick a date range and sections, then save a PDF and share it (iOS/Android, via
 // expo-print and the share sheet) or print / save as PDF (web).
 import { useState } from "react";
-import { ActivityIndicator, Platform, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useConvex } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +13,7 @@ import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
+import { DateField } from "./DateTimeField";
 
 export const REPORT_SECTIONS = ["facts", "medications", "journal", "trackers", "exercises", "health", "appointments", "emergency"] as const;
 export type ReportSection = (typeof REPORT_SECTIONS)[number];
@@ -56,9 +57,9 @@ export function RangePicker({ from, to, onChange, s }: { from: string; to: strin
         })}
       </View>
       <View style={styles.inline}>
-        <TextInput style={[styles.input, styles.date]} value={from} onChangeText={(v) => onChange(v, to)} accessibilityLabel={s.reportFrom} placeholder="YYYY-MM-DD" placeholderTextColor={colors.muted} />
+        <DateField value={from} onChange={(v) => onChange(v, to)} label={s.reportFrom} s={s} />
         <Text style={styles.label}>–</Text>
-        <TextInput style={[styles.input, styles.date]} value={to} onChangeText={(v) => onChange(from, v)} accessibilityLabel={s.reportTo} placeholder="YYYY-MM-DD" placeholderTextColor={colors.muted} />
+        <DateField value={to} onChange={(v) => onChange(from, v)} label={s.reportTo} s={s} />
       </View>
     </View>
   );
@@ -122,7 +123,6 @@ const styles = themed(() => ({
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   label: { color: colors.text },
   input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, minWidth: 0 },
-  date: { width: 120 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },

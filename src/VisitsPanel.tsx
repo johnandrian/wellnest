@@ -13,6 +13,7 @@ import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
 import { confirmAsk, errorText } from "./feedback";
 import { formatDateTime } from "./format";
+import { DateField, TimeField } from "./DateTimeField";
 
 type Kind = "in_person" | "video" | "phone";
 type Item = NonNullable<(typeof api.visits.list)["_returnType"]>["upcoming"][number];
@@ -270,8 +271,8 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
         <View style={styles.form}>
           <TextInput style={styles.input} placeholder={s.visitsTitlePlaceholder} placeholderTextColor={colors.muted} value={title} onChangeText={setTitle} />
           <View style={styles.row}>
-            <TextInput style={[styles.input, styles.date]} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.muted} accessibilityLabel={s.visitsDate} />
-            <TextInput style={[styles.input, styles.time]} value={time} onChangeText={setTime} placeholder="HH:MM" placeholderTextColor={colors.muted} accessibilityLabel={s.visitsTime} />
+            <DateField value={date} onChange={setDate} label={s.visitsDate} s={s} />
+            <TimeField value={time} onChange={setTime} label={s.visitsTime} s={s} />
           </View>
           <View style={styles.chips}>
             {(["in_person", "video", "phone"] as const).map((k) => (
@@ -346,8 +347,6 @@ const styles = themed(() => ({
   form: { gap: 8 },
   input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: round(8), paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   multi: { minHeight: 60, textAlignVertical: "top" },
-  date: { width: 130 },
-  time: { width: 80 },
   chips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   chip: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 4 },
   chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
