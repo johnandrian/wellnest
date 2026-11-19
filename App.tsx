@@ -19,6 +19,7 @@ import { useAppFonts } from "./src/soft";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastHost } from "./src/feedback";
 import { useInsets } from "./src/safeArea";
+import { LockGate } from "./src/AppLock";
 
 // A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
 takeInviteFromUrl();
@@ -127,8 +128,12 @@ function Home() {
     void setTimeZone({ timeZone, utcOffsetMin: -new Date().getTimezoneOffset() }).catch(() => {});
   }, [setTimeZone]);
   if (me === undefined) return <ActivityIndicator style={{ flex: 1 }} />;
-  if (me && (!me.onboarded || redo)) return <Onboarding onDone={() => setRedo(false)} />;
-  return <Chat onRedoSetup={() => setRedo(true)} />;
+  // On phones with app lock on, a lock screen covers the app until the PIN or Face ID / fingerprint (src/AppLock.tsx).
+  return (
+    <LockGate s={strings(me?.language)}>
+      {me && (!me.onboarded || redo) ? <Onboarding onDone={() => setRedo(false)} /> : <Chat onRedoSetup={() => setRedo(true)} />}
+    </LockGate>
+  );
 }
 
 const styles = themed(() => ({

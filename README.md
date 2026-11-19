@@ -295,6 +295,9 @@ Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a
 ## Signing in
 Email and password (Convex Auth's Password provider). The password field has a show / hide button, and sign-up says it needs at least 8 characters. Errors say what happened (`src/authErrors.ts`): an address that isn't an email, a password that's too short, an email that already has an account, a wrong email or password, or no connection. There's no email service, so there's no password reset by email; **Change password** in Settings → Account (`account.changePassword`) asks for the current password, needs 8 characters for the new one, and signs out every other device.
 
+## App lock
+On phones, Settings → Privacy → **App lock** asks for a 4 to 6 digit PIN, and Face ID, Touch ID, or a fingerprint when the phone has one set up (`expo-local-authentication`). The PIN is kept in the phone's secure storage (Keychain or Keystore) and never leaves the phone (`src/lockStore.ts`). A lock screen covers the app when it opens and when it comes back after a minute or more away (`src/AppLock.tsx`, `src/lockRules.ts`); 5 wrong PINs make it wait 30 seconds, and "Forgot your PIN? Sign out" turns the lock off and signs out. Turning it off needs the PIN or Face ID / fingerprint. The web has no app lock.
+
 ## What Wellnest knows about me
 Settings → **What Wellnest knows about me** shows, in one place:
 - **Saved facts:** lasting health facts (allergies, conditions, regular medications...) that go into the system prompt on every turn and into visit summaries. The model saves them with `remember_fact` and removes them with `forget_fact` ("I'm not allergic to penicillin after all"); the user can add, edit and remove them. Up to 50, each labelled "saved by Wellnest" or "added by you".

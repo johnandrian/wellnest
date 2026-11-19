@@ -40,6 +40,12 @@
     },
     "plugins": [
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Wellnest uses Face ID to unlock the app when you turn on app lock."
+        }
+      ],
       "expo-audio",
       [
         "@kingstinct/react-native-healthkit",
