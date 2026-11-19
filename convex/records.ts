@@ -223,6 +223,36 @@ export const trends = query({
   },
 });
 
+// Every result of one test, newest first, with the record it came from: the test's full history.
+export const testHistory = query({
+  args: { key: v.string() },
+  handler: async (ctx, { key }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    const rows = await ctx.db
+      .query("labResults")
+      .withIndex("by_user_and_key_and_date", (q) => q.eq("userId", userId).eq("key", key))
+      .order("desc")
+      .take(200);
+    const titles = new Map<Id<"records">, string | null>();
+    for (const r of rows) if (!titles.has(r.recordId)) titles.set(r.recordId, (await ctx.db.get(r.recordId))?.title ?? null);
+    return rows.map((r) => ({
+      _id: r._id,
+      recordId: r.recordId,
+      recordTitle: titles.get(r.recordId) ?? null,
+      date: r.date,
+      test: r.test,
+      value: r.value ?? null,
+      text: r.text ?? null,
+      unit: r.unit ?? null,
+      low: r.low ?? null,
+      high: r.high ?? null,
+      flag: r.flag ?? null,
+      corrected: !!r.corrected,
+    }));
+  },
+});
+
 export const rename = mutation({
   args: { id: v.id("records"), title: v.string() },
   handler: async (ctx, { id, title }) => {
