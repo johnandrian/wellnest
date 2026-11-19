@@ -7,19 +7,19 @@ import type { Entry, DailyLog } from "./journal";
 import type { HealthDay } from "./health";
 import type { TrackerEntry } from "./trackers";
 import type { WeatherDay } from "./weather";
-import { DEFAULT_UNITS, showGlucose, showWeight, type Units } from "./units";
+import { DEFAULT_UNITS, FEVER_C, showGlucose, showWeight, type Units } from "./units";
 
 export type Series = Map<string, number>; // date -> value
 
 // What the user wants to get better. `worse`: which direction is bad. `min`: the smallest gap worth a mention.
 // Weight has no bad direction ("none"): it's shown before and after medication changes and in the weekly summary,
 // but never called better or worse, and patterns aren't looked for in it.
-export type OutcomeKey = "pain" | "mood" | "energy" | "sleepQuality" | "peakFlow" | "reliever" | "seizures" | "glucose" | "weight" | `symptom:${string}`;
+export type OutcomeKey = "pain" | "mood" | "energy" | "sleepQuality" | "peakFlow" | "reliever" | "seizures" | "glucose" | "weight" | "bp" | `symptom:${string}`;
 export type Outcome = { key: OutcomeKey; worse: "high" | "low" | "none"; min: number; values: Series };
 
 // Things that might go with it. `lag` 1 means the day before counts (yesterday's steps, today's pain).
 export const FACTOR_KEYS = [
-  "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period", "weightGain", "glucose",
+  "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period", "weightGain", "glucose", "fever",
   "tempMax", "humidity", "pressureDrop", "rain", "aqi", "pollen",
 ] as const;
 export type FactorKey = (typeof FACTOR_KEYS)[number];
@@ -122,7 +122,16 @@ export function outcomes(input: Inputs, dates: string[]): Outcome[] {
 
   const weight = weightSeries(input);
   if (weight.size) out.push({ key: "weight", worse: "none", min: WEIGHT_STEP_KG, values: weight });
+
+  // Blood pressure: the day's highest top number (systolic), mmHg.
+  const bp = maxBy(input.trackers.flatMap((e): [string, number][] => (e.bp ? [[e.date, e.bp.systolic]] : [])));
+  if (bp.size) out.push({ key: "bp", worse: "high", min: 5, values: bp });
   return out;
+}
+
+// 1 on days with a temperature of 38 °C or more in the tracker, 0 on other days with a temperature logged.
+function feverSeries(input: Inputs): Series {
+  return maxBy(input.trackers.flatMap((e): [string, number][] => (e.temperature ? [[e.date, e.temperature.c >= FEVER_C ? 1 : 0]] : [])));
 }
 
 // The day's average glucose (mg/dL): from a sensor or meter in the phone's health data when there is one, else the
@@ -188,6 +197,7 @@ function factors(input: Inputs): Factor[] {
     },
     { key: "weightGain", values: weightGain(weightSeries(input)), lag: 0, binary: true, step: 1 },
     { key: "glucose", values: glucoseSeries(input), lag: 0, step: 10 },
+    { key: "fever", values: feverSeries(input), lag: 0, binary: true, step: 1 },
     { key: "tempMax", values: weather((w) => w.tempMax), lag: 0, step: 1 },
     { key: "humidity", values: weather((w) => w.humidity), lag: 0, step: 5 },
     { key: "pressureDrop", values: pressureDrop, lag: 0, binary: true, step: 1 },
