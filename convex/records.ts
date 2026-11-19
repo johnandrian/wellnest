@@ -1,6 +1,7 @@
 // Health records: the user adds a lab report or clinic letter as a photo or PDF, and the model reads it into a
 // plain-language summary in their language and, for labs, one row per test so each test can be followed over time.
-// The model also sees the latest results (forModel). The original file is kept so it can be opened again.
+// The model also sees the latest results (forModel). The original file is kept so it can be opened again. The user
+// can rename a record and fix a value the model misread.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalAction, internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
@@ -8,7 +9,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { langOf } from "./lib/language";
-import { LabResult, parseRecord, recordPrompt, testKey } from "./lib/records";
+import { flagFor, LabResult, parseRecord, recordPrompt, testKey } from "./lib/records";
 
 const MAX_BYTES = 15 * 1024 * 1024;
 const MAX_READING = 3; // records being read at once
@@ -160,6 +161,7 @@ export const list = query({
           fileType: r.fileType,
           results: results.length,
           flagged: results.filter((x) => x.flag && x.flag !== "normal").length,
+          tests: results.map((x) => x.test), // for search
         };
       }),
     );
@@ -176,7 +178,19 @@ export const detail = query({
     return {
       ...record,
       fileUrl: record.file ? await ctx.storage.getUrl(record.file) : null,
-      results: results.map(({ _id, test, key, value, text, unit, low, high, flag, explanation }) => ({ _id, test, key, value, text, unit, low, high, flag, explanation })),
+      results: results.map(({ _id, test, key, value, text, unit, low, high, flag, explanation, corrected }) => ({
+        _id,
+        test,
+        key,
+        value,
+        text,
+        unit,
+        low,
+        high,
+        flag,
+        explanation,
+        corrected: !!corrected,
+      })),
     };
   },
 });
@@ -206,6 +220,36 @@ export const trends = query({
       })
       .filter((t) => t.points.length > 1 || (t.flag && t.flag !== "normal"))
       .sort((a, b) => b.points[b.points.length - 1].date.localeCompare(a.points[a.points.length - 1].date) || a.test.localeCompare(b.test));
+  },
+});
+
+export const rename = mutation({
+  args: { id: v.id("records"), title: v.string() },
+  handler: async (ctx, { id, title }) => {
+    await own(ctx, id);
+    const name = title.trim().slice(0, 120);
+    if (!name) throw new Error("Give the record a name.");
+    await ctx.db.patch(id, { title: name });
+  },
+});
+
+// The user fixes a value the model misread: a number (the flag is worked out again from the printed range) or text
+// such as "Negative". It's marked as corrected.
+export const correctResult = mutation({
+  args: { id: v.id("labResults"), value: v.optional(v.number()), text: v.optional(v.string()), unit: v.optional(v.string()) },
+  handler: async (ctx, { id, value, text, unit }) => {
+    const userId = await getAuthUserId(ctx);
+    const row = await ctx.db.get(id);
+    if (!userId || !row || row.userId !== userId) throw new Error("Not found");
+    const words = text?.trim().slice(0, 100);
+    if (value === undefined ? !words : !Number.isFinite(value)) throw new Error("Enter the value as it's printed on the report.");
+    await ctx.db.patch(id, {
+      value,
+      text: value === undefined ? words : undefined,
+      unit: unit === undefined ? row.unit : unit.trim().slice(0, 30) || undefined,
+      flag: value === undefined ? row.flag : (flagFor(value, row.low, row.high) ?? row.flag),
+      corrected: true,
+    });
   },
 });
 

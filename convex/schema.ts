@@ -461,6 +461,7 @@ export default defineSchema({
     high: v.optional(v.number()),
     flag: v.optional(labFlag),
     explanation: v.string(),
+    corrected: v.optional(v.boolean()), // the user fixed a value the model misread
   })
     .index("by_record", ["recordId"])
     .index("by_user_and_key_and_date", ["userId", "key", "date"])
