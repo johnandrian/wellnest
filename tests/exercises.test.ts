@@ -51,6 +51,10 @@ describe("exercises", () => {
       ["Walk", [], true, false],
     ]);
     expect(list[0].last14.at(-1)).toEqual({ date: "2026-11-02", scheduled: true, done: true });
+    await as.mutation(api.exercises.update, { id, name: " Glute bridges ", sets: 2, reps: 15, days: [2, 4], notes: "slow" });
+    expect((await as.query(api.exercises.list, { date: "2026-11-03" }))![0]).toMatchObject({ name: "Glute bridges", sets: 2, reps: 15, days: [2, 4], notes: "slow" });
+    await expect(as.mutation(api.exercises.update, { id, name: " " })).rejects.toThrow(/name/);
+    await expect(other.as.mutation(api.exercises.update, { id, name: "Mine" })).rejects.toThrow(/Not found/);
     await as.mutation(api.exercises.toggle, { id, date: "2026-11-02", done: false });
     await as.mutation(api.exercises.stop, { id });
     expect((await as.query(api.exercises.list, { date: "2026-11-02" }))!.map((e) => e.name)).toEqual(["Walk"]);

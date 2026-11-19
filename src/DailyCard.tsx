@@ -1,17 +1,20 @@
-// "How's today?": mood, energy and sleep quality in one tap each (convex/daily.ts). In the chat it shows until today
-// is answered or skipped; in the Journal tab it's always there to change today's answers.
+// "How's today?": mood, energy and sleep quality in one tap each (convex/daily.ts), each row with its icon and the two
+// ends of its scale named under the faces. In the chat it shows until today is answered or skipped; in the Journal tab
+// it's always there to change today's answers.
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Tap } from "./Tap";
+import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, scaleColor, themed, TOUCH, ui } from "./theme";
+import { colors, radius, scaleColor, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { TapBars } from "./TapBars";
 import { formatDate } from "./format";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
 const KEYS = ["mood", "energy", "sleepQuality"] as const;
+const ICONS = { mood: "happy-outline", energy: "flash-outline", sleepQuality: "moon-outline" } as const;
 
 export function localDate(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -48,25 +51,35 @@ export function DailyCardView({ s, values, onPick, onSkip, inset = false }: {
   inset?: boolean;
 }) {
   const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
+  const ends = { mood: [s.dailyMoodLow, s.dailyMoodHigh], energy: [s.dailyEnergyLow, s.dailyEnergyHigh], sleepQuality: [s.dailySleepLow, s.dailySleepHigh] };
   return (
     <View style={[styles.card, inset && styles.inChat]}>
       <Text style={styles.title}>{s.dailyTitle}</Text>
       {KEYS.map((k) => (
         <View key={k} style={styles.row}>
-          <Text style={styles.label}>{label[k]}</Text>
-          <View style={styles.faces}>
-            {FACES.map((face, i) => (
-              <Tap
-                key={face}
-                style={[styles.face, values[k] === i + 1 && styles.faceOn]}
-                onPress={() => onPick(k, i + 1)}
-                accessibilityRole="radio"
-                accessibilityLabel={`${label[k]} ${i + 1}/5`}
-                accessibilityState={{ selected: values[k] === i + 1 }}
-              >
-                <Text style={styles.faceText}>{face}</Text>
-              </Tap>
-            ))}
+          <View style={styles.labelRow}>
+            <Ionicons name={ICONS[k]} size={18} color={colors.primary} />
+            <Text style={styles.label}>{label[k]}</Text>
+          </View>
+          <View>
+            <View style={styles.faces} accessibilityRole="radiogroup" accessibilityLabel={label[k]}>
+              {FACES.map((face, i) => (
+                <Tap
+                  key={face}
+                  style={[styles.face, values[k] === i + 1 && styles.faceOn]}
+                  onPress={() => onPick(k, i + 1)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${label[k]} ${i + 1}/5${i === 0 ? `, ${ends[k][0]}` : i === 4 ? `, ${ends[k][1]}` : ""}`}
+                  accessibilityState={{ selected: values[k] === i + 1 }}
+                >
+                  <Text style={styles.faceText}>{face}</Text>
+                </Tap>
+              ))}
+            </View>
+            <View style={styles.ends}>
+              <Text style={styles.end}>{ends[k][0]}</Text>
+              <Text style={styles.end}>{ends[k][1]}</Text>
+            </View>
           </View>
         </View>
       ))}
@@ -118,9 +131,12 @@ const styles = themed(() => ({
   inChat: { margin: 12, marginBottom: 0, maxWidth: 736, width: "100%", alignSelf: "center" },
   title: { fontSize: 15, fontWeight: "700", color: colors.text },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   label: { color: colors.text, fontSize: 14, flexShrink: 1 },
-  faces: { flexDirection: "row", gap: 4 },
-  face: { width: 34, height: 34, borderRadius: 26, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
+  faces: { flexDirection: "row", gap: 2 },
+  ends: { flexDirection: "row", justifyContent: "space-between" },
+  end: { color: colors.muted, fontSize: 11 },
+  face: { width: 40, height: 40, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "transparent" },
   faceOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   faceText: { fontSize: 20 },
   // "Not today": small words, but a full-size tap area.
