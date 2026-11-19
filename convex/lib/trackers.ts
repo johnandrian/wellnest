@@ -3,6 +3,7 @@
 // Validation, the option lists the app shows, and the text the model, visit summaries, and reports read.
 import { Infer, v } from "convex/values";
 import { DEFAULT_UNITS, FEVER_C, fmtGlucose, fmtTemp, fmtWeight, type Units } from "./units";
+import { periodStarts, type HealthDay } from "./health";
 
 export const PAIN_LOCATIONS = [
   "head", "neck", "shoulders", "chest", "upper_back", "lower_back", "abdomen", "hips",
@@ -21,6 +22,7 @@ export const tracker = v.union(
   v.literal("bp"),
   v.literal("weight"),
   v.literal("temperature"),
+  v.literal("period"),
 );
 export type Tracker = Infer<typeof tracker>;
 
@@ -68,6 +70,11 @@ export const temperatureDetails = v.object({ c: v.number() });
 export type BpDetails = Infer<typeof bpDetails>;
 export type WeightDetails = Infer<typeof weightDetails>;
 export type TemperatureDetails = Infer<typeof temperatureDetails>;
+// A period day logged in the app, for people who don't use a cycle app that writes to Apple Health or Health
+// Connect. The flow uses the same words as the phone's health data, so the two merge (withLoggedPeriods).
+export const PERIOD_FLOWS = ["light", "medium", "heavy", "unspecified"] as const;
+export const periodDetails = v.object({ flow: v.union(...PERIOD_FLOWS.map((f) => v.literal(f))) });
+export type PeriodDetails = Infer<typeof periodDetails>;
 export type PainDetails = Infer<typeof painDetails>;
 export type AsthmaDetails = Infer<typeof asthmaDetails>;
 export type SeizureDetails = Infer<typeof seizureDetails>;
@@ -147,6 +154,10 @@ export function cleanTemperature(t: Partial<TemperatureDetails>): TemperatureDet
   return { c: Math.round(c * 100) / 100 };
 }
 
+export function cleanPeriod(p: Partial<PeriodDetails>): PeriodDetails {
+  return { flow: PERIOD_FLOWS.find((f) => f === p.flow) ?? "unspecified" };
+}
+
 export function cleanSeizure(s: Partial<SeizureDetails>): SeizureDetails {
   return {
     type: (SEIZURE_TYPES as readonly string[]).includes(s.type ?? "") ? s.type : undefined,
@@ -170,6 +181,7 @@ export type TrackerEntry = {
   bp?: BpDetails;
   weight?: WeightDetails;
   temperature?: TemperatureDetails;
+  period?: PeriodDetails;
   note?: string;
 };
 
@@ -180,6 +192,7 @@ const flags = (p: PainDetails) =>
 export function entryLine(e: TrackerEntry, peakFlowBest?: number, units: Units = DEFAULT_UNITS): string {
   if (e.tracker === "bp" && e.bp) return `blood pressure ${e.bp.systolic}/${e.bp.diastolic} mmHg${e.bp.pulse ? `, pulse ${e.bp.pulse}` : ""}`;
   if (e.tracker === "weight" && e.weight) return `weight ${fmtWeight(e.weight.kg, units)}`;
+  if (e.tracker === "period" && e.period) return e.period.flow === "unspecified" ? "period" : `period (${e.period.flow} flow)`;
   if (e.tracker === "temperature" && e.temperature) return `temperature ${fmtTemp(e.temperature.c, units)}${e.temperature.c >= FEVER_C ? " (fever)" : ""}`;
   if (e.tracker === "glucose" && e.glucose) {
     return `glucose ${fmtGlucose(e.glucose.value, units)}${e.glucose.context ? ` (${human(e.glucose.context)})` : ""}`;
@@ -222,6 +235,22 @@ export function entryLine(e: TrackerEntry, peakFlowBest?: number, units: Units =
     ].filter(Boolean).join("; ");
   }
   return e.tracker;
+}
+
+// The phone's health days with the period days logged in the app added: a day logged here counts over the phone's
+// for its flow (the heaviest if logged twice), and a day the phone doesn't have is added. Oldest first.
+const FLOW_RANK = ["none", "unspecified", "light", "medium", "heavy"];
+export function withLoggedPeriods(health: HealthDay[], entries: TrackerEntry[]): HealthDay[] {
+  const logged = new Map<string, PeriodDetails["flow"]>();
+  for (const e of entries) {
+    if (!e.period) continue;
+    const had = logged.get(e.date);
+    if (!had || FLOW_RANK.indexOf(e.period.flow) > FLOW_RANK.indexOf(had)) logged.set(e.date, e.period.flow);
+  }
+  if (!logged.size) return health;
+  const out = new Map(health.map((d) => [d.date, d]));
+  for (const [date, flow] of logged) out.set(date, { date, metrics: { ...out.get(date)?.metrics, menstrualFlow: flow } });
+  return [...out.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 // Pain scores as journal entries ("pain", highest per day), so the journal's charts and patterns include them.
@@ -278,5 +307,7 @@ export function trackersText(entries: TrackerEntry[], peakFlowBest?: number, uni
     const feverDays = new Set(temps.filter((e) => e.temperature!.c >= FEVER_C).map((e) => e.date)).size;
     out.push(`Temperature: ${temps.length} readings, highest ${fmtTemp(max, units)}${feverDays ? `, fever on ${feverDays} days` : ""}.`);
   }
+  const period = withLoggedPeriods([], entries);
+  if (period.length) out.push(`Period: ${period.length} days logged, starting ${periodStarts(period).join(", ")}.`);
   return out.join("\n") + "\n" + entries.map((e) => `${e.date}: ${entryLine(e, peakFlowBest, units)}${e.note ? ` (${e.note})` : ""}`).join("\n");
 }
