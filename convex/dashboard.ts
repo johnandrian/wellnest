@@ -8,12 +8,16 @@ import { chartName } from "./lib/insightsText";
 import { isDate } from "./lib/health";
 import { langOf } from "./lib/language";
 import { daysLeft } from "./lib/meds";
+import { dueTimes, isTimed } from "./lib/reminders";
 import { unitsOf } from "./lib/units";
 import { gatherInputs, medChanges } from "./insights";
 
 const DAYS = 28;
 const MAX_CHARTS = 4;
 const WEEK_MS = 7 * 86_400_000;
+// A dose counts as overdue once it's an hour past due and unanswered, for the 12 hours after (the Today list's window).
+const LATE_MS = 60 * 60_000;
+const OVERDUE_WINDOW_MS = 12 * 60 * 60_000;
 
 // What to chart first for each setup focus; the rest fill in from whatever has data.
 const BY_FOCUS: Record<string, ChartMetric[]> = {
@@ -95,6 +99,16 @@ export const view = query({
       (d) => d.dueAt >= now - WEEK_MS && d.dueAt <= now,
     );
 
+    let overdue = 0;
+    for (const m of meds) {
+      if (m.pausedAt || !isTimed(m.schedule)) continue;
+      const from = Math.max(now - OVERDUE_WINDOW_MS, m._creationTime);
+      const due = dueTimes(m.schedule, from, now - LATE_MS, m.timeZone, m.utcOffsetMin, 24);
+      if (!due.length) continue;
+      const answered = new Set(doses.filter((d) => d.medicationId === m._id).map((d) => d.dueAt));
+      overdue += due.filter((at) => !answered.has(at)).length;
+    }
+
     const visit = (
       await ctx.db
         .query("visits")
@@ -112,6 +126,7 @@ export const view = query({
         taken: doses.filter((d) => d.status === "taken").length,
         answered: doses.length,
         lowSupply,
+        overdue,
       },
       // With its suggested questions (convex/questions.ts), shown on the dashboard in the week before.
       visit: visit ? { _id: visit._id, title: visit.title, startsAt: visit.startsAt, kind: visit.kind, questions: visit.questions ?? [] } : null,
