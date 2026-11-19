@@ -1,8 +1,9 @@
 // The pieces of "Share with my doctor" (./SharePanel.tsx): the time span and sections picked once for everything, a
 // PDF report of them (convex/reports.ts: expo-print and the share sheet on phones, the print dialog on the web), and
-// private read-only links (convex/share.ts) with an expiry, open counts, and a switch to turn each off.
+// private read-only links (convex/share.ts) with an expiry, open counts, a QR code to scan off the screen, a preview of
+// what the doctor sees, and a switch to turn each off (after a yes / no question).
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Platform, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Share, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +11,9 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { api } from "../convex/_generated/api";
 import { colors, themed, TOUCH, ui, radius } from "./theme";
-import { errorText, showToast } from "./feedback";
+import { confirmAsk, errorText, showToast } from "./feedback";
+import { QrCode } from "./QrCode";
+import { Reveal } from "./Motion";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
@@ -150,7 +153,12 @@ export function LinkAction({ s, from, sections }: { s: Strings; from: string; se
           <Text style={styles.url} selectable numberOfLines={2}>
             {made}
           </Text>
-          <SendButton url={made} s={s} />
+          <QrCode value={made} size={180} label={s.shareQrLabel} />
+          <Text style={[styles.small, styles.center]}>{s.shareQrHint}</Text>
+          <View style={styles.inline}>
+            <SendButton url={made} s={s} />
+            <PreviewButton url={made} s={s} />
+          </View>
         </View>
       )}
       <TextInput style={styles.input} placeholder={s.shareLabelPlaceholder} placeholderTextColor={colors.muted} accessibilityLabel={s.shareLabelPlaceholder} value={label} onChangeText={setLabel} maxLength={80} />
@@ -176,6 +184,18 @@ export function LinkAction({ s, from, sections }: { s: Strings; from: string; se
   );
 }
 
+// Opens the link the way the doctor will see it.
+function PreviewButton({ url, s }: { url: string; s: Strings }) {
+  return (
+    <Tap style={styles.icon} onPress={() => void Linking.openURL(url)} accessibilityRole="link" accessibilityLabel={s.sharePreview}>
+      <View style={styles.inline}>
+        <Ionicons name="eye-outline" size={18} color={colors.primary} />
+        <Text style={styles.link}>{s.sharePreview}</Text>
+      </View>
+    </Tap>
+  );
+}
+
 function SendButton({ url, s }: { url: string; s: Strings }) {
   const send = async () => {
     const how = await shareUrl(url, s.shareTitle).catch(() => null);
@@ -194,6 +214,11 @@ export function LinkList({ s }: { s: Strings }) {
   const now = useMemo(() => Math.floor(Date.now() / 60_000) * 60_000, []);
   const links = useQuery(api.share.list, { now });
   const revoke = useMutation(api.share.revoke);
+  const [qrFor, setQrFor] = useState<string | null>(null);
+  const turnOff = async (l: { _id: Parameters<typeof revoke>[0]["id"]; label?: string | null }) => {
+    if (!(await confirmAsk({ title: s.shareTurnOffConfirm.replace("{name}", l.label ?? s.shareUnnamed), message: s.shareTurnOffBody, ok: s.shareTurnOff, cancel: s.cancel, destructive: true }))) return;
+    await revoke({ id: l._id }).catch((e) => showToast(errorText(e)));
+  };
   const active = links?.filter((l) => l.status === "active") ?? [];
   const old = links?.filter((l) => l.status !== "active").slice(0, 5) ?? [];
   if (!active.length && !old.length) return null;
@@ -207,7 +232,8 @@ export function LinkList({ s }: { s: Strings }) {
     <View style={styles.card}>
       <Text style={styles.title}>{s.shareYourLinks}</Text>
       {active.map((l) => (
-        <View key={l._id} style={styles.linkRow}>
+        <View key={l._id} style={styles.linkItem}>
+        <View style={styles.linkRow}>
           <View style={styles.flex}>
             <Text style={styles.linkTitle}>{l.label ?? s.shareUnnamed}</Text>
             <Text style={styles.small}>
@@ -218,9 +244,20 @@ export function LinkList({ s }: { s: Strings }) {
           <Tap style={styles.icon} onPress={() => void send(l.url)} accessibilityRole="button" accessibilityLabel={Platform.OS === "web" ? s.copy : s.share}>
             <Ionicons name={Platform.OS === "web" ? "copy-outline" : "share-outline"} size={20} color={colors.primary} />
           </Tap>
-          <Tap style={styles.icon} onPress={() => void revoke({ id: l._id })} accessibilityRole="button" accessibilityLabel={s.shareTurnOff}>
+          <Tap style={styles.icon} onPress={() => setQrFor(qrFor === l._id ? null : l._id)} accessibilityRole="button" accessibilityLabel={s.shareQrLabel} accessibilityState={{ expanded: qrFor === l._id }}>
+            <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+          </Tap>
+          <Tap style={styles.icon} onPress={() => void turnOff(l)} accessibilityRole="button" accessibilityLabel={s.shareTurnOff}>
             <Text style={[styles.link, styles.danger]}>{s.shareTurnOff}</Text>
           </Tap>
+        </View>
+        <Reveal open={qrFor === l._id}>
+          <View style={styles.qrBox}>
+            <QrCode value={l.url} size={180} label={s.shareQrLabel} />
+            <Text style={[styles.small, styles.center]}>{s.shareQrHint}</Text>
+            <PreviewButton url={l.url} s={s} />
+          </View>
+        </Reveal>
         </View>
       ))}
       {old.map((l) => (
@@ -256,7 +293,10 @@ const styles = themed(() => ({
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   icon: { minWidth: TOUCH, minHeight: TOUCH, alignItems: "center", justifyContent: "center" },
-  linkRow: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: 1, borderTopColor: colors.hairline, paddingTop: 8 },
+  linkItem: { borderTopWidth: 1, borderTopColor: colors.hairline, paddingTop: 8 },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  qrBox: { alignItems: "center", gap: 6, paddingVertical: 8 },
+  center: { textAlign: "center" },
   linkTitle: { fontSize: 14, fontWeight: "600", color: colors.text },
   flex: { flex: 1, minWidth: 0 },
   error: { color: colors.danger, fontSize: 13 },
