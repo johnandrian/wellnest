@@ -7,7 +7,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalAction, internalMutation, internalQuery, mutation, MutationCtx, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { provider, slot, Slot, urgency, Urgency } from "./lib/telehealth";
+import { provider, slot, Slot, telehealthOn, urgency, Urgency } from "./lib/telehealth";
 import { langOf, t, timeText } from "./lib/language";
 import { notify } from "./push";
 import { insertMessage } from "./lib/chats";
@@ -20,6 +20,7 @@ const ACTIVE = ["finding", "suggested", "booking", "booked"];
 
 // Shared by the chat tool and the Care tab's button.
 async function requestVisit(ctx: MutationCtx, userId: Id<"users">, reason: string, when: Urgency) {
+  if (!telehealthOn()) return { error: "Video visits aren't set up in this app. Call your care team, or 911 if it's an emergency." };
   const recent = await ctx.db
     .query("appointments")
     .withIndex("by_user", (q) => q.eq("userId", userId).gte("_creationTime", Date.now() - DAY_MS))
@@ -306,6 +307,12 @@ export const get = query({
     const row = userId ? await ctx.db.get(id) : null;
     return row && row.userId === userId ? view(row) : null;
   },
+});
+
+// Whether video visits are set up (the Care tab hides its card otherwise).
+export const available = query({
+  args: {},
+  handler: () => telehealthOn(),
 });
 
 // The Care tab: the latest active or booked visit.

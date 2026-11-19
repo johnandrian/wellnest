@@ -80,3 +80,17 @@ describe("agent action inbox", () => {
     expect(await t.mutation(internal.agent.propose, { userId, ...draft })).toBeNull();
   });
 });
+
+describe("samples", () => {
+  test("the sample actions leave out the video visit when video visits aren't set up", async () => {
+    const t = setup();
+    const { userId } = await createAppUser(t);
+    vi.stubEnv("TELEHEALTH_PROVIDER", "");
+    await t.mutation(internal.agent.proposeSamples, { userId });
+    const kinds = async () => (await t.run((ctx) => ctx.db.query("agentActions").collect())).map((a) => a.details.kind);
+    expect(await kinds()).toEqual(["message_doctor", "set_reminder"]);
+    vi.stubEnv("TELEHEALTH_PROVIDER", "test");
+    await t.mutation(internal.agent.proposeSamples, { userId });
+    expect((await kinds()).filter((k) => k === "book_visit")).toHaveLength(1);
+  });
+});

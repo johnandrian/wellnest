@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { ActionCtx, internalAction, internalMutation, internalQuery, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { telehealthOn } from "./lib/telehealth";
 import { Doc, Id } from "./_generated/dataModel";
 import { ChatMessage, complete, CORE_MODEL, imageDataUrl, VISION_MODEL } from "./lib/cortex";
 import { embed } from "./lib/jina";
@@ -480,7 +481,7 @@ ${opts.emergencyPlan}`);
     ...toolDefs,
     saveLocationTool,
     findCareTool,
-    ...(urgent ? [] : [telehealthTool]),
+    ...(urgent || !telehealthOn() ? [] : [telehealthTool]),
     visitSummaryTool,
     ...reminderTools,
     ...visitTools,

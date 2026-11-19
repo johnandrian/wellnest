@@ -162,6 +162,29 @@ describe("telehealth in chat", () => {
   });
 });
 
+describe("not set up", () => {
+  test("with no provider set, video visits are hidden and refused, and no visit is suggested", async () => {
+    vi.stubEnv("TELEHEALTH_PROVIDER", "");
+    const t = setup();
+    const { calls } = mockApis({ core: [{ content: "Let's keep an eye on it." }] });
+    const { as } = await user(t);
+    expect(await as.query(api.telehealth.available, {})).toBe(false);
+    await expect(as.mutation(api.telehealth.request, { reason: "Rash", urgency: "today" })).rejects.toThrow(/aren't set up/);
+    await as.mutation(api.chat.send, { text: "a rash on my arm since yesterday" });
+    await settle(t);
+    expect(cortexCalls(calls)[0].body.tools.map((x: any) => x.function.name)).not.toContain("suggest_telehealth");
+    expect(await visitsOf(t)).toHaveLength(0);
+  });
+
+  test("the test provider and a real one both count as set up", async () => {
+    const t = setup();
+    const { as } = await user(t);
+    expect(await as.query(api.telehealth.available, {})).toBe(true);
+    vi.stubEnv("TELEHEALTH_PROVIDER", "http");
+    expect(await as.query(api.telehealth.available, {})).toBe(true);
+  });
+});
+
 describe("http provider", () => {
   test("follows the REST contract with the API key, and sends the reason and today's visit summary", async () => {
     vi.stubEnv("TELEHEALTH_PROVIDER", "http");
