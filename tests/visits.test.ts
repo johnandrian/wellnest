@@ -49,6 +49,22 @@ describe("care team", () => {
 });
 
 describe("appointments", () => {
+  test("a repeating appointment becomes one appointment per time, each with its own reminder", async () => {
+    const t = setup();
+    mockApis();
+    const { as } = await user(t);
+    const week = 7 * 24 * H;
+    await as.mutation(api.visits.add, { title: "Physio", startsAt: NOW + 5 * H, repeats: [NOW + 5 * H + week, NOW + 5 * H + 2 * week] });
+    const list = (await as.query(api.visits.list, { now: Date.now() }))!;
+    expect(list.upcoming.map((v) => [v.title, v.startsAt])).toEqual([
+      ["Physio", NOW + 5 * H],
+      ["Physio", NOW + 5 * H + week],
+      ["Physio", NOW + 5 * H + 2 * week],
+    ]);
+    await expect(as.mutation(api.visits.add, { title: "Physio", startsAt: NOW + 5 * H, repeats: [NOW] })).rejects.toThrow(/date and time/);
+    await expect(as.mutation(api.visits.add, { title: "Physio", startsAt: NOW, repeats: Array.from({ length: 26 }, (_, i) => NOW + (i + 1) * week) })).rejects.toThrow(/up to 26/);
+  });
+
   test("a reminder pushes 2 hours before; moving the time moves the reminder; done or cancelled sends none", async () => {
     const t = setup();
     const { calls } = mockApis();

@@ -16,6 +16,17 @@ import { confirmAsk, errorText, showToast } from "./feedback";
 import { formatDateTime } from "./format";
 import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 import { VisitPrep } from "./VisitPrep";
+import { icsFile, Repeat, repeatTimes } from "./ics";
+import { saveTextFile } from "./saveFile";
+
+const REPEATS: (Repeat | null)[] = [null, "week", "twoWeeks", "month"];
+const COUNTS = [4, 6, 12];
+
+// Hands the appointment to the calendar app (a download on the web).
+async function addToCalendar(item: { _id: string; title: string; startsAt: number; location?: string | null; prep?: string | null; clinician?: string | null }) {
+  const notes = [item.clinician, item.prep].filter(Boolean).join("\n");
+  await saveTextFile(`${item.title.replace(/[^\w\- ]+/g, "").trim() || "appointment"}.ics`, icsFile([{ uid: item._id, title: item.title, startsAt: item.startsAt, location: item.location, notes }]), "text/calendar", "com.apple.ical.ics");
+}
 
 type Kind = "in_person" | "video" | "phone";
 type Item = NonNullable<(typeof api.visits.list)["_returnType"]>["upcoming"][number];
@@ -126,6 +137,12 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
               <Ionicons name="clipboard-outline" size={16} color={colors.primary} />
               <Text style={styles.link}>{s.visitsMakeSummary}</Text>
             </Tap>
+            {item.status === "upcoming" && (
+              <Tap style={styles.action} onPress={() => void addToCalendar(item).catch(fail)} accessibilityRole="button">
+                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                <Text style={styles.link}>{s.visitsAddToCalendar}</Text>
+              </Tap>
+            )}
           </View>
           {isVisit && item.status === "upcoming" && (
             <View style={styles.questions}>
@@ -329,6 +346,8 @@ export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; on
   const [clinicianId, setClinicianId] = useState<Id<"careTeam"> | null>(null);
   const [location, setLocation] = useState("");
   const [prep, setPrep] = useState("");
+  const [repeat, setRepeat] = useState<Repeat | null>(null);
+  const [count, setCount] = useState(COUNTS[0]);
   const [error, setError] = useState<string | null>(null);
 
   const save = async () => {
@@ -336,8 +355,11 @@ export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; on
     const startsAt = toMs(date, time);
     if (Number.isNaN(startsAt)) return setError(s.visitsBadDate);
     try {
-      await add({ title, kind, startsAt, location: location || undefined, prep: prep || undefined, ...(clinicianId && { clinicianId }) });
+      const repeats = repeat ? repeatTimes(startsAt, repeat, count).slice(1) : undefined;
+      await add({ title, kind, startsAt, location: location || undefined, prep: prep || undefined, ...(clinicianId && { clinicianId }), ...(repeats && { repeats }) });
+      if (repeats) showToast(s.visitsRepeatAdded.replace("{n}", String(repeats.length + 1)));
       setAdding(false);
+      setRepeat(null);
       setTitle("");
       setLocation("");
       setPrep("");
@@ -393,6 +415,23 @@ export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; on
           )}
           <TextInput style={styles.input} placeholder={s.visitsLocationPlaceholder} placeholderTextColor={colors.muted} value={location} onChangeText={setLocation} />
           <TextInput style={[styles.input, styles.multi]} placeholder={s.visitsPrepPlaceholder} placeholderTextColor={colors.muted} value={prep} onChangeText={setPrep} multiline />
+          <Text style={styles.label}>{s.visitsRepeat}</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={s.visitsRepeat}>
+            {REPEATS.map((r) => (
+              <Tap key={r ?? "none"} style={[styles.chip, repeat === r && styles.chipOn]} onPress={() => setRepeat(r)} accessibilityRole="radio" accessibilityState={{ selected: repeat === r }}>
+                <Text style={[styles.chipText, repeat === r && styles.chipTextOn]}>{r ? s.visitsRepeatEvery[r] : s.visitsRepeatNone}</Text>
+              </Tap>
+            ))}
+          </View>
+          {repeat && (
+            <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={s.visitsRepeatTimes}>
+              {COUNTS.map((n) => (
+                <Tap key={n} style={[styles.chip, count === n && styles.chipOn]} onPress={() => setCount(n)} accessibilityRole="radio" accessibilityState={{ selected: count === n }}>
+                  <Text style={[styles.chipText, count === n && styles.chipTextOn]}>{s.visitsRepeatCount.replace("{n}", String(n))}</Text>
+                </Tap>
+              ))}
+            </View>
+          )}
           <View style={styles.row}>
             <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
               <Text style={styles.buttonText}>{s.save}</Text>
