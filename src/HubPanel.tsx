@@ -80,6 +80,7 @@ export function HubPanel({
   const [summaryReason, setSummaryReason] = useState<string | undefined>(undefined);
   const me = useQuery(api.chat.me);
   const tool = TOOLS.find((t) => t.tab === (tab === "prep" ? "visits" : tab));
+  const waiting = useQuery(api.agent.waiting);
   const group = tool ? groupOf(tool.tab) : null;
   // The tool last open in each group, so switching back lands where you were.
   const lastIn = useRef<Partial<Record<GroupKey, ToolTab>>>({});
@@ -139,6 +140,7 @@ export function HubPanel({
                     <Text style={[styles.tabText, on && styles.tabTextOn]} numberOfLines={1}>
                       {g.label(s)}
                     </Text>
+                    {g.key === "actions" && !!waiting?.count && <CountBadge n={waiting.count} urgent={waiting.urgent} s={s} />}
                   </Tap>
                 );
               })}
@@ -187,8 +189,21 @@ export function HubPanel({
   );
 }
 
+// A small count on the Actions tab and tile: red when one of them is urgent.
+export function CountBadge({ n, urgent, s }: { n: number; urgent: boolean; s: Strings }) {
+  return (
+    <View style={[styles.count, urgent && styles.countUrgent]} accessibilityLabel={s.actionsBadge.replace("{n}", String(n))}>
+      <Text style={[styles.countText, urgent && styles.countTextUrgent]}>{n > 9 ? "9+" : n}</Text>
+    </View>
+  );
+}
+
 const styles = themed(() => ({
   wrap: { flex: 1 },
+  count: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  countUrgent: { backgroundColor: colors.danger },
+  countText: { color: colors.onPrimary, fontSize: 12, fontWeight: "700" },
+  countTextUrgent: { color: colors.onDanger },
   body: { flex: 1 },
   // The floating top bar: it carries the greeting on the dashboard and the tool switcher inside a tool.
   header: {

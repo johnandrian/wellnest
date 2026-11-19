@@ -16,7 +16,7 @@ import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
 import { TodayDoses } from "./TodayDoses";
-import { GROUPS, TOOLS, type HubTab } from "./HubPanel";
+import { CountBadge, GROUPS, TOOLS, type HubTab } from "./HubPanel";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 import { axisDay } from "./format";
@@ -54,6 +54,7 @@ function trend(c: Chart): "better" | "worse" | "same" | null {
 export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTab) => void; onChat: () => void }) {
   const data = useDashboard();
   const insights = useQuery(api.insights.view, { today: localDate() });
+  const waiting = useQuery(api.agent.waiting);
   const [now] = useState(() => Date.now());
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
@@ -67,6 +68,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
       onChat={onChat}
       checkin={<DailyCard s={s} inChat flush />}
       doses={<TodayDoses s={s} compact />}
+      waiting={waiting}
     />
   );
 }
@@ -82,6 +84,8 @@ export function DashboardView(p: {
   checkin: ReactNode;
   // Today's doses to answer (./TodayDoses.tsx); the example dashboard has none.
   doses?: ReactNode;
+  // Actions waiting for the user's OK (convex/agent.ts waiting).
+  waiting?: { count: number; urgent: boolean };
   demo?: boolean;
   header?: ReactNode;
 }) {
@@ -135,6 +139,19 @@ export function DashboardView(p: {
           wide={wide}
         />
       </View>
+
+      {!!p.waiting?.count && (
+        <Enter>
+          <Tap style={[styles.waiting, p.waiting.urgent && styles.waitingUrgent]} onPress={() => onOpen("agent")} accessibilityRole="button">
+            <Icon name="agent" size={20} color={p.waiting.urgent ? colors.danger : colors.primary} />
+            <View style={styles.flex}>
+              <Text style={styles.waitingTitle}>{(p.waiting.count === 1 ? s.homeActionsOne : s.homeActionsMany).replace("{n}", String(p.waiting.count))}</Text>
+              {p.waiting.urgent && <Text style={styles.waitingUrgentText}>{s.homeActionsUrgent}</Text>}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Tap>
+        </Enter>
+      )}
 
       {p.doses}
 
@@ -221,9 +238,12 @@ export function DashboardView(p: {
                 <View style={[styles.toolIcon, { backgroundColor: tint[t.tint].bg }]}>
                   <Icon name={t.icon} size={24} color={tint[t.tint].fg} />
                 </View>
-                <Text style={styles.toolTitle} numberOfLines={1}>
-                  {t.label(s)}
-                </Text>
+                <View style={styles.toolHead}>
+                  <Text style={[styles.toolTitle, styles.flex]} numberOfLines={1}>
+                    {t.label(s)}
+                  </Text>
+                  {t.tab === "agent" && !!p.waiting?.count && <CountBadge n={p.waiting.count} urgent={p.waiting.urgent} s={s} />}
+                </View>
                 <Text style={styles.toolDesc} numberOfLines={2}>
                   {t.desc(s)}
                 </Text>
@@ -419,6 +439,11 @@ const styles = themed(() => ({
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   group: { gap: 8 },
+  toolHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  waiting: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderColor: colors.primary },
+  waitingUrgent: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
+  waitingTitle: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  waitingUrgentText: { color: colors.danger, fontSize: 13, fontWeight: "600", marginTop: 2 },
   groupTitle: { color: colors.muted, fontWeight: "700", ...kicker() },
   // Two per row on phones; four (stats) or three (tools) on wider screens. The gap is taken out of each share.
   half: { flexBasis: "47%", flexGrow: 1 },
