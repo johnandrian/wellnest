@@ -416,6 +416,9 @@ export default defineSchema({
     energy: v.optional(v.number()),
     sleepQuality: v.optional(v.number()),
     note: v.optional(v.string()),
+    // Food and drinks that day (convex/lib/journal.ts FOOD_TAGS; [] is "none of these"), and caffeine drinks.
+    foods: v.optional(v.array(v.string())),
+    caffeine: v.optional(v.number()),
     skipped: v.optional(v.boolean()), // "Not today" on the card
     source: v.union(v.literal("card"), v.literal("chat")),
   }).index("by_user_and_date", ["userId", "date"]),
