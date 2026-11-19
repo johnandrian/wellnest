@@ -1,5 +1,7 @@
-// Medication reminders: each due dose posts a reminder message in the app chat with Taken / Skip buttons.
+// Medication reminders: each due dose posts a reminder message in the app chat with Taken / Skip / Snooze buttons.
 // Set up from the Reminders panel or by asking in chat (set_medication_reminder). Times follow the user's time zone.
+// Today's doses (`today`) can be answered from the Medications tab and the dashboard too; as-needed medications
+// have no reminders and are logged with "Took one" (`takeNow`).
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
@@ -17,6 +19,9 @@ import { alertCircle } from "./circle";
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A dose due within a minute of a course's end counts as past it ("every 12 hours for 1 day" is 2 reminders).
 const END_SLACK_MS = 60_000;
+export const SNOOZE_MS = 15 * 60_000;
+// How far from a due time a dose can still be answered from the Today list (yesterday's late dose, tonight's early one).
+const ANSWER_WINDOW_MS = 2 * DAY_MS;
 
 type AddArgs = {
   name: string;
@@ -138,24 +143,146 @@ export const remove = mutation({
   },
 });
 
-// Taken / Skip on a reminder message. Can be changed later.
+const doseStatus = v.union(v.literal("taken"), v.literal("skipped"));
+
+async function ownMed(ctx: MutationCtx, id: Id<"medications">) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Not signed in");
+  const med = await ctx.db.get(id);
+  if (!med || med.userId !== userId) throw new Error("Not found");
+  return med;
+}
+
+// One answer for one due dose, from the chat, a notification, or the Today list. Can be changed later. The dose log
+// is the record; the reminder messages for that dose show the same answer; the supply follows taken doses.
+async function recordDose(ctx: MutationCtx, userId: Id<"users">, medicationId: Id<"medications">, dueAt: number, status: "taken" | "skipped") {
+  const existing = await ctx.db
+    .query("doseLogs")
+    .withIndex("by_medication_and_due", (q) => q.eq("medicationId", medicationId).eq("dueAt", dueAt))
+    .unique();
+  const wasTaken = existing?.status === "taken";
+  const takenAt = status === "taken" ? (wasTaken ? existing.takenAt : Date.now()) : undefined;
+  if (existing) await ctx.db.patch(existing._id, { status, takenAt });
+  else await ctx.db.insert("doseLogs", { userId, medicationId, dueAt, status, takenAt });
+  if (status === "taken" && !wasTaken) await useSupply(ctx, medicationId);
+  if (status !== "taken" && wasTaken) await giveBack(ctx, medicationId);
+  // A snoozed dose has two reminder messages; both show the answer.
+  const posted = await ctx.db
+    .query("messages")
+    .withIndex("by_user", (q) => q.eq("userId", userId).gte("_creationTime", dueAt - 60_000))
+    .take(300);
+  for (const m of posted) {
+    if (m.reminder?.medicationId === medicationId && m.reminder.dueAt === dueAt && m.reminder.status !== status) {
+      await ctx.db.patch(m._id, { reminder: { ...m.reminder, status } });
+    }
+  }
+}
+
+// Taken / Skip on a reminder message or its notification.
 export const log = mutation({
-  args: { messageId: v.id("messages"), status: v.union(v.literal("taken"), v.literal("skipped")) },
+  args: { messageId: v.id("messages"), status: doseStatus },
   handler: async (ctx, { messageId, status }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const message = await ctx.db.get(messageId);
     if (!message || message.userId !== userId || !message.reminder) throw new Error("Not found");
-    const { medicationId, dueAt } = message.reminder;
-    const wasTaken = message.reminder.status === "taken";
-    await ctx.db.patch(messageId, { reminder: { ...message.reminder, status } });
-    if (status === "taken" && !wasTaken) await useSupply(ctx, medicationId);
-    const existing = await ctx.db
+    await recordDose(ctx, userId, message.reminder.medicationId, message.reminder.dueAt, status);
+  },
+});
+
+// Taken / Skip from the Today list, for a dose due within two days of now.
+export const mark = mutation({
+  args: { medicationId: v.id("medications"), dueAt: v.number(), status: doseStatus },
+  handler: async (ctx, { medicationId, dueAt, status }) => {
+    const med = await ownMed(ctx, medicationId);
+    if (Math.abs(dueAt - Date.now()) > ANSWER_WINDOW_MS) throw new Error("That dose is too far from today to change here.");
+    await recordDose(ctx, med.userId, med._id, dueAt, status);
+  },
+});
+
+// An as-needed dose, taken now.
+export const takeNow = mutation({
+  args: { medicationId: v.id("medications") },
+  handler: async (ctx, { medicationId }) => {
+    const med = await ownMed(ctx, medicationId);
+    if (statusOf(med) !== "active") throw new Error("Resume this medication first.");
+    const now = Date.now();
+    await ctx.db.insert("doseLogs", { userId: med.userId, medicationId, dueAt: now, status: "taken", takenAt: now });
+    await useSupply(ctx, medicationId);
+    return now;
+  },
+});
+
+// Removes one answer: Undo after "Took one", or clearing a Taken / Skip tapped by mistake.
+export const unmark = mutation({
+  args: { medicationId: v.id("medications"), dueAt: v.number() },
+  handler: async (ctx, { medicationId, dueAt }) => {
+    const med = await ownMed(ctx, medicationId);
+    const row = await ctx.db
       .query("doseLogs")
-      .withIndex("by_medication_and_due", (q) => q.eq("medicationId", medicationId).eq("dueAt", dueAt))
+      .withIndex("by_medication_and_due", (q) => q.eq("medicationId", med._id).eq("dueAt", dueAt))
       .unique();
-    if (existing) await ctx.db.patch(existing._id, { status });
-    else await ctx.db.insert("doseLogs", { userId, medicationId, dueAt, status });
+    if (!row) return;
+    await ctx.db.delete(row._id);
+    if (row.status === "taken") await giveBack(ctx, med._id);
+  },
+});
+
+// Remind me again in 15 minutes: one more reminder for this dose, unless it's answered by then.
+export const snooze = mutation({
+  args: { medicationId: v.id("medications"), dueAt: v.number() },
+  handler: async (ctx, { medicationId, dueAt }) => {
+    const med = await ownMed(ctx, medicationId);
+    await ctx.scheduler.runAfter(SNOOZE_MS, internal.reminders.remindAgain, { id: med._id, dueAt });
+  },
+});
+
+export const remindAgain = internalMutation({
+  args: { id: v.id("medications"), dueAt: v.number() },
+  handler: async (ctx, { id, dueAt }) => {
+    const med = await ctx.db.get(id);
+    if (!med?.active) return;
+    const answered = await ctx.db
+      .query("doseLogs")
+      .withIndex("by_medication_and_due", (q) => q.eq("medicationId", id).eq("dueAt", dueAt))
+      .unique();
+    const user = await ctx.db.get(med.userId);
+    if (answered || !user) return;
+    await postReminder(ctx, med, user, dueAt);
+  },
+});
+
+// Today's doses, for the Medications tab and the dashboard: each due time of every active medication between `from`
+// and `to` (the user's local day, from the app) with its answer, and the as-needed medications with what was taken.
+export const today = query({
+  args: { from: v.number(), to: v.number() },
+  handler: async (ctx, { from, to }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId || !(to > from) || to - from > 2 * DAY_MS) return null;
+    const meds = await ctx.db
+      .query("medications")
+      .withIndex("by_user_and_active", (q) => q.eq("userId", userId).eq("active", true))
+      .take(MAX_ACTIVE);
+    const doses: { medicationId: Id<"medications">; name: string; dose: string | null; dueAt: number; time: string; status: "taken" | "skipped" | null; takenAt: number | null }[] = [];
+    const asNeeded: { medicationId: Id<"medications">; name: string; dose: string | null; taken: number[] }[] = [];
+    for (const m of meds) {
+      const logs = await ctx.db
+        .query("doseLogs")
+        .withIndex("by_medication_and_due", (q) => q.eq("medicationId", m._id).gte("dueAt", from).lt("dueAt", to))
+        .take(100);
+      if (!isTimed(m.schedule)) {
+        asNeeded.push({ medicationId: m._id, name: m.name, dose: m.dose ?? null, taken: logs.filter((l) => l.status === "taken").map((l) => l.dueAt) });
+        continue;
+      }
+      // Only doses since the medication was added: a noon start doesn't owe the morning dose.
+      for (const at of dueTimes(m.schedule, Math.max(from, m._creationTime), to, m.timeZone, m.utcOffsetMin, 48)) {
+        const log = logs.find((l) => l.dueAt === at);
+        const time = localParts(at, m.timeZone, m.utcOffsetMin).time;
+        doses.push({ medicationId: m._id, name: m.name, dose: doseAt(time, m.dose, m.timeDoses) ?? null, dueAt: at, time, status: log?.status ?? null, takenAt: log?.takenAt ?? null });
+      }
+    }
+    doses.sort((a, b) => a.dueAt - b.dueAt || a.name.localeCompare(b.name));
+    return { doses, asNeeded };
   },
 });
 
