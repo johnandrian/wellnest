@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import { colors, floatingBar, softShadow, radius, TEXT_SIZES, themed, themeVersion } from "./theme";
-import { errorText } from "./feedback";
+import { errorText, showToast } from "./feedback";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
@@ -802,7 +802,7 @@ const styles = themed(() => ({
   // A chart needs the width.
   chartBubble: { width: "85%" },
   doseRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  doseButton: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  doseButton: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 36, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 },
   doseButtonOn: { backgroundColor: colors.primary },
   doseText: { color: colors.primary, fontWeight: "600", fontSize: 13 },
   doseTextOn: { color: colors.onPrimary },

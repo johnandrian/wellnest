@@ -6,7 +6,7 @@ import { internalMutation, mutation, MutationCtx, query } from "./_generated/ser
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { daysLeft, medEventKind, medForm, statusOf, timeDose } from "./lib/meds";
-import { checkSchedule, nextDue, normalizeTime } from "./lib/reminders";
+import { checkSchedule, dueTimes, isTimed, localParts, nextDue, normalizeTime, ruleOf, schedule, type Schedule } from "./lib/reminders";
 import { clampSeverity } from "./lib/journal";
 import { lookupSoon } from "./drugs";
 
@@ -38,9 +38,13 @@ export async function pauseMed(ctx: MutationCtx, med: Doc<"medications">) {
 
 export async function resumeMed(ctx: MutationCtx, med: Doc<"medications">) {
   if (med.active || med.stoppedAt) return;
-  const at = nextDue(med.schedule, Date.now(), med.timeZone, med.utcOffsetMin);
-  const jobId = await ctx.scheduler.runAt(at, internal.reminders.fire, { id: med._id, dueAt: at });
-  await ctx.db.patch(med._id, { active: true, pausedAt: undefined, nextAt: at, jobId });
+  if (!isTimed(med.schedule)) {
+    await ctx.db.patch(med._id, { active: true, pausedAt: undefined });
+  } else {
+    const at = nextDue(med.schedule, Date.now(), med.timeZone, med.utcOffsetMin);
+    const jobId = await ctx.scheduler.runAt(at, internal.reminders.fire, { id: med._id, dueAt: at });
+    await ctx.db.patch(med._id, { active: true, pausedAt: undefined, nextAt: at, jobId });
+  }
   await logEvent(ctx, med, "resumed");
 }
 
@@ -67,12 +71,14 @@ export async function refillMed(ctx: MutationCtx, med: Doc<"medications">, amoun
   await logEvent(ctx, med, "refilled", amount ? `+${amount}` : undefined);
 }
 
-// The details form, and account setup's edit (name, dose and daily times; new times reschedule the next reminder).
+// The details form, and account setup's edit (name, dose and daily times). A new schedule (or new daily times)
+// reschedules the next reminder.
 export const update = mutation({
   args: {
     id: v.id("medications"),
     name: v.optional(v.string()),
     times: v.optional(v.array(v.string())),
+    schedule: v.optional(schedule),
     directions: v.optional(v.string()),
     genericName: v.optional(v.string()),
     form: v.optional(medForm),
@@ -81,7 +87,7 @@ export const update = mutation({
     dose: v.optional(v.string()),
     timeDoses: v.optional(v.array(timeDose)),
   },
-  handler: async (ctx, { id, dose, timeDoses, name, times, ...fields }) => {
+  handler: async (ctx, { id, dose, timeDoses, name, times, schedule: wanted, ...fields }) => {
     let med = await own(ctx, id);
     const patch: Partial<Doc<"medications">> = {};
     if (name !== undefined) {
@@ -89,17 +95,25 @@ export const update = mutation({
       if (!clean) throw new Error("Give the medication a name.");
       patch.name = clean;
     }
-    if (times !== undefined) {
-      const checked = checkSchedule({ kind: "daily", times });
+    // Setup sends only times: they keep the weekdays or every-other-day of a daily schedule.
+    const kept = med.schedule.kind === "daily" ? med.schedule : {};
+    const next: Schedule | undefined = wanted ?? (times !== undefined ? { ...kept, kind: "daily", times } : undefined);
+    if (next) {
+      const checked = checkSchedule(next);
       if ("error" in checked) throw new Error(checked.error);
       patch.schedule = checked.schedule;
       const kept = checked.schedule.kind === "daily" ? checked.schedule.times : [];
       patch.timeDoses = (med.timeDoses ?? []).filter((t) => kept.includes(t.time));
       if (med.active) {
         if (med.jobId) await ctx.scheduler.cancel(med.jobId);
-        const at = nextDue(checked.schedule, Date.now(), med.timeZone, med.utcOffsetMin);
-        patch.nextAt = at;
-        patch.jobId = await ctx.scheduler.runAt(at, internal.reminders.fire, { id, dueAt: at });
+        if (isTimed(checked.schedule)) {
+          const at = nextDue(checked.schedule, Date.now(), med.timeZone, med.utcOffsetMin);
+          patch.nextAt = at;
+          patch.jobId = await ctx.scheduler.runAt(at, internal.reminders.fire, { id, dueAt: at });
+        } else {
+          patch.nextAt = undefined;
+          patch.jobId = undefined;
+        }
       }
     }
     if (fields.directions !== undefined) patch.directions = fields.directions.trim().slice(0, 200) || undefined;
@@ -108,7 +122,8 @@ export const update = mutation({
     if (fields.notes !== undefined) patch.notes = fields.notes.trim().slice(0, 500) || undefined;
     if (fields.form !== undefined) patch.form = fields.form;
     if (timeDoses !== undefined) {
-      const times = med.schedule.kind === "daily" ? med.schedule.times : [];
+      const current = patch.schedule ?? med.schedule;
+      const times = current.kind === "daily" ? current.times : [];
       patch.timeDoses = timeDoses
         .map((t) => ({ time: normalizeTime(t.time) ?? "", dose: t.dose.trim().slice(0, 80) }))
         .filter((t) => t.dose && times.includes(t.time));
@@ -190,9 +205,10 @@ export const all = query({
         name: m.name,
         dose: m.dose ?? null,
         status: statusOf(m),
-        rule: m.schedule.kind === "daily" ? m.schedule : { kind: "interval" as const, everyHours: m.schedule.everyHours },
+        rule: ruleOf(m.schedule),
         nextAt: m.nextAt ?? null,
         daysLeft: daysLeft(m.schedule, m.supply),
+        warnDays: m.supply?.warnDays ?? null,
         changedAt: m.stoppedAt ?? m.pausedAt ?? m._creationTime,
         // For the printable medication list.
         form: m.form ?? null,
@@ -222,7 +238,8 @@ export const detail = query({
       notes: m.notes ?? null,
       directions: m.directions ?? null,
       status: statusOf(m),
-      rule: m.schedule.kind === "daily" ? m.schedule : { kind: "interval" as const, everyHours: m.schedule.everyHours },
+      rule: ruleOf(m.schedule),
+      nextAt: m.nextAt ?? null,
       timeDoses: m.timeDoses ?? [],
       supply: m.supply ? { left: m.supply.left, perDose: m.supply.perDose, warnDays: m.supply.warnDays } : null,
       daysLeft: daysLeft(m.schedule, m.supply),

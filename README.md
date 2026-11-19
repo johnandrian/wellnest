@@ -151,6 +151,7 @@ flowchart LR
   - `JournalPanel.tsx`, `DailyCard.tsx`, `TrackersSection.tsx` — symptom journal, daily check-in, pain / asthma / seizure trackers.
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
   - `MedicationsPanel.tsx` — medications, reminders, pill bottle scan (`labelScan.ts`), the dose picker (`DoseInput.tsx`), the printable list (`medList.ts`) and the safety card; `GuidesPanel.tsx` — the appointment prep checklist; `Tour.tsx` — the first-time tour; `PublicPages.tsx` — the free tools; `ExercisePanel.tsx` — exercise routine; `RecordsPanel.tsx` — health records.
+  - `ScheduleEditor.tsx` (+ `medSchedule.ts`) — how often a medication is taken, for the add form and Change schedule.
   - `theme.ts` — light and dark palettes, text size and `themed()` style sheets; `Motion.tsx` — the shared animations.
   - `feedback.tsx` — the readable line of a server error, yes / no questions, and the toast at the bottom ("Copied", "Saved", and Undo after a delete); `safeArea.ts` — room for the notch and home indicator; `format.ts` — dates, times, and distances in the app's language and units; `DateTimeField.tsx` / `.web.tsx` and `TimesField.tsx` — date and time pickers.
   - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
@@ -238,13 +239,14 @@ A one-page Markdown summary to bring to an appointment: reason, main concerns, a
 - **Limits:** one at a time, 5 a day.
 
 ## Medications and reminders
+
 The **Medications** tab shows every medication in its own box (two to a row on phones, three on wider screens, so none is missed going down the list) with its dose, schedule, next dose, days of supply left and whether it's paused or stopped (stopped ones are kept for the history). Tap a box and it spans the row with its details:
 - **Dose:** a number and a unit picked from chips (mg, mcg, g, mL, tablets, capsules, puffs, drops, units, patches, sprays, or one typed under Other), saved as one line of text in the user's language ("2 tablets") so older doses still read back (`src/DoseInput.tsx`, `src/dose.ts`).
 - **Details:** generic name, form (tablet, inhaler, patch...), prescriber, how to take it ("with food", filled from a label scan), notes, and a **different dose at some times** (e.g. 300 mg in the morning, 600 mg at night); the reminder says the right dose.
 - **Medication list:** medicine, strength / dose, when and how it's taken, and notes for every current medication, printed or saved as a PDF (`src/medList.ts`).
 - **History:** started, paused, resumed, stopped, dose changes and refills, each dated (`medicationEvents`). Pausing cancels reminders; resuming brings them back.
 - **Side effects:** dated, with an optional 0-10 severity (`sideEffects`).
-- **Refills:** units on hand and per dose; each **Taken** counts one dose off, and when the supply will run out within the warning window (7 days by default) a chat note and a push say so, once until the next refill.
+- **Refills:** units on hand and per dose; each **Taken** counts one dose off (changing it back puts it back), and when the supply will run out within that medication's warning window (7 days by default) a chat note and a push say so, once until the next refill. The box shows the warning from the same window.
 - **eScript:** a photo of the QR code or prescription label, uploaded like a chat photo and kept with the medication.
 - **Chat:** "the new pills make me dizzy", "I stopped my ibuprofen", "my sertraline went up to 100 mg" → `update_medication`. The model sees each medication's details, adherence, dose changes and side effects.
 

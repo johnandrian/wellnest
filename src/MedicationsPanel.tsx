@@ -20,16 +20,14 @@ import { medListHtml, printHtml } from "./medList";
 import { Icon } from "./Icon";
 import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
 import { formatDate, formatTime } from "./format";
-import { TimesField } from "./TimesField";
+import { splitTimes } from "./times";
+import { describeRule as describe } from "./medSchedule";
+import { draftFrom, newDraft, ScheduleEditor, scheduleFrom, type Draft } from "./ScheduleEditor";
 
-type Mode = "daily" | "interval";
-type Rule = { kind: "daily"; times: string[] } | { kind: "interval"; everyHours: number };
 const FORMS = ["tablet", "capsule", "liquid", "inhaler", "patch", "injection", "cream", "drops", "other"] as const;
 type Form = (typeof FORMS)[number];
 
 const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
-const describe = (r: Rule, s: Strings) =>
-  r.kind === "daily" ? s.dailyAt.replace("{times}", r.times.join(", ")) : s.everyNHours.replace("{n}", String(r.everyHours));
 
 function when(at: number, s: Strings) {
   const d = new Date(at);
@@ -37,8 +35,6 @@ function when(at: number, s: Strings) {
   return d.toDateString() === new Date().toDateString() ? `${s.today} ${time}` : `${formatDate(at, s, { weekday: "short" })} ${time}`;
 }
 
-
-const parseTimes = (text: string) => text.split(/[,\s]+/).filter(Boolean);
 
 // Possible interactions between the user's medications, from the FDA labels (convex/drugs.ts). Looked up when the
 // tab opens; each pair opens to the label's own sentence.
@@ -131,6 +127,7 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
   const [effect, setEffect] = useState("");
   const [supplyDraft, setSupplyDraft] = useState<{ left: string; perDose: string; warnDays: string } | null>(null);
   const [refillAmount, setRefillAmount] = useState("");
+  const [schedDraft, setSchedDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const isHidden = useHidden();
   const [error, setError] = useState<string | null>(null);
@@ -243,6 +240,42 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
         </>
       )}
 
+      {med.status !== "stopped" && (
+        <>
+          <Text style={styles.section}>{s.medSchedule}</Text>
+          {schedDraft ? (
+            <View style={styles.form}>
+              <ScheduleEditor value={schedDraft} onChange={setSchedDraft} s={s} />
+              <View style={styles.inline}>
+                <Tap
+                  style={styles.button}
+                  onPress={() =>
+                    void run(async () => {
+                      await update({ id, schedule: scheduleFrom(schedDraft) });
+                      setSchedDraft(null);
+                    })
+                  }
+                  disabled={busy}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.buttonText}>{s.save}</Text>
+                </Tap>
+                <Tap onPress={() => setSchedDraft(null)} accessibilityRole="button">
+                  <Text style={styles.link}>{s.cancel}</Text>
+                </Tap>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.inline}>
+              <Text style={[styles.line, styles.flex]}>{describe(med.rule, s)}</Text>
+              <Tap onPress={() => setSchedDraft(draftFrom(med.rule, med.nextAt))} accessibilityRole="button">
+                <Text style={styles.link}>{s.medChangeSchedule}</Text>
+              </Tap>
+            </View>
+          )}
+        </>
+      )}
+
       <Text style={styles.section}>{s.medSupply}</Text>
       {med.supply && !supplyDraft ? (
         <View style={styles.inline}>
@@ -258,13 +291,21 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
           </Tap>
         </View>
       ) : supplyDraft ? (
-        <View style={styles.inline}>
-          <TextInput style={[styles.input, styles.short]} value={supplyDraft.left} onChangeText={(left) => setSupplyDraft({ ...supplyDraft, left })} keyboardType="numeric" accessibilityLabel={s.medLeft} />
-          <Text style={styles.label}>{s.medLeft}</Text>
-          <TextInput style={[styles.input, styles.short]} value={supplyDraft.perDose} onChangeText={(perDose) => setSupplyDraft({ ...supplyDraft, perDose })} keyboardType="numeric" accessibilityLabel={s.medPerDose} />
-          <Text style={styles.label}>{s.medPerDose}</Text>
-          <TextInput style={[styles.input, styles.short]} value={supplyDraft.warnDays} onChangeText={(warnDays) => setSupplyDraft({ ...supplyDraft, warnDays })} keyboardType="numeric" accessibilityLabel={s.medWarnDays} />
-          <Text style={styles.label}>{s.medWarnDays}</Text>
+        // One labeled row per number, so the labels never wrap between the boxes.
+        <View style={styles.form}>
+          {(
+            [
+              ["left", s.medLeft],
+              ["perDose", s.medPerDose],
+              ["warnDays", s.medWarnDays],
+            ] as const
+          ).map(([key, text]) => (
+            <View key={key} style={styles.field}>
+              <Text style={[styles.label, styles.flex]}>{text}</Text>
+              <TextInput style={[styles.input, styles.short]} value={supplyDraft[key]} onChangeText={(v) => setSupplyDraft({ ...supplyDraft, [key]: v })} keyboardType="numeric" accessibilityLabel={text} />
+            </View>
+          ))}
+          <View style={styles.inline}>
           <Tap
             style={styles.button}
             onPress={() =>
@@ -277,6 +318,10 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
           >
             <Text style={styles.buttonText}>{s.save}</Text>
           </Tap>
+          <Tap onPress={() => setSupplyDraft(null)} accessibilityRole="button">
+            <Text style={styles.link}>{s.cancel}</Text>
+          </Tap>
+          </View>
         </View>
       ) : (
         <Tap onPress={() => setSupplyDraft({ left: "", perDose: "1", warnDays: "7" })} accessibilityRole="button">
@@ -368,10 +413,8 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   const [genericName, setGenericName] = useState("");
   const [prescriber, setPrescriber] = useState("");
   const [directions, setDirections] = useState("");
-  const [mode, setMode] = useState<Mode>("daily");
-  const [times, setTimes] = useState("08:00");
+  const [sched, setSched] = useState<Draft>(newDraft);
   const [timeDoses, setTimeDoses] = useState<Record<string, string>>({});
-  const [hours, setHours] = useState("8");
   const [days, setDays] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fromLabel, setFromLabel] = useState<string | null>(null);
@@ -382,7 +425,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   const list = (meds ?? []).filter((m) => showStopped || m.status !== "stopped");
   const stoppedCount = (meds ?? []).filter((m) => m.status === "stopped").length;
   const current = (meds ?? []).filter((m) => m.status !== "stopped");
-  const parsedTimes = parseTimes(times);
+  const parsedTimes = sched.mode === "daily" ? splitTimes(sched.times) : [];
 
   // Fills the add form from a pill bottle photo; the user checks it before saving.
   const label = useLabelScan(s, (l) => {
@@ -392,13 +435,8 @@ export function MedicationsPanel({ s }: { s: Strings }) {
     setPrescriber(l.prescriber ?? "");
     setForm(l.form ?? null);
     setDirections(l.instructions ?? "");
-    if (l.everyHours) {
-      setMode("interval");
-      setHours(String(l.everyHours));
-    } else if (l.timesPerDay) {
-      setMode("daily");
-      setTimes(timesFor(l.timesPerDay));
-    }
+    if (l.everyHours) setSched({ ...newDraft(), mode: "interval", hours: String(l.everyHours) });
+    else if (l.timesPerDay) setSched({ ...newDraft(), times: timesFor(l.timesPerDay) });
     setFromLabel(l.instructions ?? "");
     setAdding(true);
   });
@@ -424,7 +462,6 @@ export function MedicationsPanel({ s }: { s: Strings }) {
 
   const save = async () => {
     setError(null);
-    const everyHours = Number(hours);
     try {
       await add({
         name,
@@ -434,10 +471,10 @@ export function MedicationsPanel({ s }: { s: Strings }) {
         prescriber: prescriber || undefined,
         directions: directions || undefined,
         ...(form && { form }),
-        ...(mode === "daily" && {
+        ...(sched.mode === "daily" && {
           timeDoses: parsedTimes.filter((t) => timeDoses[t]?.trim()).map((t) => ({ time: t.padStart(5, "0"), dose: timeDoses[t] })),
         }),
-        schedule: mode === "daily" ? { kind: "daily", times: parsedTimes } : { kind: "interval", everyHours, firstAt: Date.now() + everyHours * 3_600_000 },
+        schedule: scheduleFrom(sched),
       });
       setAdding(false);
       setName("");
@@ -448,6 +485,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
       setDirections("");
       setForm(null);
       setTimeDoses({});
+      setSched(newDraft());
       setFromLabel(null);
     } catch (e) {
       setError(errorText(e));
@@ -478,7 +516,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
           {list.map((m) => {
             const isOpen = open === m._id;
             const c = tint.medications;
-            const lowSupply = m.daysLeft !== null && m.daysLeft <= 7 && m.status !== "stopped";
+            const lowSupply = m.daysLeft !== null && m.daysLeft <= (m.warnDays ?? 7) && m.status !== "stopped";
             return (
               <View key={m._id} style={[styles.tile, isOpen ? styles.tileOpen : threeUp ? styles.third : styles.half, m.status !== "active" && styles.medInactive]}>
                 <Tap
@@ -552,34 +590,17 @@ export function MedicationsPanel({ s }: { s: Strings }) {
           <TextInput style={styles.input} placeholder={s.medPlaceholder} placeholderTextColor={colors.muted} value={name} onChangeText={setName} />
           <DoseInput value={dose} onChange={setDose} s={s} />
           <TextInput style={styles.input} placeholder={s.medDirectionsPlaceholder} placeholderTextColor={colors.muted} value={directions} onChangeText={setDirections} maxLength={200} />
-          <View style={styles.chips}>
-            {(["daily", "interval"] as const).map((m) => (
-              <Tap key={m} style={[styles.chip, mode === m && styles.chipOn]} onPress={() => setMode(m)} accessibilityRole="radio" accessibilityState={{ selected: mode === m }}>
-                <Text style={[styles.chipText, mode === m && styles.chipTextOn]}>{m === "daily" ? s.atSetTimes : s.everyFewHours}</Text>
-              </Tap>
-            ))}
-          </View>
-          {mode === "daily" ? (
+          <ScheduleEditor value={sched} onChange={setSched} s={s} />
+          {parsedTimes.length > 1 && (
             <>
-              <TimesField value={times} onChange={setTimes} s={s} />
-              {parsedTimes.length > 1 && (
-                <>
-                  <Text style={styles.small}>{s.medDosePerTime}</Text>
-                  {parsedTimes.map((t) => (
-                    <View key={t} style={styles.inline}>
-                      <Text style={styles.label}>{t}</Text>
-                      <TextInput style={[styles.input, styles.flex]} placeholder={dose || s.dosePlaceholder} placeholderTextColor={colors.muted} value={timeDoses[t] ?? ""} onChangeText={(d) => setTimeDoses({ ...timeDoses, [t]: d })} />
-                    </View>
-                  ))}
-                </>
-              )}
+              <Text style={styles.small}>{s.medDosePerTime}</Text>
+              {parsedTimes.map((t) => (
+                <View key={t} style={styles.inline}>
+                  <Text style={styles.label}>{t}</Text>
+                  <TextInput style={[styles.input, styles.flex]} placeholder={dose || s.dosePlaceholder} placeholderTextColor={colors.muted} value={timeDoses[t] ?? ""} onChangeText={(d) => setTimeDoses({ ...timeDoses, [t]: d })} />
+                </View>
+              ))}
             </>
-          ) : (
-            <View style={styles.inline}>
-              <Text style={styles.label}>{s.every}</Text>
-              <TextInput style={[styles.input, styles.short]} value={hours} onChangeText={setHours} keyboardType="numeric" />
-              <Text style={styles.label}>{s.hoursFromNow}</Text>
-            </View>
           )}
           <View style={styles.inline}>
             <Text style={styles.label}>{s.forLabel}</Text>
@@ -655,6 +676,7 @@ const styles = themed(() => ({
   input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 64, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  field: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: 360 },
   label: { color: colors.text, fontSize: 14 },
   chips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   chip: { ...ui.chip },

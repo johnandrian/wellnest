@@ -158,7 +158,7 @@ describe("reminders in chat", () => {
     await settle(t);
     expect(toolResult(calls)).toBe(
       "Reminder set: Ibuprofen 400 mg, daily at 08:00, 20:00 for 3 days. First reminder at 8:00 PM. Reminders appear in the app chat " +
-        "with Taken / Skip buttons; they can be managed in the Reminders panel (pill button).",
+        "with Taken / Skip / Snooze buttons; they can be managed in the Medications tab.",
     );
     expect(await as.query(api.reminders.list)).toMatchObject([{ name: "Ibuprofen", schedule: "daily at 08:00, 20:00" }]);
 
