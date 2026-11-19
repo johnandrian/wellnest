@@ -1,5 +1,7 @@
-// Account setup (convex/onboarding.ts): one question per screen after someone first signs in (existing accounts too,
-// once). Every step can be skipped, "Finish later" keeps what's done, and Settings can run it again. Answers already
+// Account setup (convex/onboarding.ts): one question per screen. After someone first signs in (existing accounts too,
+// once) it's short: language, focus, medications, and emergency contacts. The rest (about you, conditions, city, phone
+// health data, check-ins) opens from the dashboard's "Finish your profile" card, and Settings → Redo setup runs it
+// all. Every step can be skipped, "Finish later" keeps what's done, and Settings can run it again. Answers already
 // on the account (language, city, facts, medications, emergency contacts) start filled in. Medications can be
 // typed or scanned from the pill bottle, and the ones added can be edited or removed before moving on.
 import { useEffect, useRef, useState } from "react";
@@ -19,6 +21,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { errorText } from "./feedback";
 import { useInsets } from "./safeArea";
 import { TimesField } from "./TimesField";
+import type { SetupMode } from "./setup";
 
 const FOCUS = ["symptoms", "pain", "asthma", "seizures", "diabetes", "medications", "mood", "wellness", "caregiver"] as const;
 const AGES = ["under_18", "18_29", "30_44", "45_64", "65_plus"] as const;
@@ -42,7 +45,10 @@ function Chip({ label, on, onPress, icon }: { label: string; on: boolean; onPres
   );
 }
 
-export function Onboarding({ onDone }: { onDone: () => void }) {
+const SHORT: Step[] = ["language", "focus", "meds", "contact"];
+const REST: Step[] = ["about", "conditions", "city", "phone", "prefs"];
+
+export function Onboarding({ mode, onDone }: { mode: SetupMode; onDone: () => void }) {
   const me = useQuery(api.chat.me);
   const state = useQuery(api.onboarding.state);
   const health = useHealthSync();
@@ -56,13 +62,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const addFacts = useMutation(api.onboarding.addFacts);
   const setContacts = useMutation(api.onboarding.setContacts);
   const finish = useMutation(api.onboarding.finish);
+  const finishProfile = useMutation(api.onboarding.finishProfile);
   const addMed = useMutation(api.reminders.add);
   const updateMed = useMutation(api.medications.update);
   const removeMed = useMutation(api.reminders.remove);
   const setCheckins = useMutation(api.checkins.setEnabled);
   const setWeekly = useMutation(api.weekly.setEnabled);
 
-  const steps: Step[] = ["language", "about", "focus", "conditions", "meds", "contact", "city", ...(health.supported ? (["phone"] as const) : []), "prefs"];
+  const all: Step[] = mode === "short" ? SHORT : mode === "rest" ? REST : ["language", "about", "focus", "conditions", "meds", "contact", "city", "phone", "prefs"];
+  const steps = all.filter((x) => x !== "phone" || health.supported);
   const [index, setIndex] = useState(0);
   const step = steps[index];
   const [busy, setBusy] = useState(false);
@@ -130,7 +138,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     }
   };
 
-  const done = () => run(async () => (await finish(), onDone()));
+  // Finishing the last step. The rest of the profile counts as done once its steps (or all of them) are through.
+  const done = () =>
+    run(async () => {
+      if (mode !== "rest") await finish();
+      if (mode !== "short") await finishProfile();
+      onDone();
+    });
+  // "Finish later": the first setup still counts as done; the rest stays on the dashboard card.
+  const later = () => run(async () => (mode !== "rest" && (await finish()), onDone()));
   const advance = () => (index === steps.length - 1 ? done() : (setError(null), setIndex(index + 1)));
 
   // Saves this step's answers, then moves on. Steps that save as you tap (language, medications, switches) just move on.
@@ -200,7 +216,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <View style={[styles.top, { paddingTop: 16 + insets.top }]}>
         <View style={styles.topRow}>
           <Text style={styles.stepText}>{s.ob_step.replace("{n}", String(index + 1)).replace("{total}", String(steps.length))}</Text>
-          <Tap onPress={() => void done()} accessibilityRole="button" disabled={busy}>
+          <Tap onPress={() => void later()} accessibilityRole="button" disabled={busy}>
             <Text style={styles.link}>{s.ob_later}</Text>
           </Tap>
         </View>
@@ -439,7 +455,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ) : (
             <View style={styles.back} />
           )}
-          {step !== "language" && step !== "prefs" && (
+          {step !== "language" && step !== "prefs" && index < steps.length - 1 && (
             <Tap style={styles.skip} onPress={() => void advance()} disabled={busy} accessibilityRole="button">
               <Text style={styles.skipText}>{s.ob_skip}</Text>
             </Tap>
