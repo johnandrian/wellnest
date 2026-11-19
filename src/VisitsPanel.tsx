@@ -63,7 +63,10 @@ function useAutosave(value: string, saved: string, save: (v: string) => Promise<
   return { state, flush };
 }
 
-function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: (reason: string) => void }) {
+// `onPrepare`: "Make a visit summary" for this appointment (attached to it when it's one of the user's own).
+type Prepare = (visit: { id?: string; title: string }) => void;
+
+function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: Prepare }) {
   const update = useMutation(api.visits.update);
   const setStatus = useMutation(api.visits.setStatus);
   const remove = useMutation(api.visits.remove);
@@ -133,7 +136,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
                 <Text style={styles.link}>{s.visitJoin}</Text>
               </Tap>
             )}
-            <Tap style={styles.action} onPress={() => onPrepare(item.title)} accessibilityRole="button">
+            <Tap style={styles.action} onPress={() => onPrepare({ id: isVisit ? item._id : undefined, title: item.title })} accessibilityRole="button">
               <Ionicons name="clipboard-outline" size={16} color={colors.primary} />
               <Text style={styles.link}>{s.visitsMakeSummary}</Text>
             </Tap>
@@ -330,7 +333,7 @@ function TeamSection({ s }: { s: Strings }) {
 }
 
 // `openPrep`: open on the Prep view (the dashboard's checklist button).
-export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; onPrepare: (reason: string) => void; openPrep?: boolean }) {
+export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; onPrepare: Prepare; openPrep?: boolean }) {
   const [view, setView] = useState<"list" | "prep">(openPrep ? "prep" : "list");
   // Re-read "now" each time the tab opens; good enough for sorting upcoming vs past.
   const now = useMemo(() => Math.floor(Date.now() / 60_000) * 60_000, []);

@@ -535,6 +535,8 @@ export default defineSchema({
     error: v.optional(v.string()),
     // Asked for in chat: where to announce it when it's done.
     notify: v.optional(channel),
+    // The appointment it was made for ("Make a visit summary" on it).
+    visitId: v.optional(v.id("visits")),
   }).index("by_user", ["userId"]),
 
   // One-time codes for t.me/<bot>?start=<code> account linking.

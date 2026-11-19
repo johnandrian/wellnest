@@ -9,7 +9,8 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors, themed, TOUCH, ui, radius } from "./theme";
-import { errorText, showToast } from "./feedback";
+import { confirmAsk, errorText, showToast } from "./feedback";
+import type { Id } from "../convex/_generated/dataModel";
 import { Markdown } from "./Markdown";
 import { printablePage } from "./printable";
 import type { Strings } from "./i18n";
@@ -27,7 +28,8 @@ const WAYS: { way: Way; icon: keyof typeof Ionicons.glyphMap }[] = [
 // The summary reads at most this many days back (convex/visit.ts).
 const SUMMARY_MAX_DAYS = 90;
 
-export function SharePanel({ s, initialReason }: { s: Strings; initialReason?: string }) {
+// `forVisit`: opened from an appointment's "Make a visit summary", so the summary is made for it.
+export function SharePanel({ s, forVisit }: { s: Strings; forVisit?: { id?: string; title: string } }) {
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(localDate());
   const [sections, setSections] = useState<ReportSection[]>(["facts", "medications", "journal", "trackers", "exercises", "health", "appointments"]);
@@ -63,7 +65,7 @@ export function SharePanel({ s, initialReason }: { s: Strings; initialReason?: s
       </View>
 
       <Enter key={way} from={6} style={styles.card}>
-        {way === "summary" && <SummaryAction s={s} days={Math.min(SUMMARY_MAX_DAYS, daysSince(from))} initialReason={initialReason} />}
+        {way === "summary" && <SummaryAction s={s} days={Math.min(SUMMARY_MAX_DAYS, daysSince(from))} forVisit={forVisit} />}
         {way === "pdf" && <PdfAction s={s} from={from} to={to} sections={sections} />}
         {way === "link" && <LinkAction s={s} from={from} sections={sections} />}
       </Enter>
@@ -74,21 +76,27 @@ export function SharePanel({ s, initialReason }: { s: Strings; initialReason?: s
 }
 
 // The visit summary: write one for the span (and an optional reason), then read, share or print, copy, or delete it.
-function SummaryAction({ s, days, initialReason }: { s: Strings; days: number; initialReason?: string }) {
-  const latest = useQuery(api.visit.latest);
+// Earlier ones stay in a list underneath, each with the appointment it was made for.
+function SummaryAction({ s, days, forVisit }: { s: Strings; days: number; forVisit?: { id?: string; title: string } }) {
+  const history = useQuery(api.visit.history);
   const create = useMutation(api.visit.create);
   const remove = useMutation(api.visit.remove);
-  const [reason, setReason] = useState(initialReason ?? "");
+  const [reason, setReason] = useState(forVisit?.title ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [composing, setComposing] = useState(!!initialReason);
+  const [composing, setComposing] = useState(!!forVisit);
+  // Which summary is open: the newest unless an earlier one was picked.
+  const [picked, setPicked] = useState<string | null>(null);
+  const latest = history?.find((h) => h._id === picked) ?? history?.[0];
+  const earlier = (history ?? []).filter((h) => h._id !== latest?._id && h.status === "ready");
 
-  const generating = latest?.status === "generating";
+  const generating = history?.[0]?.status === "generating";
   const showForm = composing || !latest || latest.status === "failed";
 
   const generate = async () => {
     setError(null);
     try {
-      await create({ reason: reason.trim() || undefined, days });
+      await create({ reason: reason.trim() || undefined, days, ...(forVisit?.id && { visitId: forVisit.id as Id<"visits"> }) });
+      setPicked(null);
       setComposing(false);
     } catch (e) {
       setError(errorText(e));
@@ -138,6 +146,7 @@ function SummaryAction({ s, days, initialReason }: { s: Strings; days: number; i
       {latest?.status === "ready" && latest.text && !composing && (
         <View style={styles.form}>
           <Text style={styles.small}>{s.madeAt.replace("{when}", formatDateTime(latest._creationTime, s)).replace("{n}", String(latest.days))}</Text>
+          {latest.visit && <Text style={styles.small}>{s.summaryFor.replace("{title}", latest.visit.title).replace("{when}", formatDateTime(latest.visit.startsAt, s))}</Text>}
           <View style={styles.doc}>
             <Markdown text={latest.text} style={styles.docText} />
           </View>
@@ -156,11 +165,34 @@ function SummaryAction({ s, days, initialReason }: { s: Strings; days: number; i
               <Ionicons name="refresh" size={18} color={colors.primary} />
               <Text style={styles.link}>{s.newSummary}</Text>
             </Tap>
-            <Tap style={styles.action} onPress={() => void remove({ id: latest._id })} accessibilityRole="button">
+            <Tap
+              style={styles.action}
+              onPress={async () => {
+                if (!(await confirmAsk({ title: s.summaryDeleteConfirm, ok: s.delete, cancel: s.cancel }))) return;
+                setPicked(null);
+                await remove({ id: latest._id }).catch((e) => setError(errorText(e)));
+              }}
+              accessibilityRole="button"
+            >
               <Ionicons name="trash-outline" size={18} color={colors.danger} />
               <Text style={[styles.link, styles.danger]}>{s.delete}</Text>
             </Tap>
           </View>
+        </View>
+      )}
+      {!!earlier.length && !composing && (
+        <View style={styles.earlier}>
+          <Text style={styles.label}>{s.summaryEarlier}</Text>
+          {earlier.map((h) => (
+            <Tap key={h._id} style={styles.earlierRow} onPress={() => setPicked(h._id)} accessibilityRole="button">
+              <Ionicons name="document-outline" size={16} color={colors.primary} />
+              <Text style={[styles.earlierText, styles.flex]} numberOfLines={1}>
+                {formatDateTime(h._creationTime, s)}
+                {h.visit ? ` · ${h.visit.title}` : h.reason ? ` · ${h.reason}` : ""}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+            </Tap>
+          ))}
         </View>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -193,4 +225,9 @@ const styles = themed(() => ({
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   danger: { color: colors.danger },
   error: { color: colors.danger, fontSize: 13 },
+  label: { color: colors.text, fontSize: 13, fontWeight: "600" },
+  earlier: { gap: 2, borderTopWidth: 1, borderTopColor: colors.hairline, paddingTop: 8 },
+  earlierRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: TOUCH },
+  earlierText: { color: colors.text, fontSize: 14 },
+  flex: { flex: 1, minWidth: 0 },
 }));

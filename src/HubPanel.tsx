@@ -78,7 +78,7 @@ export function HubPanel({
   children?: ReactNode;
 }) {
   // "Make a visit summary" on an appointment opens the summary tab with its title as the reason.
-  const [summaryReason, setSummaryReason] = useState<string | undefined>(undefined);
+  const [summaryFor, setSummaryFor] = useState<{ id?: string; title: string } | undefined>(undefined);
   const me = useQuery(api.chat.me);
   // The date and greeting move on at midnight and through the day while the screen stays open.
   const now = useNow();
@@ -176,13 +176,13 @@ export function HubPanel({
           <VisitsPanel
             s={s}
             openPrep={tab === "prep"}
-            onPrepare={(reason) => {
-              setSummaryReason(reason);
+            onPrepare={(visit) => {
+              setSummaryFor(visit);
               onTab("visit");
             }}
           />
         )}
-        {tab === "visit" && <SharePanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
+        {tab === "visit" && <SharePanel s={s} forVisit={summaryFor} key={summaryFor?.id ?? summaryFor?.title ?? ""} />}
         {tab === "records" && <RecordsPanel s={s} />}
         {tab === "care" && <CarePanel s={s} />}
         {tab === "circle" && <CirclePanel s={s} />}
