@@ -124,9 +124,28 @@ async function addVisit(ctx: MutationCtx, userId: Id<"users">, a: VisitArgs) {
   return id;
 }
 
+const MAX_REPEATS = 26;
+
+// `repeats`: the start times after the first for a repeating appointment (worked out on the phone in local time,
+// src/ics.ts repeatTimes). Each becomes its own appointment, so any one can be moved or canceled.
 export const add = mutation({
-  args: { title: v.string(), kind: v.optional(visitKind), startsAt: v.number(), clinicianId: v.optional(v.id("careTeam")), location: v.optional(v.string()), prep: v.optional(v.string()) },
-  handler: async (ctx, a) => addVisit(ctx, await me(ctx), a),
+  args: {
+    title: v.string(),
+    kind: v.optional(visitKind),
+    startsAt: v.number(),
+    clinicianId: v.optional(v.id("careTeam")),
+    location: v.optional(v.string()),
+    prep: v.optional(v.string()),
+    repeats: v.optional(v.array(v.number())),
+  },
+  handler: async (ctx, { repeats = [], ...a }) => {
+    const userId = await me(ctx);
+    if (repeats.length > MAX_REPEATS - 1) throw new Error(`An appointment can repeat up to ${MAX_REPEATS} times.`);
+    if (repeats.some((at, i) => !(at > (i ? repeats[i - 1] : a.startsAt)))) throw new Error("Pick a date and time.");
+    const id = await addVisit(ctx, userId, a);
+    for (const startsAt of repeats) await addVisit(ctx, userId, { ...a, startsAt });
+    return id;
+  },
 });
 
 async function ownVisit(ctx: MutationCtx, id: Id<"visits">) {
