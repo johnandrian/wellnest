@@ -42,6 +42,9 @@ const LIGHT = {
   // On the teal header band: the translucent fill behind its round buttons and tabs.
   onPrimaryFill: "rgba(255, 255, 255, 0.16)",
   backdrop: "rgba(17, 24, 39, 0.35)",
+  // A QR code is always dark on white so any scanner reads it.
+  qrInk: "#000000",
+  qrPaper: "#FFFFFF",
   // Behind a photo opened full size, and its close button: dark in both themes.
   scrim: "rgba(0, 0, 0, 0.92)",
   scrimButton: "rgba(255, 255, 255, 0.18)",
@@ -101,6 +104,8 @@ const DARK: Palette = {
   codeBg: "#232C35",
   onPrimaryFill: "rgba(6, 43, 39, 0.12)",
   backdrop: "rgba(0, 0, 0, 0.55)",
+  qrInk: "#000000",
+  qrPaper: "#FFFFFF",
   scrim: "rgba(0, 0, 0, 0.92)",
   scrimButton: "rgba(255, 255, 255, 0.18)",
   onScrim: "#FFFFFF",
