@@ -93,7 +93,7 @@ describe("exercises", () => {
     const id = (await as.mutation(api.exercises.add, { name: "Walk" })) as Id<"exercises">;
     await as.mutation(api.exercises.toggle, { id, date: "2026-11-02", done: true });
     vi.setSystemTime(NOW + DAY);
-    await as.mutation(api.me.deleteData, { category: "journal" });
+    await as.mutation(api.me.deleteData, { category: "exercises" });
     await drain(t);
     expect(await t.run((ctx) => ctx.db.query("exercises").collect())).toHaveLength(0);
     expect(await t.run((ctx) => ctx.db.query("exerciseLogs").collect())).toHaveLength(0);

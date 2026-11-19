@@ -64,7 +64,7 @@ describe("daily check-in", () => {
     const view = (await as.query(api.journal.view, { since: "2026-10-01" }))!;
     expect(view.daily).toEqual([{ date: "2026-11-02", mood: 2, energy: 3, sleepQuality: 4 }]);
     expect(view.summaries).toContain("Mood: average 2/5 over 1 days, last 3 days 2/5.");
-    await as.mutation(api.me.deleteData, { category: "journal" });
+    await as.mutation(api.me.deleteData, { category: "checkins" });
     await drain(t);
     expect(await rows(t)).toHaveLength(0);
   });
