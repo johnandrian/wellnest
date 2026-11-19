@@ -150,6 +150,30 @@ const TEXT = {
     el: (who: string) => `${who}: χαμένες δόσεις`,
     zh: (who: string) => `${who} 错过了几次服药`,
   },
+  circleUrgent: {
+    en: (who: string) => `⚠️ **${who}** sent Wellnest a message that sounded urgent, and was told to get help right away. It may be worth checking in with them now.`,
+    es: (who: string) => `⚠️ **${who}** envió a Wellnest un mensaje que parecía urgente, y se le dijo que buscara ayuda de inmediato. Quizá convenga contactarle ahora.`,
+    el: (who: string) => `⚠️ **${who}**: έστειλε στο Wellnest ένα μήνυμα που ακουγόταν επείγον και του προτάθηκε να ζητήσει βοήθεια αμέσως. Ίσως αξίζει να επικοινωνήσεις τώρα.`,
+    zh: (who: string) => `⚠️ **${who}** 给 Wellnest 发了一条听起来很紧急的消息，已建议其立即求助。现在联系一下可能会有帮助。`,
+  },
+  circleUrgentTitle: {
+    en: (who: string) => `Check in with ${who}`,
+    es: (who: string) => `Contacta con ${who}`,
+    el: (who: string) => `Επικοινώνησε με ${who}`,
+    zh: (who: string) => `联系一下 ${who}`,
+  },
+  circleQuiet: {
+    en: (who: string, n: number) => `🌙 **${who}** hasn't logged anything in Wellnest for ${n} days. A friendly check-in might help.`,
+    es: (who: string, n: number) => `🌙 **${who}** no ha registrado nada en Wellnest en ${n} días. Quizá ayude preguntarle cómo va.`,
+    el: (who: string, n: number) => `🌙 **${who}**: δεν έχει καταγράψει τίποτα στο Wellnest εδώ και ${n} ημέρες. Ίσως βοηθήσει μια φιλική ερώτηση.`,
+    zh: (who: string, n: number) => `🌙 **${who}** 已经 ${n} 天没有在 Wellnest 记录任何内容。友好地问候一下也许会有帮助。`,
+  },
+  circleQuietTitle: {
+    en: (who: string) => `${who} has been quiet`,
+    es: (who: string) => `${who} lleva unos días sin registrar`,
+    el: (who: string) => `${who}: καμία καταγραφή εδώ και λίγες μέρες`,
+    zh: (who: string) => `${who} 最近没有记录`,
+  },
   circleJoined: {
     en: (who: string) => `👥 **${who}** joined your Care Circle. You can change what they're alerted about, or remove them, under Health tools → Care Circle.`,
     es: (who: string) => `👥 **${who}** se unió a tu círculo de cuidado. Puedes cambiar sus avisos o quitarle en Herramientas de salud → Círculo de cuidado.`,
