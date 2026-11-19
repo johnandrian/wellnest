@@ -6,6 +6,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -42,6 +43,7 @@ import { Icon } from "./Icon";
 import { Tour, TourStop } from "./Tour";
 import { SideSheet, SIDE_SHEET_MIN_WIDTH } from "./SideSheet";
 import { barTop, useInsets } from "./safeArea";
+import { formatDate, formatTime } from "./format";
 
 // The two screens: the dashboard (Health tools, where the app opens) and the chat. Moving between them slides
 // sideways, the dashboard from the left and the chat from the right.
@@ -62,6 +64,16 @@ function chooseSource(s: Strings): Promise<"library" | "camera" | null> {
   );
 }
 
+// The divider above the first message of each day: Today, Yesterday, or the date.
+function dayLabel(at: number, s: Strings) {
+  const d = new Date(at);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return s.chatToday;
+  if (d.toDateString() === yesterday.toDateString()) return s.chatYesterday;
+  return formatDate(at, s, { weekday: "long", month: "long", day: "numeric", ...(d.getFullYear() !== today.getFullYear() && { year: "numeric" }) });
+}
+
 // Suggestions on an empty chat: one per focus they picked in setup, then the general ones.
 function startersFor(focus: string[], s: Strings) {
   const picked = focus.map((f) => s.startersByFocus[f as keyof Strings["startersByFocus"]]).filter(Boolean);
@@ -79,6 +91,8 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
   const claimUpload = useMutation(api.chat.claimUpload);
   const [photo, setPhoto] = useState<Picked | null>(null);
+  // A sent photo opened full size.
+  const [viewing, setViewing] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const [screen, setScreen] = useState<Screen>("hub");
@@ -339,7 +353,15 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
               </View>
             </View>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
+            <>
+            {(index === 0 || new Date(messages[index - 1]._creationTime).toDateString() !== new Date(item._creationTime).toDateString()) && (
+              <View style={styles.dayRow} accessibilityRole="header">
+                <View style={styles.dayLine} />
+                <Text style={styles.dayText}>{dayLabel(item._creationTime, s)}</Text>
+                <View style={styles.dayLine} />
+              </View>
+            )}
             <View
               style={[
                 styles.bubble,
@@ -350,12 +372,9 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
               ]}
             >
               {item.imageUrl && (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  style={styles.photo}
-                  resizeMode="cover"
-                  accessibilityLabel={s.photoYouSent}
-                />
+                <Pressable onPress={() => setViewing(item.imageUrl)} accessibilityRole="imagebutton" accessibilityLabel={`${s.photoYouSent}. ${s.photoOpen}`}>
+                  <Image source={{ uri: item.imageUrl }} style={styles.photo} resizeMode="cover" />
+                </Pressable>
               )}
               {item.role === "user" ? (
                 !!item.text && <Text style={styles.userText}>{item.text}</Text>
@@ -419,6 +438,13 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
                 </Pressable>
               )}
             </View>
+            {/* The time once per run: under the last message a side sends within a few minutes. */}
+            {(index === messages.length - 1 ||
+              messages[index + 1].role !== item.role ||
+              messages[index + 1]._creationTime - item._creationTime > 5 * 60_000) && (
+              <Text style={[styles.time, item.role === "user" && styles.timeUser]}>{formatTime(item._creationTime, s)}</Text>
+            )}
+            </>
           )}
           ListFooterComponent={
             waiting ? (
@@ -523,6 +549,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           </Text>
         </View>
       )}
+      <Modal visible={viewing !== null} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
+        <View style={styles.viewer}>
+          {viewing && <Image source={{ uri: viewing }} style={styles.viewerImage} resizeMode="contain" accessibilityLabel={s.photoYouSent} />}
+          <Pressable style={[styles.viewerClose, { top: 12 + insets.top }]} onPress={() => setViewing(null)} accessibilityRole="button" accessibilityLabel={s.close}>
+            <Ionicons name="close" size={26} color={colors.onScrim} />
+          </Pressable>
+        </View>
+      </Modal>
       {voice.error && (
         <View style={styles.noteRow}>
           <Text style={[styles.error, styles.noteText]} accessibilityLiveRegion="assertive">
@@ -848,6 +882,15 @@ const styles = themed(() => ({
   chip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9 },
   chipText: { color: colors.text, fontSize: 14 },
   speaking: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+  dayRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 8 },
+  dayLine: { flex: 1, height: 1, backgroundColor: colors.hairline },
+  dayText: { color: colors.muted, fontSize: 12, fontWeight: "600" },
+  time: { color: colors.muted, fontSize: 11, marginTop: -4, marginLeft: 6 },
+  timeUser: { alignSelf: "flex-end", marginLeft: 0, marginRight: 6 },
+  // The full-size photo: always on a dark backdrop, in light and dark mode alike.
+  viewer: { flex: 1, backgroundColor: colors.scrim, alignItems: "center", justifyContent: "center" },
+  viewerImage: { width: "100%", height: "100%" },
+  viewerClose: { position: "absolute", right: 12, width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.scrimButton },
   speakingText: { fontSize: 12, color: colors.primary, fontWeight: "600" },
   thinking: { paddingVertical: 10, marginTop: 8 },
   ring: { borderRadius: 33 },
