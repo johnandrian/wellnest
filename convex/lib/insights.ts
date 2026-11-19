@@ -136,9 +136,12 @@ function glucoseSeries(input: Inputs): Series {
   return out;
 }
 
-// Weight (kg) per day from the phone's health data.
-const weightSeries = (input: Inputs): Series =>
-  new Map(input.health.flatMap((d): [string, number][] => (d.metrics.weightKg === undefined ? [] : [[d.date, d.metrics.weightKg]])));
+// Weight (kg) per day: the last one logged in the weight tracker that day, else the phone's health data.
+function weightSeries(input: Inputs): Series {
+  const out: Series = new Map(input.health.flatMap((d): [string, number][] => (d.metrics.weightKg === undefined ? [] : [[d.date, d.metrics.weightKg]])));
+  for (const e of [...input.trackers].sort((a, b) => a.at - b.at)) if (e.weight) out.set(e.date, e.weight.kg);
+  return out;
+}
 
 // A gain this big over a few days is worth looking at (fluid, a flare, a new medicine); 1 kg is about 2 lb.
 export const WEIGHT_STEP_KG = 1;

@@ -23,6 +23,8 @@ const ICONS = {
   steps: ["ion", "footsteps-outline"],
   heart: ["ion", "heart-outline"],
   weight: ["mci", "scale-bathroom"],
+  bp: ["mci", "heart-pulse"],
+  temperature: ["mci", "thermometer"],
   glucose: ["mci", "water-outline"],
   weather: ["ion", "partly-sunny-outline"],
   er: ["mci", "hospital-building"],

@@ -12,14 +12,14 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, severityColor, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
-import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } from "../convex/lib/units";
+import { DEFAULT_UNITS, FEVER_C, fmtGlucose, fmtTemp, fmtWeight, glucoseToMgdl, showGlucose, showTemp, showWeight, tempToC, weightToKg, type Units } from "../convex/lib/units";
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 import { formatDateTime } from "./format";
 import { SeverityScale } from "./SeverityScale";
 import { useOfflineSend } from "./offline";
 import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 
-type Tracker = "pain" | "asthma" | "seizure" | "glucose";
+type Tracker = "pain" | "asthma" | "seizure" | "glucose" | "bp" | "weight" | "temperature";
 const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
 // Under 70 mg/dL is low; over 180 high, over 250 very high.
 const glucoseColor = (mgdl: number) => (mgdl < 70 || mgdl > 250 ? colors.danger : mgdl > 180 ? colors.amber : colors.mint);
@@ -28,7 +28,16 @@ const TYPES = ["aching", "burning", "stabbing", "throbbing", "shooting", "tingli
 const SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathless"] as const;
 const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] as const;
 const PAIN_FLAGS = ["flare", "swelling", "colourChange", "temperatureChange", "touchSensitive"] as const;
-const numOrUndef = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
+const numOrUndef = (s: string) => (s.trim() && Number.isFinite(Number(s.replace(",", "."))) ? Number(s.replace(",", ".")) : undefined);
+// 180/120 and up is a crisis, 130/80 and up high, under 90/60 low.
+const bpColor = (sys: number, dia = 0) => {
+  if (sys >= 180 || dia >= 120) return colors.danger;
+  if (sys >= 130 || dia >= 80 || sys < 90) return colors.amber;
+  return colors.mint;
+};
+const tempColor = (c: number) => (c >= FEVER_C ? colors.danger : c >= 37.5 ? colors.amber : colors.mint);
+// One decimal, for a number typed back into the form in the unit shown.
+const oneDp = (n: number) => String(Math.round(n * 10) / 10);
 
 function Chips<T extends string>({ items, selected, onToggle, label }: { items: readonly T[]; selected: T[]; onToggle: (x: T) => void; label: (x: T) => string }) {
   return (
@@ -44,15 +53,16 @@ function Chips<T extends string>({ items, selected, onToggle, label }: { items: 
 
 const toggle = <T,>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
 
-// One value per day as bars (the highest that day), with an optional colour per value.
-function DayBars({ days, values, max, color }: { days: string[]; values: Map<string, number>; max: number; color: (v: number) => string }) {
+// One value per day as bars (the highest that day), with an optional color per value. `min` is the bottom of the
+// chart, for numbers that never get near 0 (weight, temperature).
+function DayBars({ days, values, max, min = 0, color }: { days: string[]; values: Map<string, number>; max: number; min?: number; color: (v: number) => string }) {
   return (
     <View style={styles.bars}>
       {days.map((d) => {
         const v = values.get(d);
         return (
           <View key={d} style={styles.slot}>
-            {v !== undefined && <View style={[styles.bar, { height: `${Math.max(6, Math.min(100, (v / max) * 100))}%`, backgroundColor: color(v) }]} />}
+            {v !== undefined && <View style={[styles.bar, { height: `${Math.max(6, Math.min(100, ((v - min) / Math.max(1e-9, max - min)) * 100))}%`, backgroundColor: color(v) }]} />}
           </View>
         );
       })}
@@ -61,13 +71,18 @@ function DayBars({ days, values, max, color }: { days: string[]; values: Map<str
 }
 
 const FIRST_ENTRIES = 15;
-const TRACKERS = ["pain", "asthma", "seizure", "glucose"] as const;
-const FOCUS_OF: Record<Tracker, string> = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "diabetes" };
+const CONDITIONS = ["pain", "asthma", "seizure", "glucose"] as const;
+// Vitals are for everyone, so they always show.
+const VITALS = ["bp", "weight", "temperature"] as const;
+const TRACKERS = [...CONDITIONS, ...VITALS];
+const FOCUS_OF: Record<(typeof CONDITIONS)[number], string> = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "diabetes" };
+const ICON_OF = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "glucose", bp: "bp", weight: "weight", temperature: "temperature" } as const;
 
-// The trackers someone picked in setup, plus any they've already used; all three when they picked none of them.
+// The condition trackers someone picked in setup, plus any they've already used (all of them when they picked
+// none), then the vitals.
 function visibleTrackers(focus: string[], data: Partial<Record<Tracker, unknown[]>> | null | undefined, showAll: boolean): Tracker[] {
-  const picked = TRACKERS.filter((t) => focus.includes(FOCUS_OF[t]) || !!data?.[t]?.length);
-  return showAll || !picked.length ? [...TRACKERS] : picked;
+  const picked = CONDITIONS.filter((t) => focus.includes(FOCUS_OF[t]) || !!data?.[t]?.length);
+  return [...(showAll || !picked.length ? CONDITIONS : picked), ...VITALS];
 }
 
 export function TrackersSection({ s, days, since }: { s: Strings; days: string[]; since: string }) {
@@ -113,6 +128,12 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   // Glucose form
   const [reading, setReading] = useState("");
   const [glucoseContext, setGlucoseContext] = useState<string | null>(null);
+  // Vitals forms
+  const [systolic, setSystolic] = useState("");
+  const [diastolic, setDiastolic] = useState("");
+  const [pulse, setPulse] = useState("");
+  const [weightText, setWeightText] = useState("");
+  const [tempText, setTempText] = useState("");
   const [note, setNote] = useState("");
   const units: Units = me?.units ?? DEFAULT_UNITS;
 
@@ -121,6 +142,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     setPeakFlow(""); setPuffs(""); setPreventer(null); setSymptoms([]); setNight(false); setAttack(false);
     setSeizureType(null); setSeconds(""); setAura(""); setRescue(null); setRecovery(""); setWitness(""); setNote("");
     setReading(""); setGlucoseContext(null);
+    setSystolic(""); setDiastolic(""); setPulse(""); setWeightText(""); setTempText("");
     setEditing(null); setDay(dayString(new Date())); setClock(timeString(new Date()));
   };
 
@@ -132,7 +154,13 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     setClock(timeString(new Date(e.at)));
     setNote(e.note ?? "");
     setTriggers(e.triggers ?? "");
-    if (t === "pain") {
+    if (t === "bp") {
+      setSystolic(String(e.systolic)); setDiastolic(String(e.diastolic)); setPulse(e.pulse ? String(e.pulse) : "");
+    } else if (t === "weight") {
+      setWeightText(oneDp(showWeight(e.kg, units)));
+    } else if (t === "temperature") {
+      setTempText(oneDp(showTemp(e.c, units)));
+    } else if (t === "pain") {
       setSeverity(e.severity); setLocations(e.locations ?? []); setTypes(e.types ?? []);
       setFlags(PAIN_FLAGS.filter((f) => e[f])); setDuration(e.durationMin ? String(e.durationMin) : ""); setHelped(e.helped ?? "");
     } else if (t === "asthma") {
@@ -175,6 +203,19 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
         await send({
           asthma: { peakFlow: numOrUndef(peakFlow), reliever: numOrUndef(puffs), ...(preventer !== null && { preventer }), symptoms, night: night || undefined, attack: attack || undefined, triggers: triggers || undefined },
         });
+      } else if (tracker === "bp") {
+        const sys = numOrUndef(systolic);
+        const dia = numOrUndef(diastolic);
+        if (sys === undefined || dia === undefined) return setError(s.trkBpNeed);
+        await send({ bp: { systolic: sys, diastolic: dia, pulse: numOrUndef(pulse) } });
+      } else if (tracker === "weight") {
+        const value = numOrUndef(weightText);
+        if (value === undefined) return setError(s.trkWeightNeed);
+        await send({ weight: { kg: weightToKg(value, units.weight) } });
+      } else if (tracker === "temperature") {
+        const value = numOrUndef(tempText);
+        if (value === undefined) return setError(s.trkTempNeed);
+        await send({ temperature: { c: tempToC(value, units.temperature) } });
       } else if (tracker === "glucose") {
         const value = numOrUndef(reading.replace(",", "."));
         if (value === undefined) return setError(s.trkGlucoseNeed);
@@ -215,8 +256,19 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const glucoseLists = new Map<string, number[]>();
   for (const g of data?.glucose ?? []) glucoseLists.set(g.date, [...(glucoseLists.get(g.date) ?? []), g.value]);
   const glucoseByDay = new Map([...glucoseLists].map(([d, xs]) => [d, xs.reduce((a, b) => a + b, 0) / xs.length]));
+  // Vitals: the day's highest blood pressure and temperature, and its last weight (lists come newest first).
+  const bpByDay = new Map<string, { systolic: number; diastolic: number }>();
+  for (const b of data?.bp ?? []) if (!bpByDay.has(b.date) || b.systolic > bpByDay.get(b.date)!.systolic) bpByDay.set(b.date, b);
+  const weightByDay = new Map<string, number>();
+  for (const w of data?.weight ?? []) if (!weightByDay.has(w.date)) weightByDay.set(w.date, showWeight(w.kg, units));
+  const tempByDay = new Map<string, number>();
+  for (const x of data?.temperature ?? []) tempByDay.set(x.date, Math.max(tempByDay.get(x.date) ?? 0, x.c));
+  const weights = [...weightByDay.values()];
 
   const line = (t: Tracker, e: any) => {
+    if (t === "bp") return [`${e.systolic}/${e.diastolic} mmHg`, e.pulse && `${s.trkPulse} ${e.pulse}`].filter(Boolean).join(" · ");
+    if (t === "weight") return fmtWeight(e.kg, units, s.locale);
+    if (t === "temperature") return [fmtTemp(e.c, units, s.locale), e.c >= FEVER_C && s.trkFever].filter(Boolean).join(" · ");
     if (t === "pain") return [`${e.severity}/10`, e.locations.map((l: string) => s[`loc_${l}` as "loc_head"]).join(", "), e.types.map((x: string) => s[`ptype_${x}` as "ptype_aching"]).join(", "), e.flare && s.trk_flare].filter(Boolean).join(" · ");
     if (t === "asthma") return [e.attack && `⚠️ ${s.trkAttack}`, e.peakFlow && `${e.peakFlow} L/min${bestFlow ? ` (${Math.round((e.peakFlow / bestFlow) * 100)}%)` : ""}`, e.reliever !== undefined && `${e.reliever} ${s.trkPuffs}`, e.symptoms.map((x: string) => s[`asym_${x}` as "asym_wheeze"]).join(", ")].filter(Boolean).join(" · ");
     if (t === "glucose") return [fmtGlucose(e.value, units), e.context && s[`gctx_${e.context}` as "gctx_other"]].filter(Boolean).join(" · ");
@@ -231,7 +283,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
       <View style={styles.chips}>
         {visibleTrackers(me?.focus ?? [], data, showAll).map((t) => (
           <Tap key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => (reset(), setAllEntries(false), setTracker(tracker === t ? null : t))} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
-            <Icon name={t === "seizure" ? "seizures" : t} size={16} color={tracker === t ? colors.primary : colors.text} />
+            <Icon name={ICON_OF[t]} size={16} color={tracker === t ? colors.primary : colors.text} />
             <Text style={[styles.chipText, tracker === t && styles.chipTextOn]}>{s[`trk_${t}`]}</Text>
             {!!data?.[t].length && <Text style={styles.count}>{data[t].length}</Text>}
           </Tap>
@@ -357,6 +409,74 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           </View>
           <Chips items={GLUCOSE_CONTEXTS} selected={glucoseContext ? [glucoseContext as (typeof GLUCOSE_CONTEXTS)[number]] : []} onToggle={(x) => setGlucoseContext(glucoseContext === x ? null : x)} label={(x) => s[`gctx_${x}`]} />
           <Text style={styles.small}>{s.trkGlucoseNote}</Text>
+        </View>
+      )}
+
+      {tracker === "bp" && (
+        <View style={styles.form}>
+          {bpByDay.size > 0 && (
+            <>
+              <Text style={styles.small}>{s.trkBpChart}</Text>
+              <DayBars
+                days={days}
+                values={new Map([...bpByDay].map(([d, b]) => [d, b.systolic]))}
+                min={60}
+                max={Math.max(180, ...[...bpByDay.values()].map((b) => b.systolic))}
+                color={(v) => bpColor(v)}
+              />
+            </>
+          )}
+          <View style={styles.inline}>
+            <TextInput style={[styles.input, styles.short]} value={systolic} onChangeText={setSystolic} keyboardType="numeric" placeholder="120" placeholderTextColor={colors.muted} accessibilityLabel={s.trkSystolic} />
+            <Text style={styles.label}>/</Text>
+            <TextInput style={[styles.input, styles.short]} value={diastolic} onChangeText={setDiastolic} keyboardType="numeric" placeholder="80" placeholderTextColor={colors.muted} accessibilityLabel={s.trkDiastolic} />
+            <Text style={styles.label}>mmHg</Text>
+            <TextInput style={[styles.input, styles.short]} value={pulse} onChangeText={setPulse} keyboardType="numeric" accessibilityLabel={s.trkPulse} />
+            <Text style={styles.label}>{s.trkPulse}</Text>
+          </View>
+          <Text style={styles.small}>{s.trkBpNote}</Text>
+        </View>
+      )}
+
+      {tracker === "weight" && (
+        <View style={styles.form}>
+          {weightByDay.size > 0 && (
+            <>
+              <Text style={styles.small}>
+                {s.trkWeightChart} ({units.weight})
+              </Text>
+              <DayBars days={days} values={weightByDay} min={Math.floor(Math.min(...weights) - 2)} max={Math.ceil(Math.max(...weights) + 1)} color={() => colors.primary} />
+            </>
+          )}
+          <View style={styles.inline}>
+            <TextInput style={[styles.input, styles.short]} value={weightText} onChangeText={setWeightText} keyboardType="decimal-pad" placeholder={units.weight} placeholderTextColor={colors.muted} accessibilityLabel={`${s.trk_weight} (${units.weight})`} />
+            <Text style={styles.label}>{units.weight}</Text>
+          </View>
+          <Text style={styles.small}>{s.trkWeightNote}</Text>
+        </View>
+      )}
+
+      {tracker === "temperature" && (
+        <View style={styles.form}>
+          {tempByDay.size > 0 && (
+            <>
+              <Text style={styles.small}>
+                {s.trkTempChart} (°{units.temperature})
+              </Text>
+              <DayBars
+                days={days}
+                values={new Map([...tempByDay].map(([d, c]) => [d, showTemp(c, units)]))}
+                min={showTemp(35, units)}
+                max={showTemp(Math.max(40, ...tempByDay.values()), units)}
+                color={(v) => tempColor(tempToC(v, units.temperature))}
+              />
+            </>
+          )}
+          <View style={styles.inline}>
+            <TextInput style={[styles.input, styles.short]} value={tempText} onChangeText={setTempText} keyboardType="decimal-pad" placeholder={`°${units.temperature}`} placeholderTextColor={colors.muted} accessibilityLabel={`${s.trk_temperature} (°${units.temperature})`} />
+            <Text style={styles.label}>°{units.temperature}</Text>
+          </View>
+          <Text style={styles.small}>{s.trkTempNote}</Text>
         </View>
       )}
 

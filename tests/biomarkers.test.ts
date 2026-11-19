@@ -16,7 +16,7 @@ import { createAppUser, messagesOf, mockApis, pushSends, setEnv, setup } from ".
 const NOW = Date.parse("2026-11-02T19:15:00Z"); // 7:15 PM in UTC
 const TODAY = "2026-11-02";
 const TOMORROW = "2026-11-03";
-const KG = { glucose: "mmol/L", weight: "kg" } as const;
+const KG = { glucose: "mmol/L", weight: "kg", temperature: "C" } as const;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -36,9 +36,9 @@ const glucose = (date: string, value: number) => ({ date, at: Date.parse(`${date
 
 describe("units", () => {
   test("US units unless changed; values are stored in mg/dL and kg", () => {
-    expect(fmtWeight(80, { glucose: "mg/dL", weight: "lb" })).toBe("176.4 lb");
+    expect(fmtWeight(80, { glucose: "mg/dL", weight: "lb", temperature: "F" })).toBe("176.4 lb");
     expect(fmtWeight(80, KG)).toBe("80 kg");
-    expect(fmtGlucose(144, { glucose: "mg/dL", weight: "lb" })).toBe("144 mg/dL");
+    expect(fmtGlucose(144, { glucose: "mg/dL", weight: "lb", temperature: "F" })).toBe("144 mg/dL");
     expect(fmtGlucose(144, KG)).toBe("8 mmol/L");
     expect(Math.round(glucoseToMgdl(7.2, "mmol/L"))).toBe(130);
   });
@@ -46,7 +46,7 @@ describe("units", () => {
   test("the setting is saved on the account", async () => {
     const t = setup();
     const { as } = await createAppUser(t);
-    expect((await as.query(api.chat.me))!.units).toEqual({ glucose: "mg/dL", weight: "lb" });
+    expect((await as.query(api.chat.me))!.units).toEqual({ glucose: "mg/dL", weight: "lb", temperature: "F" });
     await as.mutation(api.chat.setUnits, { units: KG });
     expect((await as.query(api.chat.me))!.units).toEqual(KG);
   });
