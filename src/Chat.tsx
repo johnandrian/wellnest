@@ -10,7 +10,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -19,23 +18,22 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
-import { colors, floatingBar, softShadow, radius, TEXT_SIZES, themed, themeVersion } from "./theme";
+import { colors, floatingBar, softShadow, radius, themed, themeVersion } from "./theme";
 import { errorText, showToast } from "./feedback";
 import { useVoice } from "./useVoice";
 import { Markdown } from "./Markdown";
 import { Enter, PulseRing, Reveal, SwapIcon, ThinkingDots } from "./Motion";
 import { SingingBrand, SingingMark } from "./SingingMark";
 import { HealthSync, useHealthSync } from "./useHealthSync";
-import { HealthSettings } from "./HealthSettings";
 import { HubPanel, HubTab } from "./HubPanel";
 import { ChartCard, ChartData } from "./ChartCard";
 import { AboutPanel } from "./AboutPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { Picked, pickPhoto, uploadPhoto } from "./photo";
 import type { Id } from "../convex/_generated/dataModel";
-import { Lang, LANGUAGE_NAMES, Strings, strings } from "./i18n";
-import { pushSupported, usePush } from "./push";
+import { Strings, strings } from "./i18n";
+import { usePush } from "./push";
 import { AppointmentCard } from "./TelehealthCard";
 import { DailyCard } from "./DailyCard";
 import { ChatHistory } from "./ChatHistory";
@@ -236,7 +234,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   };
 
   const settings = me && (
-    <Settings
+    <SettingsPanel
       me={me}
       s={s}
       pushToken={pushToken}
@@ -654,232 +652,6 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   );
 }
 
-function Settings({
-  me,
-  s,
-  pushToken,
-  health,
-  onOpenAbout,
-  onRedoSetup,
-  onTour,
-}: {
-  me: {
-    email: string | null;
-    telegramLinked: boolean;
-    location: string;
-    language: string;
-    appearance: { theme: "system" | "light" | "dark"; textSize: number };
-    notifications: { reminders: boolean; appointments: boolean };
-    checkins: boolean;
-    weeklySummary: boolean;
-    flareForecast: boolean;
-    airAlerts: boolean;
-    units: { glucose: "mg/dL" | "mmol/L"; weight: "lb" | "kg" };
-  };
-  s: Strings;
-  pushToken: { current: string | null };
-  health: HealthSync;
-  onOpenAbout: () => void;
-  onRedoSetup: () => void;
-  onTour: () => void;
-}) {
-  const setLanguage = useMutation(api.chat.setLanguage);
-  const setAppearance = useMutation(api.chat.setAppearance);
-  const setPushPreference = useMutation(api.push.setPreference);
-  const unregisterPush = useMutation(api.push.unregister);
-  const setCheckins = useMutation(api.checkins.setEnabled);
-  const setWeekly = useMutation(api.weekly.setEnabled);
-  const setForecast = useMutation(api.forecast.setEnabled);
-  const setUnits = useMutation(api.chat.setUnits);
-  const setAirAlerts = useMutation(api.forecast.setAirAlerts);
-  const setLocation = useMutation(api.chat.setLocation);
-  const [location, setLocationText] = useState(me.location);
-  const saveLocation = () => {
-    if (location.trim() !== me.location) void setLocation({ location });
-  };
-  const createLinkUrl = useMutation(api.telegram.createLinkUrl);
-  const { signOut } = useAuthActions();
-  const [error, setError] = useState<string | null>(null);
-
-  const openTelegram = async () => {
-    try {
-      await Linking.openURL(await createLinkUrl());
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
-
-  return (
-    <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settings}>
-      <Text style={styles.muted}>{me.email}</Text>
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>{s.languageLabel}</Text>
-        <View style={styles.langChips}>
-          {(Object.keys(LANGUAGE_NAMES) as Lang[]).map((code) => (
-            <Pressable
-              key={code}
-              style={[styles.langChip, me.language === code && styles.langChipOn]}
-              onPress={() => void setLanguage({ language: code })}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: me.language === code }}
-            >
-              <Text style={[styles.langChipText, me.language === code && styles.langChipTextOn]}>{LANGUAGE_NAMES[code]}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>{s.appearanceLabel}</Text>
-        <View style={styles.langChips} accessibilityRole="radiogroup">
-          {(
-            [
-              ["system", "phone-portrait-outline", s.themeSystem],
-              ["light", "sunny-outline", s.themeLight],
-              ["dark", "moon-outline", s.themeDark],
-            ] as const
-          ).map(([theme, icon, label]) => {
-            const on = me.appearance.theme === theme;
-            return (
-              <Pressable
-                key={theme}
-                style={[styles.langChip, styles.iconChip, on && styles.langChipOn]}
-                onPress={() => void setAppearance({ appearance: { ...me.appearance, theme } })}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on }}
-              >
-                <SwapIcon id={on ? "on" : "off"}>
-                  <Ionicons name={on ? (icon.replace("-outline", "") as typeof icon) : icon} size={14} color={on ? colors.primary : colors.muted} />
-                </SwapIcon>
-                <Text style={[styles.langChipText, on && styles.langChipTextOn]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>{s.textSizeLabel}</Text>
-        <View style={styles.langChips} accessibilityRole="radiogroup">
-          {TEXT_SIZES.map((size, i) => {
-            const on = me.appearance.textSize === size;
-            return (
-              <Pressable
-                key={size}
-                style={[styles.langChip, styles.sizeChip, on && styles.langChipOn]}
-                onPress={() => void setAppearance({ appearance: { ...me.appearance, textSize: size } })}
-                accessibilityRole="radio"
-                accessibilityLabel={s.textSizeNames[i]}
-                accessibilityState={{ selected: on }}
-              >
-                {/* The sample letter is drawn at that size, unscaled, so the choices compare honestly. */}
-                <Text style={[styles.sizeSample, { fontSize: Math.round(15 * size) }, on && styles.langChipTextOn]} allowFontScaling={false}>
-                  A
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-      {/* Units for weight and glucose: only what's shown changes; readings are stored the same way. */}
-      {(
-        [
-          ["weight", s.unitsWeight, ["lb", "kg"]],
-          ["glucose", s.unitsGlucose, ["mg/dL", "mmol/L"]],
-        ] as const
-      ).map(([kind, label, options]) => (
-        <View key={kind} style={styles.settingRow}>
-          <Text style={styles.settingLabel}>{label}</Text>
-          <View style={styles.langChips} accessibilityRole="radiogroup" accessibilityLabel={label}>
-            {options.map((unit) => {
-              const on = me.units[kind] === unit;
-              return (
-                <Pressable
-                  key={unit}
-                  style={[styles.langChip, on && styles.langChipOn]}
-                  onPress={() => void setUnits({ units: { ...me.units, [kind]: unit } })}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                >
-                  <Text style={[styles.langChipText, on && styles.langChipTextOn]}>{unit}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      ))}
-      <View style={styles.settingRow}>
-        <Text style={styles.settingLabel}>{s.locationLabel}</Text>
-        <TextInput
-          style={styles.locationInput}
-          placeholder={s.locationPlaceholder}
-          placeholderTextColor={colors.muted}
-          accessibilityLabel={s.locationLabel}
-          value={location}
-          onChangeText={setLocationText}
-          onBlur={saveLocation}
-          onSubmitEditing={saveLocation}
-          returnKeyType="done"
-        />
-      </View>
-      <Pressable style={styles.settingButton} onPress={openTelegram}>
-        <Text style={styles.settingButtonText}>
-          {me.telegramLinked ? s.telegramLinked : s.telegramLink}
-        </Text>
-      </Pressable>
-      {error && <Text style={styles.error}>{error}</Text>}
-      <HealthSettings health={health} s={s} />
-      <Pressable style={styles.settingButton} onPress={onOpenAbout} accessibilityRole="button">
-        <Text style={styles.settingButtonText}>{s.aboutMe}</Text>
-      </Pressable>
-      <Pressable style={styles.settingButton} onPress={onRedoSetup} accessibilityRole="button">
-        <Text style={styles.settingButtonText}>{s.redoSetup}</Text>
-      </Pressable>
-      <Pressable style={styles.settingButton} onPress={onTour} accessibilityRole="button">
-        <Text style={styles.settingButtonText}>{s.tourReplay}</Text>
-      </Pressable>
-      <View style={styles.settingRow}>
-        <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.dailyCheckins}</Text>
-        <Switch accessibilityLabel={s.dailyCheckins} value={me.checkins} onValueChange={(enabled) => void setCheckins({ enabled })} />
-      </View>
-      <View style={styles.settingRow}>
-        <Text style={[styles.settingLabel, styles.settingLabelWrap]}>{s.weeklySummary}</Text>
-        <Switch accessibilityLabel={s.weeklySummary} value={me.weeklySummary} onValueChange={(enabled) => void setWeekly({ enabled })} />
-      </View>
-      <View style={styles.settingRow}>
-        <View style={styles.settingLabelWrap}>
-          <Text style={styles.settingLabel}>{s.flareForecast}</Text>
-          <Text style={styles.settingHint}>{s.flareForecastHint}</Text>
-        </View>
-        <Switch accessibilityLabel={s.flareForecast} value={me.flareForecast} onValueChange={(enabled) => void setForecast({ enabled })} />
-      </View>
-      <View style={styles.settingRow}>
-        <View style={styles.settingLabelWrap}>
-          <Text style={styles.settingLabel}>{s.airAlerts}</Text>
-          <Text style={styles.settingHint}>{s.airAlertsHint}</Text>
-        </View>
-        <Switch accessibilityLabel={s.airAlerts} value={me.airAlerts} onValueChange={(enabled) => void setAirAlerts({ enabled })} />
-      </View>
-      {pushSupported &&
-        (["reminders", "appointments"] as const).map((kind) => (
-          <View key={kind} style={styles.settingRow}>
-            <Text style={styles.settingLabel}>{kind === "reminders" ? s.notifyReminders : s.notifyAppointments}</Text>
-            <Switch accessibilityLabel={kind === "reminders" ? s.notifyReminders : s.notifyAppointments} value={me.notifications[kind]} onValueChange={(enabled) => void setPushPreference({ kind, enabled })} />
-          </View>
-        ))}
-      <Pressable
-        style={styles.signOut}
-        accessibilityRole="button"
-        onPress={async () => {
-          // This phone stops getting the account's notifications.
-          if (pushToken.current) await unregisterPush({ token: pushToken.current }).catch(() => {});
-          await signOut();
-        }}
-      >
-        <Text style={styles.headerLink}>{s.signOut}</Text>
-      </Pressable>
-    </ScrollView>
-  );
-}
-
 const styles = themed(() => ({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
@@ -904,29 +676,9 @@ const styles = themed(() => ({
   dashButton: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.primary, marginHorizontal: 4 },
   dashButtonNarrow: { width: 40, paddingHorizontal: 0, justifyContent: "center" },
   dashText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
-  headerLink: { color: colors.primary, fontSize: 16 },
-  signOut: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   // Above the chat while it drops open, so it slides over the messages rather than pushing them.
   settingsWrap: { zIndex: 5, maxHeight: "70%" },
   aboutWrap: { zIndex: 5, maxHeight: "80%" },
-  settingsScroll: { flexGrow: 0, flexShrink: 1, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  settings: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center" },
-  settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  settingLabel: { fontSize: 16, color: colors.text },
-  settingLabelWrap: { flex: 1, marginRight: 12 },
-  settingHint: { fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 2 },
-  locationInput: { color: colors.text, flex: 1, marginLeft: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15 },
-  langChips: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, marginLeft: 16 },
-  langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
-  iconChip: { flexDirection: "row", alignItems: "center", gap: 4 },
-  sizeChip: { minWidth: 40, minHeight: 36, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
-  sizeSample: { color: colors.text, fontWeight: "700", lineHeight: 24 },
-  langChipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  langChipText: { color: colors.text, fontSize: 14 },
-  langChipTextOn: { color: colors.primary, fontWeight: "600" },
-  settingButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, padding: 12, alignItems: "center" },
-  settingButtonText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
-  muted: { color: colors.muted, fontSize: 14 },
   list: { padding: 16, gap: 8, maxWidth: 760, width: "100%", alignSelf: "center" },
   empty: { color: colors.muted, textAlign: "center", lineHeight: 20, maxWidth: 340, fontSize: 14 },
   welcome: { alignItems: "center", marginTop: 32, gap: 10, paddingHorizontal: 8 },
