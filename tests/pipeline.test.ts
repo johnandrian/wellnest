@@ -127,7 +127,7 @@ describe("app chat", () => {
       weeklySummary: true,
       flareForecast: true,
       airAlerts: true,
-      units: { glucose: "mg/dL", weight: "lb" },
+      units: { glucose: "mg/dL", weight: "lb", temperature: "F" },
       location: "",
       country: null,
       telegramLinked: false,

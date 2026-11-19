@@ -26,7 +26,7 @@ export type SettingsMe = {
   weeklySummary: boolean;
   flareForecast: boolean;
   airAlerts: boolean;
-  units: { glucose: "mg/dL" | "mmol/L"; weight: "lb" | "kg" };
+  units: { glucose: "mg/dL" | "mmol/L"; weight: "lb" | "kg"; temperature: "F" | "C" };
 };
 
 // One group: a small heading over a card of rows.
@@ -247,7 +247,7 @@ export function SettingsPanel({
           me.appearance.textSize,
           (textSize) => void setAppearance({ appearance: { ...me.appearance, textSize } }),
         )}
-        {/* Units for weight and glucose: only what's shown changes; readings are stored the same way. */}
+        {/* Units for weight, glucose, and temperature: only what's shown changes; readings are stored the same way. */}
         {chips(s.unitsWeight, [{ value: "lb", label: "lb" }, { value: "kg", label: "kg" }] as const, me.units.weight, (weight) => void setUnits({ units: { ...me.units, weight } }))}
         {chips(
           s.unitsGlucose,
@@ -255,6 +255,7 @@ export function SettingsPanel({
           me.units.glucose,
           (glucose) => void setUnits({ units: { ...me.units, glucose } }),
         )}
+        {chips(s.unitsTemperature, [{ value: "F", label: "°F" }, { value: "C", label: "°C" }] as const, me.units.temperature, (temperature) => void setUnits({ units: { ...me.units, temperature } }))}
       </Group>
 
       <Group title={s.settingsNotifications}>

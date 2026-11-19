@@ -219,14 +219,16 @@ export const journalTools: ToolDef[] = [
     function: {
       name: "log_condition_event",
       description:
-        "Log a pain / CRPS episode, an asthma reading or attack, a seizure, or a blood glucose reading in the user's condition " +
+        "Log a pain / CRPS episode, an asthma reading or attack, a seizure, a blood glucose reading, or a blood pressure, weight, or " +
+        "temperature reading in the user's condition " +
         "trackers when they describe one. Fill in only what they said. Several entries a day are fine. Mention briefly that you logged it. " +
         "For a seizure that's happening now or lasted over 5 minutes, tell them to call emergency services first. For a glucose " +
-        "reading under 70 mg/dL (3.9 mmol/L) with symptoms, or one they say is very high with vomiting or confusion, give the urgent advice first.",
+        "reading under 70 mg/dL (3.9 mmol/L) with symptoms, or one they say is very high with vomiting or confusion, give the urgent advice first. " +
+        "For blood pressure of 180/120 or more with chest pain, shortness of breath, weakness, or trouble speaking, tell them to call emergency services first.",
       parameters: {
         type: "object",
         properties: {
-          tracker: { type: "string", enum: ["pain", "asthma", "seizure", "glucose"] },
+          tracker: { type: "string", enum: ["pain", "asthma", "seizure", "glucose", "bp", "weight", "temperature"] },
           date: { type: "string", description: "YYYY-MM-DD if not today" },
           note: { type: "string" },
           severity: { type: "integer", description: "pain: 0-10" },
@@ -258,6 +260,13 @@ export const journalTools: ToolDef[] = [
           glucose_value: { type: "number", description: "glucose: the reading as they said it" },
           glucose_unit: { type: "string", enum: ["mg/dL", "mmol/L"], description: "glucose: the reading's unit; values under 35 are almost always mmol/L" },
           glucose_context: { type: "string", enum: ["fasting", "before_meal", "after_meal", "bedtime", "other"] },
+          systolic: { type: "number", description: "bp: the top number, mmHg" },
+          diastolic: { type: "number", description: "bp: the bottom number, mmHg" },
+          pulse: { type: "number", description: "bp: heart rate if they gave it" },
+          weight_value: { type: "number", description: "weight: as they said it" },
+          weight_unit: { type: "string", enum: ["lb", "kg"] },
+          temperature_value: { type: "number", description: "temperature: as they said it" },
+          temperature_unit: { type: "string", enum: ["F", "C"], description: "temperature: values over 45 are °F" },
         },
         required: ["tracker"],
       },

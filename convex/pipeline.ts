@@ -15,7 +15,7 @@ import { aboutUserText } from "./lib/onboarding";
 import { localToday } from "./journal";
 import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
-import { glucoseToMgdl, unitsOf } from "./lib/units";
+import { glucoseToMgdl, tempToC, unitsOf, weightToKg } from "./lib/units";
 import { biosensorText, cycleSummary, dateDaysAgo, HealthDay, healthReport } from "./lib/health";
 import { parseInputs } from "./lib/creao";
 import { NO_ROUTE, Route, route } from "./lib/jev";
@@ -220,8 +220,9 @@ export const respond = internalAction({
             });
           }
           if (name === "log_condition_event") {
-            const tracker = args.tracker === "pain" || args.tracker === "asthma" || args.tracker === "seizure" || args.tracker === "glucose" ? args.tracker : null;
-            if (!tracker) return Promise.resolve('Tool error: tracker must be "pain", "asthma", "seizure", or "glucose".');
+            const TRACKERS = ["pain", "asthma", "seizure", "glucose", "bp", "weight", "temperature"] as const;
+            const tracker = TRACKERS.find((t) => t === args.tracker) ?? null;
+            if (!tracker) return Promise.resolve(`Tool error: tracker must be one of ${TRACKERS.join(", ")}.`);
             const a = args as Record<string, any>;
             return ctx.runMutation(internal.trackers.fromChat, {
               userId,
@@ -245,6 +246,15 @@ export const respond = internalAction({
               glucose: tracker === "glucose" && typeof a.glucose_value === "number" ? {
                 value: glucoseToMgdl(a.glucose_value, a.glucose_unit === "mmol/L" || (a.glucose_unit !== "mg/dL" && a.glucose_value < 35) ? "mmol/L" : "mg/dL"),
                 context: a.glucose_context,
+              } : undefined,
+              bp: tracker === "bp" ? { systolic: a.systolic, diastolic: a.diastolic, pulse: a.pulse } : undefined,
+              weight:
+                tracker === "weight" && typeof a.weight_value === "number"
+                  ? { kg: weightToKg(a.weight_value, a.weight_unit === "kg" ? "kg" : "lb") }
+                  : undefined,
+              // Stored in °C; a body temperature over 45 can only be °F, whatever the unit said.
+              temperature: tracker === "temperature" && typeof a.temperature_value === "number" ? {
+                c: tempToC(a.temperature_value, a.temperature_value > 45 ? "F" : "C"),
               } : undefined,
             });
           }

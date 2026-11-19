@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 const fasting = (date: string, value: number): GlucoseReading => ({ date, at: Date.parse(`${date}T07:00:00Z`), value, context: "fasting" });
-const MMOL = { glucose: "mmol/L", weight: "kg" } as const;
+const MMOL = { glucose: "mmol/L", weight: "kg", temperature: "C" } as const;
 
 describe("agent rules", () => {
   test("three high fasting mornings in a row draft a doctor message that mentions a recent medication change", () => {
