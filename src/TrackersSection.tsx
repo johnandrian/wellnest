@@ -1,5 +1,7 @@
 // Condition trackers in the Journal tab (convex/trackers.ts): pain / CRPS, asthma, seizures, and glucose, each with a
-// quick form, a chart over the chosen days, and the recent entries. Most people will log by just telling Wellnest in chat.
+// quick form (for now or an earlier day and time), a chart over the chosen days, and the entries, which open back into
+// the form to be changed. Asthma keeps the personal best peak flow in a small plan with its three zones. Most people
+// will log by just telling Wellnest in chat.
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
@@ -14,6 +16,7 @@ import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } fro
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 import { formatDateTime } from "./format";
 import { SeverityScale } from "./SeverityScale";
+import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 
 type Tracker = "pain" | "asthma" | "seizure" | "glucose";
 const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
@@ -56,6 +59,7 @@ function DayBars({ days, values, max, color }: { days: string[]; values: Map<str
   );
 }
 
+const FIRST_ENTRIES = 15;
 const TRACKERS = ["pain", "asthma", "seizure", "glucose"] as const;
 const FOCUS_OF: Record<Tracker, string> = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "diabetes" };
 
@@ -70,7 +74,12 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const me = useQuery(api.chat.me);
   const [showAll, setShowAll] = useState(false);
   const add = useMutation(api.trackers.add);
+  const update = useMutation(api.trackers.update);
   const remove = useMutation(api.trackers.remove);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [day, setDay] = useState(() => dayString(new Date()));
+  const [clock, setClock] = useState(() => timeString(new Date()));
+  const [allEntries, setAllEntries] = useState(false);
   const setBest = useMutation(api.trackers.setPeakFlowBest);
   const [tracker, setTracker] = useState<Tracker | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -110,17 +119,43 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     setPeakFlow(""); setPuffs(""); setPreventer(null); setSymptoms([]); setNight(false); setAttack(false);
     setSeizureType(null); setSeconds(""); setAura(""); setRescue(null); setRecovery(""); setWitness(""); setNote("");
     setReading(""); setGlucoseContext(null);
+    setEditing(null); setDay(dayString(new Date())); setClock(timeString(new Date()));
+  };
+
+  // An entry goes back into the form to be changed.
+  const startEdit = (t: Tracker, e: any) => {
+    reset();
+    setEditing(e._id);
+    setDay(e.date);
+    setClock(timeString(new Date(e.at)));
+    setNote(e.note ?? "");
+    setTriggers(e.triggers ?? "");
+    if (t === "pain") {
+      setSeverity(e.severity); setLocations(e.locations ?? []); setTypes(e.types ?? []);
+      setFlags(PAIN_FLAGS.filter((f) => e[f])); setDuration(e.durationMin ? String(e.durationMin) : ""); setHelped(e.helped ?? "");
+    } else if (t === "asthma") {
+      setPeakFlow(e.peakFlow ? String(e.peakFlow) : ""); setPuffs(e.reliever !== undefined ? String(e.reliever) : ""); setPreventer(e.preventer ?? null);
+      setSymptoms(e.symptoms ?? []); setNight(!!e.night); setAttack(!!e.attack);
+    } else if (t === "glucose") {
+      setReading(String(showGlucose(e.value, units))); setGlucoseContext(e.context ?? null);
+    } else {
+      setSeizureType(e.type ?? null); setSeconds(e.durationSec ? String(e.durationSec) : ""); setAura(e.aura ?? ""); setRescue(e.rescueMed ?? null);
+      setRecovery(e.recoveryMin ? String(e.recoveryMin) : ""); setWitness(e.witness ?? "");
+    }
   };
 
   const save = async () => {
     if (!tracker) return;
     setError(null);
+    // The chosen day and time, never later than now.
+    const at = Math.min(Date.now(), new Date(`${day}T${clock}:00`).getTime() || Date.now());
+    const when = { date: day, at };
+    const send = (details: Record<string, unknown>) =>
+      editing ? update({ id: editing as Id<"trackerEntries">, ...when, note: note || undefined, ...details }) : add({ tracker, ...when, note: note || undefined, ...details });
     try {
       if (tracker === "pain") {
         if (severity === null) return setError(s.trkPainNeedScore);
-        await add({
-          tracker,
-          note: note || undefined,
+        await send({
           pain: {
             severity,
             locations,
@@ -132,24 +167,20 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
           },
         });
       } else if (tracker === "asthma") {
-        await add({
-          tracker,
-          note: note || undefined,
+        await send({
           asthma: { peakFlow: numOrUndef(peakFlow), reliever: numOrUndef(puffs), ...(preventer !== null && { preventer }), symptoms, night: night || undefined, attack: attack || undefined, triggers: triggers || undefined },
         });
       } else if (tracker === "glucose") {
         const value = numOrUndef(reading.replace(",", "."));
         if (value === undefined) return setError(s.trkGlucoseNeed);
-        await add({ tracker, note: note || undefined, glucose: { value: glucoseToMgdl(value, units.glucose), ...(glucoseContext && { context: glucoseContext }) } });
+        await send({ glucose: { value: glucoseToMgdl(value, units.glucose), ...(glucoseContext && { context: glucoseContext }) } });
       } else {
-        await add({
-          tracker,
-          note: note || undefined,
+        await send({
           seizure: { ...(seizureType && { type: seizureType }), durationSec: numOrUndef(seconds), aura: aura || undefined, triggers: triggers || undefined, ...(rescue !== null && { rescueMed: rescue }), recoveryMin: numOrUndef(recovery), witness: witness || undefined },
         });
       }
       reset();
-      showToast(s.trkSaved);
+      showToast(editing ? s.saved : s.trkSaved);
     } catch (e) {
       setError(errorText(e));
     }
@@ -194,7 +225,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
       <Text style={styles.section}>{s.trkTitle}</Text>
       <View style={styles.chips}>
         {visibleTrackers(me?.focus ?? [], data, showAll).map((t) => (
-          <Tap key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => setTracker(tracker === t ? null : t)} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
+          <Tap key={t} style={[styles.tbtn, tracker === t && styles.chipOn]} onPress={() => (reset(), setAllEntries(false), setTracker(tracker === t ? null : t))} accessibilityRole="tab" accessibilityState={{ selected: tracker === t }}>
             <Icon name={t === "seizure" ? "seizures" : t} size={16} color={tracker === t ? colors.primary : colors.text} />
             <Text style={[styles.chipText, tracker === t && styles.chipTextOn]}>{s[`trk_${t}`]}</Text>
             {!!data?.[t].length && <Text style={styles.count}>{data[t].length}</Text>}
@@ -241,12 +272,25 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
               <DayBars days={days} values={puffsByDay} max={Math.max(4, ...puffsByDay.values())} color={() => colors.sleep} />
             </>
           )}
-          <View style={styles.inline}>
-            <Text style={styles.label}>{s.trkBest}</Text>
-            <TextInput style={[styles.input, styles.short]} value={best || (bestFlow ? String(bestFlow) : "")} onChangeText={setBestText} keyboardType="numeric" accessibilityLabel={s.trkBest} />
-            <Tap onPress={() => void setBest({ value: numOrUndef(best) ?? null }).catch((e) => setError(errorText(e)))} accessibilityRole="button">
-              <Text style={styles.link}>{s.save}</Text>
-            </Tap>
+          <View style={styles.plan}>
+            <Text style={styles.planTitle}>{s.trkPlanTitle}</Text>
+            <View style={styles.inline}>
+              <Text style={styles.label}>{s.trkBest}</Text>
+              <TextInput style={[styles.input, styles.short]} value={best || (bestFlow ? String(bestFlow) : "")} onChangeText={setBestText} keyboardType="numeric" accessibilityLabel={s.trkBest} />
+              <Tap style={styles.saveBest} onPress={() => void setBest({ value: numOrUndef(best) ?? null }).then(() => (setBestText(""), showToast(s.saved)), (e) => setError(errorText(e)))} accessibilityRole="button">
+                <Text style={styles.link}>{s.save}</Text>
+              </Tap>
+            </View>
+            {bestFlow ? (
+              <>
+                <Zone color={colors.mint} text={s.trkZoneGreen.replace("{n}", String(Math.round(bestFlow * 0.8)))} />
+                <Zone color={colors.amber} text={s.trkZoneYellow.replace("{a}", String(Math.round(bestFlow * 0.5))).replace("{b}", String(Math.round(bestFlow * 0.8)))} />
+                <Zone color={colors.danger} text={s.trkZoneRed.replace("{n}", String(Math.round(bestFlow * 0.5)))} />
+                <Text style={styles.small}>{s.trkPlanNote}</Text>
+              </>
+            ) : (
+              <Text style={styles.small}>{s.trkPlanNoBest}</Text>
+            )}
           </View>
           <View style={styles.inline}>
             <TextInput style={[styles.input, styles.short]} value={peakFlow} onChangeText={setPeakFlow} keyboardType="numeric" placeholder="L/min" placeholderTextColor={colors.muted} accessibilityLabel={s.trkPeakFlow} />
@@ -313,26 +357,67 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
 
       {tracker && (
         <>
+          <View style={styles.inline}>
+            <Text style={styles.label}>{s.trkWhen}</Text>
+            <DateField value={day} onChange={(d) => setDay(d > dayString(new Date()) ? dayString(new Date()) : d)} label={s.trkWhen} s={s} />
+            <TimeField value={clock} onChange={setClock} label={s.timeLabel} s={s} />
+          </View>
           <TextInput style={styles.input} placeholder={s.trkNote} placeholderTextColor={colors.muted} value={note} onChangeText={setNote} />
           <View style={styles.inline}>
             <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
-              <Text style={styles.buttonText}>{s.journalSave}</Text>
+              <Text style={styles.buttonText}>{editing ? s.logSaveChanges : s.journalSave}</Text>
             </Tap>
+            {editing && (
+              <Tap style={styles.saveBest} onPress={reset} accessibilityRole="button">
+                <Text style={styles.link}>{s.cancel}</Text>
+              </Tap>
+            )}
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
-          {list.filter((e) => !isHidden(e._id)).slice(0, 15).map((e) => (
-            <View key={e._id} style={styles.entry}>
-              <Text style={[styles.line, styles.flex]}>
-                {formatDateTime(e.at, s)} · {line(tracker, e)}
-                {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
-              </Text>
-              <Tap onPress={() => removeWithUndo({ key: e._id, text: s.removed, run: () => remove({ id: e._id as Id<"trackerEntries"> }), onError: (err) => setError(errorText(err)) })} accessibilityRole="button" accessibilityLabel={s.remove}>
-                <Ionicons name="close" size={18} color={colors.muted} />
-              </Tap>
-            </View>
-          ))}
+          {(() => {
+            const shown = list.filter((e) => !isHidden(e._id));
+            return (
+              <>
+                {(allEntries ? shown : shown.slice(0, FIRST_ENTRIES)).map((e) => (
+                  <View key={e._id} style={[styles.entry, editing === e._id && styles.entryOn]}>
+                    <Tap style={styles.entryMain} onPress={() => startEdit(tracker, e)} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${formatDateTime(e.at, s)}, ${line(tracker, e)}`}>
+                      <Text style={[styles.line, styles.flex]}>
+                        {formatDateTime(e.at, s)} · {line(tracker, e)}
+                        {e.note ? <Text style={styles.small}> · {e.note}</Text> : null}
+                      </Text>
+                    </Tap>
+                    <Tap
+                      style={styles.iconButton}
+                      onPress={() => {
+                        if (editing === e._id) reset();
+                        removeWithUndo({ key: e._id, text: s.removed, run: () => remove({ id: e._id as Id<"trackerEntries"> }), onError: (err) => setError(errorText(err)) });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={s.remove}
+                    >
+                      <Ionicons name="close" size={18} color={colors.muted} />
+                    </Tap>
+                  </View>
+                ))}
+                {shown.length > FIRST_ENTRIES && (
+                  <Tap style={styles.more} onPress={() => setAllEntries(!allEntries)} accessibilityRole="button" accessibilityState={{ expanded: allEntries }}>
+                    <Text style={styles.link}>{allEntries ? s.journalShowFewer : s.journalShowAll.replace("{n}", String(shown.length))}</Text>
+                  </Tap>
+                )}
+              </>
+            );
+          })()}
         </>
       )}
+    </View>
+  );
+}
+
+function Zone({ color, text }: { color: string; text: string }) {
+  return (
+    <View style={styles.zone}>
+      <View style={[styles.zoneDot, { backgroundColor: color }]} />
+      <Text style={[styles.line, styles.flex]}>{text}</Text>
     </View>
   );
 }
@@ -364,6 +449,15 @@ const styles = themed(() => ({
   button: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 16, minHeight: TOUCH, justifyContent: "center" },
   buttonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
-  entry: { flexDirection: "row", alignItems: "center", gap: 8 },
+  entry: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: radius.sm },
+  entryOn: { backgroundColor: colors.primarySoft },
+  entryMain: { flex: 1, minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 4 },
+  iconButton: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
+  more: { ...ui.addButton },
+  saveBest: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 8 },
+  plan: { ...ui.card, padding: 12, gap: 8 },
+  planTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  zone: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  zoneDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
   error: { color: colors.danger, fontSize: 13 },
 }));

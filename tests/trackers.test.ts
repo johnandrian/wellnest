@@ -115,4 +115,22 @@ describe("trackers in chat", () => {
     await drain(t);
     expect(result(calls, "p1")).toBe("Tool error: Give the pain a 0-10 score.");
   });
+
+  test("an entry can be backdated and changed later; only its owner can change it, and never into the future", async () => {
+    const t = setup();
+    const { as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    const earlier = Date.parse("2026-10-30T16:00:00Z");
+    const id = await as.mutation(api.trackers.add, { tracker: "pain", date: "2026-10-30", at: earlier, pain: { severity: 4, locations: ["head"], types: [] } });
+    let [row] = await rows(t);
+    expect(row).toMatchObject({ date: "2026-10-30", at: earlier });
+
+    await as.mutation(api.trackers.update, { id, date: "2026-10-31", at: earlier + 86_400_000, note: "after work", pain: { severity: 7, locations: ["neck"], types: ["burning"] } });
+    [row] = await rows(t);
+    expect(row).toMatchObject({ date: "2026-10-31", note: "after work", pain: { severity: 7, locations: ["neck"], types: ["burning"] } });
+
+    await expect(as.mutation(api.trackers.update, { id, date: "2026-11-05", at: NOW, pain: { severity: 7, locations: [], types: [] } })).rejects.toThrow(/up to now/);
+    await expect(other.as.mutation(api.trackers.update, { id, date: "2026-10-31", at: earlier, pain: { severity: 1, locations: [], types: [] } })).rejects.toThrow(/Not found/);
+    expect((await rows(t))[0].pain?.severity).toBe(7);
+  });
 });
