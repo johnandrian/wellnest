@@ -79,6 +79,24 @@ describe("share links", () => {
     expect(await t.run((ctx) => ctx.db.query("shareLinks").collect())).toHaveLength(0);
   });
 
+  test("the emergency plan keeps one link for carers until it's turned off", async () => {
+    const t = setup();
+    mockApis();
+    const { as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    const first = await as.mutation(api.share.emergencyLink, { label: "Emergency plan" });
+    expect(first.reused).toBe(false);
+    // A doctor's link for the same section doesn't count: it can expire.
+    await as.mutation(api.share.create, { sections: ["emergency"], rangeDays: 1, expiresInDays: 7 });
+    expect(await as.mutation(api.share.emergencyLink, { label: "Emergency plan" })).toEqual({ url: first.url, reused: true });
+    expect((await other.as.mutation(api.share.emergencyLink, { label: "Emergency plan" })).url).not.toBe(first.url);
+    const links = await as.query(api.share.list, { now: Date.now() });
+    await as.mutation(api.share.revoke, { id: links.find((l) => l.url === first.url)!._id });
+    const next = await as.mutation(api.share.emergencyLink, { label: "Emergency plan" });
+    expect(next.reused).toBe(false);
+    expect(next.url).not.toBe(first.url);
+  });
+
   test("needs sections, and caps active links", async () => {
     const t = setup();
     const { as } = await withData(t);

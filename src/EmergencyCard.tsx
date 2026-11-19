@@ -1,5 +1,6 @@
 // Emergency action plan (convex/emergency.ts) in the Care tab: write your steps (templates to start from), contacts
-// and asthma action plan; show it full screen with call buttons; share it with carers through a private link.
+// and asthma action plan; show it full screen with call buttons (EmergencyFull, also opened from the dashboard); share
+// it with carers through one private link that stays the same each time (share.emergencyLink).
 import { useState } from "react";
 import { Linking, Modal, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
@@ -58,11 +59,9 @@ function PlanView({ sections, contacts, asthma, notes, s, big = false }: { secti
 }
 
 export function EmergencyCard({ s }: { s: Strings }) {
-  const insets = useInsets();
-  const sos = useEmergencyNumber(s);
   const plan = useQuery(api.emergency.get);
   const save = useMutation(api.emergency.save);
-  const createLink = useMutation(api.share.create);
+  const emergencyLink = useMutation(api.share.emergencyLink);
   const [editing, setEditing] = useState(false);
   const [full, setFull] = useState(false);
   const [sections, setSections] = useState<Section[]>([]);
@@ -105,7 +104,7 @@ export function EmergencyCard({ s }: { s: Strings }) {
   const shareWithCarers = async () => {
     setError(null);
     try {
-      const { url } = await createLink({ label: s.emShareLabel, sections: ["emergency"], rangeDays: 1, expiresInDays: null });
+      const { url } = await emergencyLink({ label: s.emShareLabel });
       if ((await shareUrl(url, s.emTitle)) === "copied") showToast(s.emLinkCopied);
     } catch (e) {
       setError(errorText(e));
@@ -226,29 +225,40 @@ export function EmergencyCard({ s }: { s: Strings }) {
       )}
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {plan.exists && (
-        <Modal visible={full} animationType="slide" onRequestClose={() => setFull(false)}>
-          <ScrollView contentContainerStyle={[styles.fullScreen, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
-            <View style={styles.fullHead}>
-              <Text style={styles.fullTitle}>{s.emTitle}</Text>
-              <Tap onPress={() => setFull(false)} accessibilityRole="button" accessibilityLabel={s.close}>
-                <Ionicons name="close" size={30} color={colors.text} />
-              </Tap>
-            </View>
-            <Tap style={styles.call911} onPress={() => void Linking.openURL(`tel:${sos}`)} accessibilityRole="button">
-              <Ionicons name="call" size={24} color={colors.onPrimary} />
-              <Text style={styles.call911Text}>{s.careCallEmergency.replace("{n}", sos)}</Text>
-            </Tap>
-            <PlanView sections={plan.sections} contacts={plan.contacts} asthma={plan.asthma} notes={plan.notes} s={s} big />
-          </ScrollView>
-        </Modal>
-      )}
+      <EmergencyFull open={full} onClose={() => setFull(false)} s={s} />
     </View>
+  );
+}
+
+// The plan full screen: a big call button for the emergency number, then the steps and contacts in large type.
+export function EmergencyFull({ open, onClose, s }: { open: boolean; onClose: () => void; s: Strings }) {
+  const insets = useInsets();
+  const sos = useEmergencyNumber(s);
+  const plan = useQuery(api.emergency.get);
+  if (!plan?.exists) return null;
+  return (
+    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+      <ScrollView style={styles.fullScroll} contentContainerStyle={[styles.fullScreen, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
+        <View style={styles.fullHead}>
+          <Text style={styles.fullTitle}>{s.emTitle}</Text>
+          <Tap style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel={s.close}>
+            <Ionicons name="close" size={30} color={colors.text} />
+          </Tap>
+        </View>
+        <Tap style={styles.call911} onPress={() => void Linking.openURL(`tel:${sos}`)} accessibilityRole="button">
+          <Ionicons name="call" size={24} color={colors.onPrimary} />
+          <Text style={styles.call911Text}>{s.careCallEmergency.replace("{n}", sos)}</Text>
+        </Tap>
+        <PlanView sections={plan.sections} contacts={plan.contacts} asthma={plan.asthma} notes={plan.notes} s={s} big />
+      </ScrollView>
+    </Modal>
   );
 }
 
 const styles = themed(() => ({
   card: { ...ui.card, borderColor: colors.dangerBorder, padding: 12, gap: 8 },
+  fullScroll: { backgroundColor: colors.bg },
+  closeButton: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16, fontWeight: "700", color: colors.text },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   small: { color: colors.muted, fontSize: 12, lineHeight: 17 },

@@ -1,9 +1,10 @@
 // Share links for carers and doctors: a private, read-only web page of the sections the user picks, covering the
 // last N days whenever it's opened (convex/lib/report.ts). Links have unguessable tokens, can expire, can be turned
 // off at any time, and record when they were last opened. Served at /share/<token> (convex/http.ts).
-import { v } from "convex/values";
+import { Infer, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { httpAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { httpAction, internalMutation, internalQuery, mutation, MutationCtx, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { buildReport, page, section } from "./lib/report";
 import { gather } from "./reports";
@@ -16,6 +17,32 @@ export const MAX_ACTIVE = 20;
 
 const urlFor = (token: string) => `${appUrl()}/share/${token}`;
 
+type NewLink = { label?: string; sections: Infer<typeof section>[]; rangeDays: number; expiresInDays: number | null };
+
+async function activeLinks(ctx: MutationCtx, userId: Id<"users">, now: number) {
+  const mine = await ctx.db.query("shareLinks").withIndex("by_user", (q) => q.eq("userId", userId)).take(200);
+  return mine.filter((l) => !l.revokedAt && (!l.expiresAt || l.expiresAt > now));
+}
+
+async function insertLink(ctx: MutationCtx, userId: Id<"users">, { label, sections, rangeDays, expiresInDays }: NewLink) {
+  const picked = [...new Set(sections)];
+  if (!picked.length) throw new Error("Pick at least one section.");
+  const now = Date.now();
+  const active = await activeLinks(ctx, userId, now);
+  if (active.length >= MAX_ACTIVE) throw new Error(`Up to ${MAX_ACTIVE} active links. Turn one off first.`);
+  const token = newToken();
+  await ctx.db.insert("shareLinks", {
+    userId,
+    token,
+    label: label?.trim().slice(0, 80) || undefined,
+    sections: picked,
+    rangeDays: Math.min(365, Math.max(1, Math.round(rangeDays))),
+    ...(expiresInDays !== null && { expiresAt: now + Math.min(365, Math.max(1, expiresInDays)) * DAY_MS }),
+    opens: 0,
+  });
+  return { url: urlFor(token) };
+}
+
 export const create = mutation({
   args: {
     label: v.optional(v.string()),
@@ -23,26 +50,23 @@ export const create = mutation({
     rangeDays: v.number(),
     expiresInDays: v.union(v.number(), v.null()), // null: until turned off
   },
-  handler: async (ctx, { label, sections, rangeDays, expiresInDays }) => {
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const picked = [...new Set(sections)];
-    if (!picked.length) throw new Error("Pick at least one section.");
-    const now = Date.now();
-    const mine = await ctx.db.query("shareLinks").withIndex("by_user", (q) => q.eq("userId", userId)).take(200);
-    const active = mine.filter((l) => !l.revokedAt && (!l.expiresAt || l.expiresAt > now));
-    if (active.length >= MAX_ACTIVE) throw new Error(`Up to ${MAX_ACTIVE} active links. Turn one off first.`);
-    const token = newToken();
-    await ctx.db.insert("shareLinks", {
-      userId,
-      token,
-      label: label?.trim().slice(0, 80) || undefined,
-      sections: picked,
-      rangeDays: Math.min(365, Math.max(1, Math.round(rangeDays))),
-      ...(expiresInDays !== null && { expiresAt: now + Math.min(365, Math.max(1, expiresInDays)) * DAY_MS }),
-      opens: 0,
-    });
-    return { url: urlFor(token) };
+    return await insertLink(ctx, userId, args);
+  },
+});
+
+// The emergency plan's one link for carers: the same link each time it's shared, while it's on, so carers don't end
+// up with several. A new one is made only after the old one was turned off.
+export const emergencyLink = mutation({
+  args: { label: v.string() },
+  handler: async (ctx, { label }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    const existing = (await activeLinks(ctx, userId, Date.now())).find((l) => !l.expiresAt && l.sections.length === 1 && l.sections[0] === "emergency");
+    if (existing) return { url: urlFor(existing.token), reused: true };
+    return { ...(await insertLink(ctx, userId, { label, sections: ["emergency"], rangeDays: 1, expiresInDays: null })), reused: false };
   },
 });
 
