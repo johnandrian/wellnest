@@ -24,7 +24,7 @@ type Requested = { id: Id<"visitSummaries"> } | { error: string };
 async function requestSummary(
   ctx: MutationCtx,
   userId: Id<"users">,
-  opts: { reason?: string; days?: number; notify?: "app" | "telegram" },
+  opts: { reason?: string; days?: number; notify?: "app" | "telegram"; visitId?: Id<"visits"> },
 ): Promise<Requested> {
   const today = await ctx.db
     .query("visitSummaries")
@@ -33,14 +33,16 @@ async function requestSummary(
   if (today.some((s) => s.status === "generating")) return { error: "A visit summary is already being written." };
   if (today.length >= DAILY_SUMMARIES) return { error: `You've made today's ${DAILY_SUMMARIES} visit summaries. Try again tomorrow.` };
   const days = Math.min(90, Math.max(1, Math.round(opts.days ?? DEFAULT_VISIT_DAYS)));
-  const reason = opts.reason?.trim().slice(0, 300) || undefined;
-  const id = await ctx.db.insert("visitSummaries", { userId, reason, days, status: "generating", notify: opts.notify });
+  const visit = opts.visitId ? await ctx.db.get(opts.visitId) : null;
+  if (opts.visitId && (!visit || visit.userId !== userId)) return { error: "Not found" };
+  const reason = (opts.reason ?? visit?.title)?.trim().slice(0, 300) || undefined;
+  const id = await ctx.db.insert("visitSummaries", { userId, reason, days, status: "generating", notify: opts.notify, visitId: visit?._id });
   await ctx.scheduler.runAfter(0, internal.visit.generate, { id });
   return { id };
 }
 
 export const create = mutation({
-  args: { reason: v.optional(v.string()), days: v.optional(v.number()) },
+  args: { reason: v.optional(v.string()), days: v.optional(v.number()), visitId: v.optional(v.id("visits")) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
@@ -76,6 +78,28 @@ export const latest = query({
     if (!row) return null;
     const { notify, ...rest } = row;
     return rest;
+  },
+});
+
+const HISTORY = 20;
+
+// Past summaries, newest first, each with the appointment it was made for (if it still exists).
+export const history = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    const rows = await ctx.db
+      .query("visitSummaries")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(HISTORY);
+    return await Promise.all(
+      rows.map(async ({ notify, error, ...row }) => {
+        const visit = row.visitId ? await ctx.db.get(row.visitId) : null;
+        return { ...row, visit: visit ? { title: visit.title, startsAt: visit.startsAt } : null };
+      }),
+    );
   },
 });
 

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import type { Id } from "../convex/_generated/dataModel";
 import { api, internal } from "../convex/_generated/api";
 import { DAILY_SUMMARIES } from "../convex/visit";
 import { transcript } from "../convex/lib/visit";
@@ -119,6 +120,28 @@ describe("visit summary", () => {
     await expect(b.as.mutation(api.visit.remove, { id })).rejects.toThrow(/Not found/);
     await a.as.mutation(api.visit.remove, { id });
     expect(await a.as.query(api.visit.latest)).toBeNull();
+  });
+
+  test("past summaries stay, each attached to its appointment, and only the owner's", async () => {
+    const t = setup();
+    mockApis({ core: [{ content: SUMMARY }, { content: SUMMARY }] });
+    const a = await createAppUser(t, "a@example.com");
+    const b = await createAppUser(t, "b@example.com");
+    const visitId = (await a.as.mutation(api.visits.add, { title: "Rheumatology", startsAt: Date.now() + 86_400_000 })) as Id<"visits">;
+    await expect(b.as.mutation(api.visit.create, { visitId })).rejects.toThrow(/Not found/);
+    await a.as.mutation(api.visit.create, { reason: "general" });
+    await drain(t);
+    await a.as.mutation(api.visit.create, { visitId });
+    await drain(t);
+    const history = await a.as.query(api.visit.history, {});
+    expect(history.map((h) => [h.reason, h.status, h.visit?.title ?? null])).toEqual([
+      ["Rheumatology", "ready", "Rheumatology"],
+      ["general", "ready", null],
+    ]);
+    expect(await b.as.query(api.visit.history, {})).toEqual([]);
+    // Deleting the appointment keeps the summary, without the link.
+    await a.as.mutation(api.visits.remove, { id: visitId });
+    expect((await a.as.query(api.visit.history, {}))[0].visit).toBeNull();
   });
 });
 
