@@ -276,14 +276,12 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           >
             <Ionicons name="menu-outline" size={24} color={colors.text} />
           </Pressable>
+          {/* One line: the name with "not a doctor" beside it, so the note stays in view. */}
           <SingingBrand style={styles.singer}>
-            <SingingMark size={38} />
-            <View style={styles.brandText}>
-              <Text style={styles.headerTitle}>Wellnest</Text>
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {s.subtitleCompanion} · {s.notDoctor}
-              </Text>
-            </View>
+            <SingingMark size={30} />
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              Wellnest <Text style={styles.headerNote}>· {s.notDoctor}</Text>
+            </Text>
           </SingingBrand>
         </View>
         <View style={styles.headerActions}>
@@ -342,8 +340,25 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           scrollEventThrottle={100}
           ListEmptyComponent={
             <View style={styles.welcome}>
-              <View style={styles.welcomeIcon}>
-                <Ionicons name="mic" size={30} color={colors.primary} />
+              {/* The big mic records, like the one by the message box. */}
+              <View>
+                {voice.mic === "recording" && <PulseRing color={colors.danger} style={styles.welcomeRing} />}
+                <Pressable
+                  style={({ pressed }) => [styles.welcomeIcon, voice.mic === "recording" && styles.micActive, pressed && styles.pressed]}
+                  onPress={voice.mic === "recording" ? voice.stop : voice.start}
+                  disabled={voice.mic === "asking" || voice.mic === "transcribing"}
+                  accessibilityRole="button"
+                  accessibilityLabel={voice.mic === "recording" ? s.stopAndSend : s.recordVoice}
+                  accessibilityState={{ busy: voice.mic === "asking" || voice.mic === "transcribing" }}
+                >
+                  {voice.mic === "asking" || voice.mic === "transcribing" ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <SwapIcon id={voice.mic === "recording" ? "stop" : "mic"}>
+                      <Ionicons name={voice.mic === "recording" ? "stop" : "mic"} size={30} color={voice.mic === "recording" ? colors.onDanger : colors.primary} />
+                    </SwapIcon>
+                  )}
+                </Pressable>
               </View>
               <Text style={styles.welcomeTitle}>{s.welcome}</Text>
               <Text style={styles.empty}>
@@ -876,13 +891,12 @@ const styles = themed(() => ({
     // Floats below the status bar / notch on a phone (barTop in ./safeArea.ts).
     ...floatingBar(),
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
-  headerSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text, flexShrink: 1 },
+  headerNote: { fontSize: 13, fontWeight: "400", color: colors.muted },
   // The title side shrinks (subtitle truncates) so the four header buttons always fit on a phone.
   brand: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 },
   // The mark and its words: hovering anywhere on them makes the bird sing (src/SingingMark.tsx).
   singer: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 },
-  brandText: { flexShrink: 1, minWidth: 0 },
   logo: { width: 38, height: 38 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 0, flexShrink: 0 },
   headerButton: { width: 38, height: 40, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
@@ -916,7 +930,8 @@ const styles = themed(() => ({
   list: { padding: 16, gap: 8, maxWidth: 760, width: "100%", alignSelf: "center" },
   empty: { color: colors.muted, textAlign: "center", lineHeight: 20, maxWidth: 340, fontSize: 14 },
   welcome: { alignItems: "center", marginTop: 32, gap: 10, paddingHorizontal: 8 },
-  welcomeIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
+  welcomeIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
+  welcomeRing: { borderRadius: 36 },
   welcomeTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
   chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 8, maxWidth: 560 },
   chip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9 },
