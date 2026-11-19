@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { colors, severityColor, themed, TOUCH, ui, radius } from "./theme";
+import { bpColor, tempColor } from "./vitalColors";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
 import { DEFAULT_UNITS, FEVER_C, fmtGlucose, fmtTemp, fmtWeight, glucoseToMgdl, showGlucose, showTemp, showWeight, tempToC, weightToKg, type Units } from "../convex/lib/units";
@@ -31,13 +32,6 @@ const SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathless"] as const;
 const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] as const;
 const PAIN_FLAGS = ["flare", "swelling", "colourChange", "temperatureChange", "touchSensitive"] as const;
 const numOrUndef = (s: string) => (s.trim() && Number.isFinite(Number(s.replace(",", "."))) ? Number(s.replace(",", ".")) : undefined);
-// 180/120 and up is a crisis, 130/80 and up high, under 90/60 low.
-const bpColor = (sys: number, dia = 0) => {
-  if (sys >= 180 || dia >= 120) return colors.danger;
-  if (sys >= 130 || dia >= 80 || sys < 90) return colors.amber;
-  return colors.mint;
-};
-const tempColor = (c: number) => (c >= FEVER_C ? colors.danger : c >= 37.5 ? colors.amber : colors.mint);
 // One decimal, for a number typed back into the form in the unit shown.
 const oneDp = (n: number) => String(Math.round(n * 10) / 10);
 

@@ -78,6 +78,8 @@ export const METRIC_ICON: Record<string, IconName> = {
   reliever: "asthma",
   seizures: "seizures",
   tempMax: "weather",
+  bp: "bp",
+  bodyTemp: "temperature",
   aqi: "weather",
   pollen: "weather",
 };

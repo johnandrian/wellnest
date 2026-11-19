@@ -3,11 +3,13 @@
 import type { Lang } from "./language";
 import type { ChartMetric, FactorKey, ForecastMatch, LabEffect, MedEffect, OutcomeKey, Pattern, WEATHER_FACTORS, WeekStat } from "./insights";
 import { aqiBand, pollenBand, type WeatherDay } from "./weather";
-import { DEFAULT_UNITS, fmtGlucose, fmtWeight, type Units } from "./units";
+import { DEFAULT_UNITS, fmtGlucose, fmtWeight, showTemp, type Units } from "./units";
 
 const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-ES", el: "el-GR", zh: "zh-CN" };
 const num = (n: number, lang: Lang) => n.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+// A weather temperature (stored in °C) in the user's unit, whole degrees: "64°F", "18 °C" in Spanish.
+const temp = (c: number, lang: Lang, units: Units) => `${num(Math.round(showTemp(c, units)), lang)}${lang === "es" ? " " : ""}°${units.temperature}`;
 
 const OUTCOMES: Record<Lang, Record<Exclude<OutcomeKey, `symptom:${string}`>, string>> = {
   en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures", glucose: "glucose", weight: "weight", bp: "blood pressure (top number)" },
@@ -53,7 +55,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     fried: { yes: "fried or fast food" },
     lateMeal: { yes: "a late meal" },
     skippedMeal: { yes: "a skipped meal" },
-    tempMax: { below: "highs under {t}°C", atLeast: "highs of {t}°C or more" },
+    tempMax: { below: "highs under {t}", atLeast: "highs of {t} or more" },
     humidity: { below: "humidity under {t}%", atLeast: "humidity of {t}% or more" },
     pressureDrop: { yes: "a drop in air pressure" },
     rain: { yes: "rain" },
@@ -79,7 +81,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     fried: { yes: "fritos o comida rápida" },
     lateMeal: { yes: "una cena tarde" },
     skippedMeal: { yes: "una comida saltada" },
-    tempMax: { below: "máximas de menos de {t} °C", atLeast: "máximas de {t} °C o más" },
+    tempMax: { below: "máximas de menos de {t}", atLeast: "máximas de {t} o más" },
     humidity: { below: "humedad menor del {t} %", atLeast: "humedad del {t} % o más" },
     pressureDrop: { yes: "una bajada de la presión atmosférica" },
     rain: { yes: "lluvia" },
@@ -105,7 +107,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     fried: { yes: "τηγανητά ή πρόχειρο φαγητό" },
     lateMeal: { yes: "αργό γεύμα" },
     skippedMeal: { yes: "παραλειμμένο γεύμα" },
-    tempMax: { below: "μέγιστη θερμοκρασία κάτω από {t}°C", atLeast: "μέγιστη θερμοκρασία {t}°C ή παραπάνω" },
+    tempMax: { below: "μέγιστη θερμοκρασία κάτω από {t}", atLeast: "μέγιστη θερμοκρασία {t} ή παραπάνω" },
     humidity: { below: "υγρασία κάτω από {t}%", atLeast: "υγρασία {t}% ή παραπάνω" },
     pressureDrop: { yes: "πτώση της ατμοσφαιρικής πίεσης" },
     rain: { yes: "βροχή" },
@@ -131,7 +133,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     fried: { yes: "吃油炸或快餐" },
     lateMeal: { yes: "吃得晚" },
     skippedMeal: { yes: "漏了一餐" },
-    tempMax: { below: "最高气温低于 {t}°C", atLeast: "最高气温 {t}°C 或以上" },
+    tempMax: { below: "最高气温低于 {t}", atLeast: "最高气温 {t} 或以上" },
     humidity: { below: "湿度低于 {t}%", atLeast: "湿度 {t}% 或以上" },
     pressureDrop: { yes: "气压下降" },
     rain: { yes: "下雨" },
@@ -148,7 +150,9 @@ export function conditionText(p: Pick<Pattern, "factor" | "side" | "threshold">,
         ? Math.round(p.threshold).toLocaleString(LOCALE[lang])
         : p.factor === "glucose"
           ? fmtGlucose(p.threshold, units, LOCALE[lang])
-          : num(p.threshold, lang);
+          : p.factor === "tempMax"
+            ? temp(p.threshold, lang, units)
+            : num(p.threshold, lang);
   // The weight gain step (1 kg) in the user's unit, rounded: "2 lb" or "1 kg".
   const g = units.weight === "lb" ? "2 lb" : "1 kg";
   return (FACTORS[lang][p.factor][p.side] ?? "").replace("{t}", t).replace("{g}", g);
@@ -204,8 +208,8 @@ const POLLEN_WORDS: Record<Lang, Record<ReturnType<typeof pollenBand>, string>> 
   zh: { low: "低", moderate: "中等", high: "高" },
 };
 
-// "18–25°C · humidity 60% · rain 3 mm · air quality 42 (good) · pollen high".
-export function weatherLine(w: WeatherDay, lang: Lang): string {
+// "64–77°F · humidity 60% · rain 3 mm · air quality 42 (good) · pollen high", in the user's temperature unit.
+export function weatherLine(w: WeatherDay, lang: Lang, units: Units = DEFAULT_UNITS): string {
   const L = {
     en: { humidity: "humidity", rain: "rain", air: "air quality", pollen: "pollen" },
     es: { humidity: "humedad", rain: "lluvia", air: "calidad del aire", pollen: "polen" },
@@ -213,7 +217,7 @@ export function weatherLine(w: WeatherDay, lang: Lang): string {
     zh: { humidity: "湿度", rain: "降雨", air: "空气质量", pollen: "花粉" },
   }[lang];
   return [
-    w.tempMin !== undefined && w.tempMax !== undefined && `${num(w.tempMin, lang)}–${num(w.tempMax, lang)}°C`,
+    w.tempMin !== undefined && w.tempMax !== undefined && `${num(Math.round(showTemp(w.tempMin, units)), lang)}–${temp(w.tempMax, lang, units)}`,
     w.humidity !== undefined && `${L.humidity} ${w.humidity}%`,
     w.precip !== undefined && w.precip >= 1 && `${L.rain} ${num(w.precip, lang)} mm`,
     w.aqi !== undefined && `${L.air} ${w.aqi} (${AQI_WORDS[lang][aqiBand(w.aqi)]})`,
@@ -229,25 +233,25 @@ const CHART_NAMES: Record<Lang, Record<Exclude<ChartMetric, "symptom">, [string,
   en: {
     pain: ["Pain", "/10"], mood: ["Mood", "/5"], energy: ["Energy", "/5"], sleepQuality: ["Sleep quality", "/5"], sleepHours: ["Sleep", "h"],
     steps: ["Steps", ""], restingHeartRate: ["Resting heart rate", "bpm"], hrv: ["HRV", "ms"], weightKg: ["Weight", "kg"], glucose: ["Glucose", "mg/dL"],
-    peakFlow: ["Peak flow", "L/min"], reliever: ["Reliever puffs", ""], seizures: ["Seizures", ""], tempMax: ["Daily high", "°C"],
+    peakFlow: ["Peak flow", "L/min"], reliever: ["Reliever puffs", ""], seizures: ["Seizures", ""], tempMax: ["Daily high", "°C"], bp: ["Blood pressure", "mmHg"], bodyTemp: ["Temperature", "°C"],
     aqi: ["Air quality index", ""], pollen: ["Pollen", "grains/m³"],
   },
   es: {
     pain: ["Dolor", "/10"], mood: ["Ánimo", "/5"], energy: ["Energía", "/5"], sleepQuality: ["Calidad del sueño", "/5"], sleepHours: ["Sueño", "h"],
     steps: ["Pasos", ""], restingHeartRate: ["Pulso en reposo", "lpm"], hrv: ["VFC", "ms"], weightKg: ["Peso", "kg"], glucose: ["Glucosa", "mg/dL"],
-    peakFlow: ["Flujo máximo", "L/min"], reliever: ["Inhalaciones de rescate", ""], seizures: ["Crisis", ""], tempMax: ["Máxima", "°C"],
+    peakFlow: ["Flujo máximo", "L/min"], reliever: ["Inhalaciones de rescate", ""], seizures: ["Crisis", ""], tempMax: ["Máxima", "°C"], bp: ["Presión arterial", "mmHg"], bodyTemp: ["Temperatura", "°C"],
     aqi: ["Índice de calidad del aire", ""], pollen: ["Polen", "granos/m³"],
   },
   el: {
     pain: ["Πόνος", "/10"], mood: ["Διάθεση", "/5"], energy: ["Ενέργεια", "/5"], sleepQuality: ["Ποιότητα ύπνου", "/5"], sleepHours: ["Ύπνος", "ώρες"],
     steps: ["Βήματα", ""], restingHeartRate: ["Παλμοί ηρεμίας", "bpm"], hrv: ["HRV", "ms"], weightKg: ["Βάρος", "kg"], glucose: ["Γλυκόζη", "mg/dL"],
-    peakFlow: ["Μέγιστη ροή", "L/min"], reliever: ["Εισπνοές ανακουφιστικού", ""], seizures: ["Κρίσεις", ""], tempMax: ["Μέγιστη", "°C"],
+    peakFlow: ["Μέγιστη ροή", "L/min"], reliever: ["Εισπνοές ανακουφιστικού", ""], seizures: ["Κρίσεις", ""], tempMax: ["Μέγιστη", "°C"], bp: ["Αρτηριακή πίεση", "mmHg"], bodyTemp: ["Θερμοκρασία", "°C"],
     aqi: ["Δείκτης ποιότητας αέρα", ""], pollen: ["Γύρη", "κόκκοι/m³"],
   },
   zh: {
     pain: ["疼痛", "/10"], mood: ["心情", "/5"], energy: ["精力", "/5"], sleepQuality: ["睡眠质量", "/5"], sleepHours: ["睡眠", "小时"],
     steps: ["步数", ""], restingHeartRate: ["静息心率", "次/分"], hrv: ["HRV", "毫秒"], weightKg: ["体重", "公斤"], glucose: ["血糖", "mg/dL"],
-    peakFlow: ["峰流速", "L/min"], reliever: ["缓解药吸入次数", ""], seizures: ["癫痫发作", ""], tempMax: ["最高气温", "°C"],
+    peakFlow: ["峰流速", "L/min"], reliever: ["缓解药吸入次数", ""], seizures: ["癫痫发作", ""], tempMax: ["最高气温", "°C"], bp: ["血压", "mmHg"], bodyTemp: ["体温", "°C"],
     aqi: ["空气质量指数", ""], pollen: ["花粉", "粒/立方米"],
   },
 };
@@ -257,6 +261,7 @@ export function chartName(metric: ChartMetric, lang: Lang, symptom?: string, uni
   const [title, unit] = CHART_NAMES[lang][metric];
   if (metric === "weightKg") return { title, unit: units.weight };
   if (metric === "glucose") return { title, unit: units.glucose };
+  if (metric === "tempMax" || metric === "bodyTemp") return { title, unit: `°${units.temperature}` };
   return { title, unit };
 }
 
@@ -311,7 +316,7 @@ const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; 
     prefix: "Forecast",
     footer: "This is a pattern in your own logs, not a prediction. If you can, plan an easier day and keep what helps close by.",
     footerFor: "This is a pattern in {name}'s own logs, not a prediction. A quick check-in might be welcome.",
-    tempMax: "a high of {v}°C", humidity: "humidity around {v}%", pressureDrop: "a drop in air pressure", rain: "rain", aqi: "an air quality index of {v}", pollen: "pollen around {v} grains/m³",
+    tempMax: "a high of {v}", humidity: "humidity around {v}%", pressureDrop: "a drop in air pressure", rain: "rain", aqi: "an air quality index of {v}", pollen: "pollen around {v} grains/m³",
   },
   es: {
     title: "Aviso para mañana",
@@ -319,7 +324,7 @@ const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; 
     prefix: "Pronóstico",
     footer: "Es un patrón en tus propios registros, no una predicción. Si puedes, planea un día más tranquilo y ten a mano lo que te ayuda.",
     footerFor: "Es un patrón en los registros de {name}, no una predicción. Quizá agradezca que le preguntes cómo está.",
-    tempMax: "una máxima de {v} °C", humidity: "humedad de alrededor del {v} %", pressureDrop: "una bajada de la presión atmosférica", rain: "lluvia", aqi: "un índice de calidad del aire de {v}", pollen: "polen de unos {v} granos/m³",
+    tempMax: "una máxima de {v}", humidity: "humedad de alrededor del {v} %", pressureDrop: "una bajada de la presión atmosférica", rain: "lluvia", aqi: "un índice de calidad del aire de {v}", pollen: "polen de unos {v} granos/m³",
   },
   el: {
     title: "Προειδοποίηση για αύριο",
@@ -327,7 +332,7 @@ const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; 
     prefix: "Πρόγνωση",
     footer: "Είναι ένα μοτίβο στις δικές σου καταγραφές, όχι πρόβλεψη. Αν μπορείς, κανόνισε μια πιο ήρεμη μέρα και κράτα κοντά ό,τι σε βοηθά.",
     footerFor: "Είναι ένα μοτίβο στις καταγραφές ({name}), όχι πρόβλεψη. Ένα μήνυμα για να δεις τι κάνει ίσως βοηθήσει.",
-    tempMax: "μέγιστη {v}°C", humidity: "υγρασία γύρω στο {v}%", pressureDrop: "πτώση της ατμοσφαιρικής πίεσης", rain: "βροχή", aqi: "δείκτης ποιότητας αέρα {v}", pollen: "γύρη περίπου {v} κόκκοι/m³",
+    tempMax: "μέγιστη {v}", humidity: "υγρασία γύρω στο {v}%", pressureDrop: "πτώση της ατμοσφαιρικής πίεσης", rain: "βροχή", aqi: "δείκτης ποιότητας αέρα {v}", pollen: "γύρη περίπου {v} κόκκοι/m³",
   },
   zh: {
     title: "明日提醒",
@@ -335,7 +340,7 @@ const FORECAST: Record<Lang, { title: string; titleFor: string; prefix: string; 
     prefix: "预报",
     footer: "这是你自己记录中的规律，不是预测。如果可以，明天安排得轻松一些，把对你有帮助的东西放在手边。",
     footerFor: "这是 {name} 自己记录中的规律，不是预测。也许可以问候一下。",
-    tempMax: "最高气温 {v}°C", humidity: "湿度约 {v}%", pressureDrop: "气压下降", rain: "有雨", aqi: "空气质量指数 {v}", pollen: "花粉约 {v} 粒/立方米",
+    tempMax: "最高气温 {v}", humidity: "湿度约 {v}%", pressureDrop: "气压下降", rain: "有雨", aqi: "空气质量指数 {v}", pollen: "花粉约 {v} 粒/立方米",
   },
 };
 type ForecastFactor = (typeof WEATHER_FACTORS)[number];
@@ -384,7 +389,7 @@ export function airAlertText(aqi: number, lang: Lang): { title: string; text: st
 // "Forecast: a drop in air pressure", and the pattern it falls on.
 function forecastParts(m: ForecastMatch, lang: Lang, units: Units) {
   const L = FORECAST[lang];
-  const what = L[m.pattern.factor as ForecastFactor].replace("{v}", num(Math.round(m.value), lang));
+  const what = L[m.pattern.factor as ForecastFactor].replace("{v}", m.pattern.factor === "tempMax" ? temp(m.value, lang, units) : num(Math.round(m.value), lang));
   return { head: `${L.prefix}: ${what}`, body: patternText(m.pattern, lang, units) };
 }
 

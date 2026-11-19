@@ -21,6 +21,8 @@ import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 import { axisDay, formatDate } from "./format";
 import { TapBars } from "./TapBars";
+import { bpColor, tempColor } from "./vitalColors";
+import { tempToC } from "../convex/lib/units";
 import { useNow } from "./useNow";
 import { EmergencyFull } from "./EmergencyCard";
 import { useOpenSetup } from "./setup";
@@ -445,6 +447,9 @@ export function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s:
   // Measures with no bad direction (steps) stay in the greens.
   const base = chart.unit === "/5" ? 1 : floor;
   const barColor = (v: number) => {
+    // Vitals have fixed thresholds (src/vitalColors.ts); the rest are colored by their place in the range.
+    if (chart.metric === "bp") return bpColor(v);
+    if (chart.metric === "bodyTemp") return tempColor(chart.unit === "°F" ? tempToC(v, "F") : v);
     const f = Math.min(1, Math.max(0, (v - base) / (top - base || 1)));
     return scaleColor(chart.worse === "high" ? 1 - f : chart.worse === "low" ? f : 0.75 + 0.25 * f);
   };

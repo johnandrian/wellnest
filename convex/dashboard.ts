@@ -31,7 +31,7 @@ const BY_FOCUS: Record<string, ChartMetric[]> = {
   mood: ["mood", "sleepQuality"],
   wellness: ["steps", "sleepHours"],
 };
-const FALLBACK: ChartMetric[] = ["symptom", "pain", "glucose", "mood", "sleepHours", "energy", "steps", "peakFlow", "seizures", "weightKg", "restingHeartRate", "sleepQuality"];
+const FALLBACK: ChartMetric[] = ["symptom", "pain", "glucose", "mood", "sleepHours", "energy", "steps", "peakFlow", "seizures", "bp", "weightKg", "bodyTemp", "restingHeartRate", "sleepQuality"];
 
 const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
 
