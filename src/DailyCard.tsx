@@ -1,11 +1,14 @@
 // "How's today?": mood, energy and sleep quality in one tap each (convex/daily.ts). In the chat it shows until today
 // is answered or skipped; in the Journal tab it's always there to change today's answers.
+import { useState } from "react";
 import { Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { colors, scaleColor, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
+import { TapBars } from "./TapBars";
+import { formatDate } from "./format";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
 const KEYS = ["mood", "energy", "sleepQuality"] as const;
@@ -76,27 +79,36 @@ export function DailyCardView({ s, values, onPick, onSkip, inset = false }: {
   );
 }
 
-// Three small rows of 1-5 bars, one per question, over the chosen days, coloured from red (1) to teal (5).
+// Three small rows of 1-5 bars, one per question, over the chosen days, coloured from red (1) to teal (5). Tap a day
+// to read its three answers.
 export function DailyChart({ days, daily, s }: { days: string[]; daily: { date: string; mood: number | null; energy: number | null; sleepQuality: number | null }[]; s: Strings }) {
   const byDate = new Map(daily.map((d) => [d.date, d]));
   const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
+  const [picked, setPicked] = useState<string | null>(null);
+  const day = picked ? byDate.get(picked) : undefined;
   return (
     <View style={styles.chart}>
       {KEYS.map((k) => (
         <View key={k} style={styles.chartRow}>
           <Text style={styles.chartLabel}>{label[k]}</Text>
-          <View style={styles.bars}>
+          <TapBars count={days.length} onPick={(i) => setPicked(days[i] === picked ? null : days[i])} style={styles.bars} label={`${label[k]}. ${s.chartTapHint}`}>
             {days.map((d) => {
               const v = byDate.get(d)?.[k];
               return (
-                <View key={d} style={styles.slot}>
+                <View key={d} style={[styles.slot, d === picked && styles.slotOn]}>
                   {v != null && <View style={[styles.bar, { height: `${v * 20}%`, backgroundColor: scaleColor((v - 1) / 4) }]} />}
                 </View>
               );
             })}
-          </View>
+          </TapBars>
         </View>
       ))}
+      {picked && (
+        <Text style={styles.picked}>
+          {formatDate(picked, s, { weekday: "short", month: "short", day: "numeric" })}:{" "}
+          {day ? KEYS.filter((k) => day[k] != null).map((k) => `${label[k]} ${day[k]}/5`).join(" · ") || s.chartNothing : s.chartNothing}
+        </Text>
+      )}
     </View>
   );
 }
@@ -119,5 +131,7 @@ const styles = themed(() => ({
   chartLabel: { width: 70, fontSize: 12, color: colors.muted },
   bars: { flex: 1, height: 28, flexDirection: "row", alignItems: "flex-end", gap: 1, backgroundColor: colors.bg, borderRadius: 3 },
   slot: { flex: 1, height: "100%", justifyContent: "flex-end" },
+  slotOn: { backgroundColor: colors.primarySoft },
   bar: { borderTopLeftRadius: 1, borderTopRightRadius: 1 },
+  picked: { color: colors.text, fontSize: 13, fontWeight: "600" },
 }));
