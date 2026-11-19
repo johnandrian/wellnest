@@ -57,7 +57,8 @@ export const refresh = internalAction({
         const hit = coords ?? (await geocode(location));
         if (!hit) return;
         // "" when the map has no name for it, so it isn't looked up again every day.
-        point = { lat: hit.lat, lon: hit.lon, for: location, ...(!coords && { place: (hit as { place?: string }).place ?? "" }) };
+        const named = hit as { place?: string; country?: string };
+        point = { lat: hit.lat, lon: hit.lon, for: location, ...(!coords && { place: named.place ?? "" }), ...(named.country && { country: named.country }) };
         await ctx.runMutation(internal.care.savePoint, { userId, point });
       }
       const days = await fetchWeather(point.lat, point.lon);
