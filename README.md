@@ -152,6 +152,7 @@ flowchart LR
   - `InsightsCard.tsx` — patterns and medication before/after; `ChartCard.tsx` — charts under chat replies.
   - `MedicationsPanel.tsx` — medications, reminders, pill bottle scan (`labelScan.ts`), the dose picker (`DoseInput.tsx`), the printable list (`medList.ts`) and the safety card; `GuidesPanel.tsx` — the appointment prep checklist; `Tour.tsx` — the first-time tour; `PublicPages.tsx` — the free tools; `ExercisePanel.tsx` — exercise routine; `RecordsPanel.tsx` — health records.
   - `ScheduleEditor.tsx` (+ `medSchedule.ts`) — how often a medication is taken, for the add form and Change schedule.
+  - `TodayDoses.tsx` — today's doses on the Medications tab and the dashboard; `DoseCalendar.tsx` — a month of one medication's doses.
   - `theme.ts` — light and dark palettes, text size and `themed()` style sheets; `Motion.tsx` — the shared animations.
   - `feedback.tsx` — the readable line of a server error, yes / no questions, and the toast at the bottom ("Copied", "Saved", and Undo after a delete); `safeArea.ts` — room for the notch and home indicator; `format.ts` — dates, times, and distances in the app's language and units; `DateTimeField.tsx` / `.web.tsx` and `TimesField.tsx` — date and time pickers.
   - `VisitsPanel.tsx` — appointments and care team; `VisitPanel.tsx`, `ReportCard.tsx`, `ShareCard.tsx` — visit summaries, PDF reports, share links.
@@ -239,12 +240,14 @@ A one-page Markdown summary to bring to an appointment: reason, main concerns, a
 - **Limits:** one at a time, 5 a day.
 
 ## Medications and reminders
+**Today's doses** come first on the Medications tab and on the dashboard (`src/TodayDoses.tsx`, `reminders.today`): each dose due today with **Taken** and **Skip** (**Taken late** once it's more than an hour past due, and a snooze button until it's answered), and each as-needed medication with **Took one** and the times taken today (tap a time to remove it, with Undo). An answer here is the same answer as on the chat reminder.
 
 The **Medications** tab shows every medication in its own box (two to a row on phones, three on wider screens, so none is missed going down the list) with its dose, schedule, next dose, days of supply left and whether it's paused or stopped (stopped ones are kept for the history). Tap a box and it spans the row with its details:
 - **Dose:** a number and a unit picked from chips (mg, mcg, g, mL, tablets, capsules, puffs, drops, units, patches, sprays, or one typed under Other), saved as one line of text in the user's language ("2 tablets") so older doses still read back (`src/DoseInput.tsx`, `src/dose.ts`).
 - **Details:** generic name, form (tablet, inhaler, patch...), prescriber, how to take it ("with food", filled from a label scan), notes, and a **different dose at some times** (e.g. 300 mg in the morning, 600 mg at night); the reminder says the right dose.
 - **Medication list:** medicine, strength / dose, when and how it's taken, and notes for every current medication, printed or saved as a PDF (`src/medList.ts`).
 - **History:** started, paused, resumed, stopped, dose changes and refills, each dated (`medicationEvents`). Pausing cancels reminders; resuming brings them back.
+- **Doses by day:** a month calendar of that medication (`medications.calendar`): teal when every dose was taken, amber when some were, red when a past day's doses were skipped or never answered; arrows go back a month at a time.
 - **Side effects:** dated, with an optional 0-10 severity (`sideEffects`).
 - **Refills:** units on hand and per dose; each **Taken** counts one dose off (changing it back puts it back), and when the supply will run out within that medication's warning window (7 days by default) a chat note and a push say so, once until the next refill. The box shows the warning from the same window.
 - **eScript:** a photo of the QR code or prescription label, uploaded like a chat photo and kept with the medication.
@@ -257,8 +260,8 @@ The **Medications** tab shows every medication in its own box (two to a row on p
 - **Adherence:** visit summaries and PDF reports already list Taken / Skip for each medication.
 
 ### Reminders
-Each due dose posts a reminder message in the app chat ("💊 Time for your **Ibuprofen** (400 mg). Due 8:00 PM.") with **Taken** / **Skip** buttons; answers go to `doseLogs` and can be changed. Reminders aren't embedded for memory and aren't read aloud. They're in-app only, not sent on Telegram.
-- **Schedules:** daily at set local times (up to 8), or every N hours (1-72) from the first dose; optionally for a course of N days (a dose due at the very end isn't sent). Up to 20 active reminders.
+Each due dose posts a reminder message in the app chat ("💊 Time for your **Ibuprofen** (400 mg). Due 8:00 PM.") with **Taken** / **Skip** buttons and a 15-minute snooze (also on the phone notification); answers go to `doseLogs` (with when Taken was tapped) and can be changed. A snoozed dose is reminded once more unless it's answered by then (`reminders.snooze`). Reminders aren't embedded for memory and aren't read aloud. They're in-app only, not sent on Telegram.
+- **Schedules:** at set local times (up to 8) every day, on chosen weekdays, or every other day; every N hours (1-72) from a chosen next dose; or only as needed (no reminders; days of supply aren't counted down). Optionally for a course of N days (a dose due at the very end isn't sent). Up to 20 active reminders. **Change schedule** in a medication's details switches between them and reschedules the next reminder (`medications.update`).
 - **Time zones:** the app reports the device's IANA zone (`chat.setTimeZone`) on start; daily times follow it across daylight saving. Until the app has been opened, times are UTC (the model says so). A fixed UTC offset is the fallback if the runtime can't resolve the zone.
 - **Scheduling:** one scheduled function per reminder (`fire`), which posts the message and schedules the next dose. Stopping cancels it; stale jobs are ignored.
 - **Chat:** "remind me to take ibuprofen 400 mg every 6 hours for 3 days" → `set_medication_reminder`; "stop my ibuprofen reminders" → `cancel_medication_reminder`. Visit summaries and reports get each medication with the last 30 days of Taken / Skip.

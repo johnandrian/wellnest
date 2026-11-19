@@ -1,5 +1,6 @@
 // Medication details (convex/lib/meds.ts) on top of reminders (convex/reminders.ts): generic name, form, prescriber,
-// per-time doses, pause / resume / stop with a dated history, side effects, refill supply and an eScript photo.
+// per-time doses, the schedule itself, pause / resume / stop with a dated history, side effects, refill supply, an
+// eScript photo, and a month of doses for the calendar.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, mutation, MutationCtx, query } from "./_generated/server";
@@ -248,6 +249,35 @@ export const detail = query({
       events: events.map((e) => ({ _id: e._id, kind: e.kind, at: e.at, note: e.note ?? null })),
       sideEffects: effects.map((e) => ({ _id: e._id, date: e.date, effect: e.effect, severity: e.severity ?? null })),
     };
+  },
+});
+
+// A month of one medication's doses for its calendar: per local day, how many were due and how many were taken or
+// skipped (as-needed: how many were taken). `from` and `to` are the month's bounds from the app; days without
+// anything are left out.
+export const calendar = query({
+  args: { id: v.id("medications"), from: v.number(), to: v.number() },
+  handler: async (ctx, { id, from, to }) => {
+    const userId = await getAuthUserId(ctx);
+    const m = userId ? await ctx.db.get(id) : null;
+    if (!m || m.userId !== userId || !(to > from) || to - from > 32 * 86_400_000) return null;
+    const logs = await ctx.db
+      .query("doseLogs")
+      .withIndex("by_medication_and_due", (q) => q.eq("medicationId", id).gte("dueAt", from).lt("dueAt", to))
+      .take(1000);
+    const days = new Map<string, { date: string; due: number; taken: number; skipped: number }>();
+    const day = (at: number) => {
+      const date = localParts(at, m.timeZone, m.utcOffsetMin).date;
+      if (!days.has(date)) days.set(date, { date, due: 0, taken: 0, skipped: 0 });
+      return days.get(date)!;
+    };
+    // Due doses only while it was being taken: from when it was added until it was stopped (or now).
+    if (isTimed(m.schedule)) {
+      const end = Math.min(to, m.stoppedAt ?? to, m.pausedAt ?? to);
+      for (const at of dueTimes(m.schedule, Math.max(from, m._creationTime), end, m.timeZone, m.utcOffsetMin, 400)) day(at).due++;
+    }
+    for (const l of logs) day(l.dueAt)[l.status]++;
+    return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
   },
 });
 

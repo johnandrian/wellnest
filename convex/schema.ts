@@ -495,6 +495,7 @@ export default defineSchema({
     medicationId: v.id("medications"),
     dueAt: v.number(), // for an as-needed dose, when it was taken
     status: v.union(v.literal("taken"), v.literal("skipped")),
+    takenAt: v.optional(v.number()), // when Taken was tapped, to tell a late dose from an on-time one
   })
     .index("by_medication_and_due", ["medicationId", "dueAt"])
     .index("by_user", ["userId"]),

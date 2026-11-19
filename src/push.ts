@@ -29,6 +29,7 @@ async function setUp(s: Strings) {
   await Notifications.setNotificationCategoryAsync("reminder", [
     { identifier: "taken", buttonTitle: s.taken, options: { opensAppToForeground: false } },
     { identifier: "skipped", buttonTitle: s.skip, options: { opensAppToForeground: false } },
+    { identifier: "snooze", buttonTitle: s.snooze, options: { opensAppToForeground: false } },
   ]);
 }
 
@@ -49,6 +50,7 @@ async function getToken(): Promise<string | null> {
 export function usePush(s: Strings, onOpen: (kind: string) => void) {
   const register = useMutation(api.push.register);
   const logDose = useMutation(api.reminders.log);
+  const snooze = useMutation(api.reminders.snooze);
   const tokenRef = useRef<string | null>(null);
   const openRef = useRef(onOpen);
   openRef.current = onOpen;
@@ -78,6 +80,10 @@ export function usePush(s: Strings, onOpen: (kind: string) => void) {
       const data = (r.notification.request.content.data ?? {}) as Record<string, string>;
       if ((r.actionIdentifier === "taken" || r.actionIdentifier === "skipped") && data.messageId) {
         void logDose({ messageId: data.messageId as Id<"messages">, status: r.actionIdentifier }).catch(() => {});
+        return;
+      }
+      if (r.actionIdentifier === "snooze" && data.medicationId && data.dueAt) {
+        void snooze({ medicationId: data.medicationId as Id<"medications">, dueAt: Number(data.dueAt) }).catch(() => {});
         return;
       }
       if (data.url && /^https:\/\//.test(data.url)) {

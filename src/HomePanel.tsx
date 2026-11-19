@@ -15,6 +15,7 @@ import { colors, radius, scaleColor, themed, tint, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
+import { TodayDoses } from "./TodayDoses";
 import { TOOLS, type HubTab } from "./HubPanel";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
@@ -56,7 +57,18 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   const [now] = useState(() => Date.now());
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
-  return <DashboardView data={data} insights={insights ?? null} now={now} s={s} onOpen={onOpen} onChat={onChat} checkin={<DailyCard s={s} inChat flush />} />;
+  return (
+    <DashboardView
+      data={data}
+      insights={insights ?? null}
+      now={now}
+      s={s}
+      onOpen={onOpen}
+      onChat={onChat}
+      checkin={<DailyCard s={s} inChat flush />}
+      doses={<TodayDoses s={s} compact />}
+    />
+  );
 }
 
 // The dashboard itself. `checkin`: today's check-in card. `demo`: sample data, so nothing asks the server.
@@ -68,6 +80,8 @@ export function DashboardView(p: {
   onOpen: (t: HubTab) => void;
   onChat: () => void;
   checkin: ReactNode;
+  // Today's doses to answer (./TodayDoses.tsx); the example dashboard has none.
+  doses?: ReactNode;
   demo?: boolean;
   header?: ReactNode;
 }) {
@@ -121,6 +135,8 @@ export function DashboardView(p: {
           wide={wide}
         />
       </View>
+
+      {p.doses}
 
       {p.checkin}
 

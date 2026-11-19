@@ -75,6 +75,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const newChat = useMutation(api.chats.start);
 
   const logDose = useMutation(api.reminders.log);
+  const snoozeDose = useMutation(api.reminders.snooze);
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
   const claimUpload = useMutation(api.chat.claimUpload);
   const [photo, setPhoto] = useState<Picked | null>(null);
@@ -366,6 +367,23 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
                       </Pressable>
                     );
                   })}
+                  {!item.reminder.status && (
+                    <Pressable
+                      style={styles.doseButton}
+                      hitSlop={8}
+                      onPress={() =>
+                        void snoozeDose({ medicationId: item.reminder!.medicationId, dueAt: item.reminder!.dueAt }).then(
+                          () => showToast(s.snoozed),
+                          (e) => showToast(errorText(e)),
+                        )
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={s.snooze}
+                    >
+                      <Ionicons name="alarm-outline" size={15} color={colors.primary} />
+                      <Text style={styles.doseText}>{s.snoozeShort}</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
               {item.channel === "telegram" && (
