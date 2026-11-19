@@ -1,7 +1,8 @@
 // Records (convex/records.ts): lab reports and clinic letters added as a photo or PDF. Each is read into a plain
-// summary and its test results; tests seen more than once (or out of range) get a small trend at the top.
+// summary and its test results; tests seen more than once (or out of range) get a small trend at the top. Records can
+// be renamed, a misread value fixed, and the list searched and filtered.
 import { useState } from "react";
-import { ActivityIndicator, Linking, Platform, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -81,13 +82,56 @@ function Trend({ t, s }: { t: { test: string; unit: string; low: number | null; 
   );
 }
 
+type Filter = "all" | "lab" | "letter" | "imaging" | "out";
+
+// "6,1" and "6.1" are numbers; anything else ("Negative", "<0.5") is kept as text.
+const parseValue = (raw: string) => {
+  const n = Number(raw.trim().replace(",", "."));
+  return raw.trim() && Number.isFinite(n) ? { value: n } : { text: raw.trim() };
+};
+
 function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
   const record = useQuery(api.records.detail, { id });
   const remove = useMutation(api.records.remove);
+  const rename = useMutation(api.records.rename);
+  const correct = useMutation(api.records.correctResult);
   const [open, setOpen] = useState<string | null>(null);
+  const [naming, setNaming] = useState<string | null>(null);
+  const [fixing, setFixing] = useState<{ id: Id<"labResults">; value: string; unit: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   if (record === undefined) return <ActivityIndicator color={colors.primary} />;
+  const saveName = async () => {
+    setError(null);
+    try {
+      await rename({ id, title: naming ?? "" });
+      setNaming(null);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+  const saveFix = async () => {
+    if (!fixing) return;
+    setError(null);
+    try {
+      await correct({ id: fixing.id, ...parseValue(fixing.value), unit: fixing.unit });
+      setFixing(null);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
   return (
     <View style={styles.detail}>
+      {naming !== null && (
+        <View style={styles.editRow}>
+          <TextInput style={[styles.input, styles.flex]} value={naming} onChangeText={setNaming} maxLength={120} autoFocus accessibilityLabel={s.recordsName} onSubmitEditing={() => void saveName()} />
+          <Tap style={styles.action} onPress={() => void saveName()} accessibilityRole="button">
+            <Text style={styles.link}>{s.save}</Text>
+          </Tap>
+          <Tap style={styles.action} onPress={() => setNaming(null)} accessibilityRole="button">
+            <Text style={styles.link}>{s.cancel}</Text>
+          </Tap>
+        </View>
+      )}
       {record.summary ? <Text style={styles.summary}>{record.summary}</Text> : null}
       {record.results.length > 0 && (
         <Text style={styles.label} accessibilityRole="header">
@@ -101,15 +145,60 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
             <Text style={[styles.value, out(r.flag) && styles.valueOut]}>{valueText(r)}</Text>
             <FlagChip flag={r.flag} s={s} />
           </View>
+          {r.corrected && <Text style={styles.small}>{s.recordsCorrected}</Text>}
           <Reveal open={open === r._id}>
             <View style={styles.explain}>
               {rangeText(r.low, r.high, s) ? <Text style={styles.small}>{rangeText(r.low, r.high, s)}</Text> : null}
               {r.explanation ? <Text style={styles.line}>{r.explanation}</Text> : null}
+              {fixing?.id === r._id ? (
+                <View style={styles.editRow}>
+                  <TextInput
+                    style={[styles.input, styles.flex]}
+                    value={fixing.value}
+                    onChangeText={(value) => setFixing({ ...fixing, value })}
+                    placeholder={s.recordsValue}
+                    placeholderTextColor={colors.muted}
+                    accessibilityLabel={s.recordsValue}
+                    autoFocus
+                  />
+                  <TextInput
+                    style={[styles.input, styles.unitInput]}
+                    value={fixing.unit}
+                    onChangeText={(unit) => setFixing({ ...fixing, unit })}
+                    placeholder={s.recordsUnit}
+                    placeholderTextColor={colors.muted}
+                    accessibilityLabel={s.recordsUnit}
+                  />
+                  <Tap style={styles.action} onPress={() => void saveFix()} accessibilityRole="button">
+                    <Text style={styles.link}>{s.save}</Text>
+                  </Tap>
+                  <Tap style={styles.action} onPress={() => setFixing(null)} accessibilityRole="button">
+                    <Text style={styles.link}>{s.cancel}</Text>
+                  </Tap>
+                </View>
+              ) : (
+                <Tap
+                  style={styles.action}
+                  onPress={() => setFixing({ id: r._id, value: String(r.value ?? r.text ?? ""), unit: r.unit ?? "" })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${s.recordsFix}: ${r.test}`}
+                >
+                  <Ionicons name="create-outline" size={16} color={colors.primary} />
+                  <Text style={styles.link}>{s.recordsFix}</Text>
+                </Tap>
+              )}
             </View>
           </Reveal>
         </Tap>
       ))}
+      {error && <Text style={styles.error}>{error}</Text>}
       <View style={styles.actions}>
+        {naming === null && (
+          <Tap style={styles.action} onPress={() => setNaming(record.title ?? "")} accessibilityRole="button">
+            <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+            <Text style={styles.link}>{s.recordsRename}</Text>
+          </Tap>
+        )}
         {record.fileUrl && (
           <Tap style={styles.action} onPress={() => void Linking.openURL(record.fileUrl!)} accessibilityRole="link">
             <Icon name={record.fileType === "pdf" ? "pdf" : "photo"} size={18} color={colors.primary} />
@@ -131,6 +220,18 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
   );
 }
 
+type Row = { status: string; kind: string | null; title: string | null; source: string | null; flagged: number; tests: string[] };
+
+// The records that match the search (title, place, or any test name) and the chosen filter.
+function shown<R extends Row>(records: R[], query: string, filter: Filter) {
+  const q = query.trim().toLowerCase();
+  return records.filter(
+    (r) =>
+      (filter === "all" || (filter === "out" ? r.flagged > 0 : r.kind === filter)) &&
+      (!q || [r.title, r.source, ...r.tests].some((x) => x?.toLowerCase().includes(q))),
+  );
+}
+
 export function RecordsPanel({ s }: { s: Strings }) {
   const records = useQuery(api.records.list);
   const trends = useQuery(api.records.trends);
@@ -139,6 +240,8 @@ export function RecordsPanel({ s }: { s: Strings }) {
   const uploadUrl = useMutation(api.chat.generateUploadUrl);
   const claim = useMutation(api.chat.claimUpload);
   const [open, setOpen] = useState<Id<"records"> | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
   const [busy, setBusy] = useState<"photo" | "pdf" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -204,8 +307,39 @@ export function RecordsPanel({ s }: { s: Strings }) {
           {s.recordsList}
         </Text>
       )}
+      {records && records.length > 3 && (
+        <>
+          <View style={styles.search}>
+            <Ionicons name="search" size={18} color={colors.muted} />
+            <TextInput
+              style={[styles.searchInput, styles.flex]}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={s.recordsSearch}
+              placeholderTextColor={colors.muted}
+              accessibilityLabel={s.recordsSearch}
+            />
+          </View>
+          <View style={styles.chips}>
+            {(
+              [
+                ["all", s.recordsAll],
+                ["lab", s.recordKind_lab],
+                ["letter", s.recordKind_letter],
+                ["imaging", s.recordKind_imaging],
+                ["out", s.recordsOut],
+              ] as const
+            ).map(([key, label]) => (
+              <Tap key={key} style={[styles.chip, filter === key && styles.chipOn]} onPress={() => setFilter(key)} accessibilityRole="button" accessibilityState={{ selected: filter === key }}>
+                <Text style={[styles.chipText, filter === key && styles.chipTextOn]}>{label}</Text>
+              </Tap>
+            ))}
+          </View>
+        </>
+      )}
       {records?.length === 0 && <Text style={styles.empty}>{s.recordsEmpty}</Text>}
-      {records?.map((r) => {
+      {records && records.length > 0 && !shown(records, query, filter).length && <Text style={styles.empty}>{s.recordsNoMatch}</Text>}
+      {records && shown(records, query, filter).map((r) => {
         const c = tint.records;
         const expanded = open === r._id;
         return (
@@ -303,4 +437,14 @@ const styles = themed(() => ({
   barLabels: { flexDirection: "row", gap: 6 },
   barLabel: { flex: 1, color: colors.muted, fontSize: 11, textAlign: "center" },
   disclaimer: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 8 },
+  editRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 120 },
+  unitInput: { width: 90, minWidth: 0 },
+  search: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, minHeight: 44 },
+  searchInput: { color: colors.text, fontSize: 15, paddingVertical: 8 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { ...ui.chip },
+  chipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  chipText: { color: colors.text, fontSize: 14 },
+  chipTextOn: { color: colors.primary, fontWeight: "600" },
 }));

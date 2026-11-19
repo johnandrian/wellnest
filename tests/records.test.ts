@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { parseRecord } from "../convex/lib/records";
+import { flagFor, parseRecord } from "../convex/lib/records";
 import { cortexCalls, createAppUser, mockApis, setEnv, setup } from "./helpers";
 
 beforeEach(() => {
@@ -119,6 +119,42 @@ describe("records", () => {
     expect(await t.run((ctx) => ctx.storage.get(file))).toBeNull();
     // One result left per test: only the out-of-range one still shows as a trend.
     expect((await as.query(api.records.trends)).map((x) => [x.test, x.points.length])).toEqual([["Hemoglobin A1c", 1]]);
+  });
+
+  test("a record can be renamed and a misread value fixed, with the flag worked out again; only by its owner", async () => {
+    const t = setup();
+    mockApis({ core: [{ content: lab("2026-10-20", 6.1) }] });
+    const { as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    const id = await as.mutation(api.records.add, { storageId: await upload(t, as) });
+    await settle(t);
+    expect((await as.query(api.records.list))[0].tests).toEqual(["Hemoglobin A1c", "LDL cholesterol", "Urine glucose"]);
+
+    await expect(as.mutation(api.records.rename, { id, title: "  " })).rejects.toThrow(/name/);
+    await expect(other.as.mutation(api.records.rename, { id, title: "Mine" })).rejects.toThrow(/Not found/);
+    await as.mutation(api.records.rename, { id, title: " October bloods " });
+    expect((await as.query(api.records.list))[0].title).toBe("October bloods");
+
+    const results = (await as.query(api.records.detail, { id })).results;
+    const a1c = results.find((r) => r.test === "Hemoglobin A1c")!;
+    const urine = results.find((r) => r.test === "Urine glucose")!;
+    await expect(other.as.mutation(api.records.correctResult, { id: a1c._id, value: 5.1 })).rejects.toThrow(/Not found/);
+    await expect(as.mutation(api.records.correctResult, { id: urine._id, text: " " })).rejects.toThrow(/as it's printed/);
+    await as.mutation(api.records.correctResult, { id: a1c._id, value: 5.1 });
+    await as.mutation(api.records.correctResult, { id: urine._id, text: "Trace", unit: "" });
+    const fixed = (await as.query(api.records.detail, { id })).results;
+    expect(fixed.find((r) => r.test === "Hemoglobin A1c")).toMatchObject({ value: 5.1, unit: "%", flag: "normal", corrected: true });
+    expect(fixed.find((r) => r.test === "Urine glucose")).toMatchObject({ text: "Trace", corrected: true });
+    expect(fixed.find((r) => r.test === "LDL cholesterol")!.corrected).toBe(false);
+    expect((await as.query(api.records.list))[0].flagged).toBe(0);
+  });
+
+  test("a value's flag comes from the printed range", () => {
+    expect(flagFor(6.1, 4, 5.6)).toBe("high");
+    expect(flagFor(3.9, 4, 5.6)).toBe("low");
+    expect(flagFor(5, 4, 5.6)).toBe("normal");
+    expect(flagFor(120, undefined, 100)).toBe("high");
+    expect(flagFor(5, undefined, undefined)).toBeUndefined();
   });
 
   test("a PDF is read from its text; a PDF without text or a non-record fails with a reason", async () => {
