@@ -22,6 +22,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { axisDay, formatDate } from "./format";
 import { TapBars } from "./TapBars";
 import { useNow } from "./useNow";
+import { EmergencyFull } from "./EmergencyCard";
 
 // Questions show on the dashboard in the week before an appointment.
 const QUESTIONS_DAYS = 7;
@@ -60,6 +61,8 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   const data = useDashboard();
   const insights = useQuery(api.insights.view, { today: localDate() });
   const waiting = useQuery(api.agent.waiting);
+  const plan = useQuery(api.emergency.get);
+  const [planOpen, setPlanOpen] = useState(false);
   const now = useNow();
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
@@ -74,6 +77,18 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
       checkin={<DailyCard s={s} inChat flush />}
       doses={<TodayDoses s={s} compact />}
       waiting={waiting}
+      emergency={
+        plan?.exists ? (
+          <>
+            <Tap style={styles.emergency} onPress={() => setPlanOpen(true)} accessibilityRole="button">
+              <Ionicons name="alert-circle" size={20} color={colors.danger} />
+              <Text style={styles.emergencyText}>{s.homeEmergencyPlan}</Text>
+              <Ionicons name="expand-outline" size={18} color={colors.danger} />
+            </Tap>
+            <EmergencyFull open={planOpen} onClose={() => setPlanOpen(false)} s={s} />
+          </>
+        ) : null
+      }
     />
   );
 }
@@ -91,6 +106,8 @@ export function DashboardView(p: {
   doses?: ReactNode;
   // Actions waiting for the user's OK (convex/agent.ts waiting).
   waiting?: { count: number; urgent: boolean };
+  // A button that opens the emergency plan full screen, when there is one.
+  emergency?: ReactNode;
   demo?: boolean;
   header?: ReactNode;
 }) {
@@ -164,6 +181,7 @@ export function DashboardView(p: {
         </Enter>
       )}
 
+      {p.emergency}
       {p.doses}
 
       {p.checkin}
@@ -482,6 +500,8 @@ const styles = themed(() => ({
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   group: { gap: 8 },
+  emergency: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, minHeight: 52, borderColor: colors.dangerBorder },
+  emergencyText: { flex: 1, color: colors.danger, fontSize: 15, fontWeight: "700" },
   morePatterns: { minHeight: 36, justifyContent: "center", alignSelf: "flex-start" },
   slotOn: { backgroundColor: colors.primarySoft },
   picked: { color: colors.text, fontSize: 13, fontWeight: "600" },
