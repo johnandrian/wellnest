@@ -1,13 +1,15 @@
 // Care circle: someone invites family or carers with a one-time link. Members see the person's health at a glance,
 // read only (today's doses, medications, this week's trends, tomorrow's flare forecast, emergency contacts and a
 // full report), and get the alerts the person picked for each of them: missed doses and the evening flare forecast.
-// The person can change a member's alerts or remove them; a member can leave. Invites expire after a week.
+// The person can change a member's alerts or remove them; a member can mute their own alerts or leave. Members also
+// see the same four-week trend charts as the person's dashboard. Invites expire after a week.
 import { v } from "convex/values";
 import { unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { CircleAlert, circleAlerts, personName } from "./lib/circle";
+import { alertsFor, CircleAlert, circleAlerts, personName } from "./lib/circle";
+import { trendCharts } from "./dashboard";
 import { dateList, shiftDate, weekStats } from "./lib/insights";
 import { forecastLine, weekStatLine } from "./lib/insightsText";
 import { Lang, langOf, t } from "./lib/language";
@@ -56,7 +58,9 @@ export const mine = query({
     const members = [];
     for (const r of rows) {
       const member = await ctx.db.get(r.memberId);
-      if (member && !member.deleting) members.push({ _id: r._id, name: personName(member), label: r.label ?? null, alerts: r.alerts, since: r._creationTime });
+      if (member && !member.deleting) {
+        members.push({ _id: r._id, name: personName(member), label: r.label ?? null, alerts: r.alerts, muted: r.muted ?? null, since: r._creationTime });
+      }
     }
     const invites = (await openInvites(ctx, userId, now)).map((i) => ({ _id: i._id, url: inviteUrl(i.token), label: i.label ?? null, alerts: i.alerts, expiresAt: i.expiresAt }));
     return { members, invites };
@@ -95,6 +99,17 @@ export const setAlerts = mutation({
     const row = await ctx.db.get(id);
     if (!row || row.ownerId !== userId) throw new Error("Not found");
     await ctx.db.patch(id, { alerts });
+  },
+});
+
+// A member turns one of their own alerts from this person off or back on. The person still sees what they picked.
+export const mute = mutation({
+  args: { id: v.id("circleMembers"), alert: v.union(v.literal("missedDoses"), v.literal("forecast")), muted: v.boolean() },
+  handler: async (ctx, { id, alert, muted }) => {
+    const userId = await requireUser(ctx);
+    const row = await ctx.db.get(id);
+    if (!row || row.memberId !== userId) throw new Error("Not found");
+    await ctx.db.patch(id, { muted: { ...(row.muted ?? { missedDoses: false, forecast: false }), [alert]: muted } });
   },
 });
 
@@ -164,7 +179,7 @@ export const caringFor = query({
     const out = [];
     for (const r of rows) {
       const owner = await ctx.db.get(r.ownerId);
-      if (owner && !owner.deleting) out.push({ _id: r._id, ownerId: r.ownerId, name: personName(owner), alerts: r.alerts });
+      if (owner && !owner.deleting) out.push({ _id: r._id, ownerId: r.ownerId, name: personName(owner), alerts: alertsFor(r) });
     }
     return out;
   },
@@ -221,7 +236,10 @@ export const person = query({
 
     return {
       name: personName(owner),
+      // What the person picked for this member, and what the member muted for themselves.
       alerts: row.alerts,
+      muted: row.muted ?? { missedDoses: false, forecast: false },
+      charts: (await trendCharts(ctx, owner, today, lang)).charts,
       doses: doses.sort((a, b) => a.at - b.at),
       meds,
       week: weekStats(input, dateList(from, today), today).map((s) => weekStatLine(s, lang, unitsOf(owner))),
@@ -256,7 +274,7 @@ export async function alertCircle(
   if (!owner || owner.deleting) return;
   const rows = await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", ownerId)).take(MAX_MEMBERS * 2);
   for (const row of rows) {
-    if (!row.alerts[alert]) continue;
+    if (!alertsFor(row)[alert]) continue;
     const member = await ctx.db.get(row.memberId);
     if (!member || member.deleting) continue;
     const { text, title, body } = message(langOf(member), personName(owner));

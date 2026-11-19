@@ -15,7 +15,7 @@ import { chartValidator } from "./lib/insights";
 import { focus, profile } from "./lib/onboarding";
 import { appearance } from "./lib/appearance";
 import { labFlag, recordKind } from "./lib/records";
-import { circleAlerts } from "./lib/circle";
+import { circleAlerts, circleMuted } from "./lib/circle";
 import { actionDetails, actionStatus, evidence } from "./lib/agent";
 
 // jina-embeddings-v3 default output size.
@@ -337,6 +337,7 @@ export default defineSchema({
     memberId: v.id("users"),
     label: v.optional(v.string()),
     alerts: circleAlerts,
+    muted: v.optional(circleMuted), // turned off by the member for themselves
   })
     .index("by_owner", ["ownerId"])
     .index("by_member", ["memberId"])

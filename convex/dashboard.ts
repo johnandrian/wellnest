@@ -2,11 +2,12 @@
 // focus and what they've logged, plus what's next (a dose, an appointment) and this week's logging and doses.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query } from "./_generated/server";
+import { query, QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { ChartMetric, chartMarks, chartSeries, dateList, shiftDate } from "./lib/insights";
 import { chartName } from "./lib/insightsText";
 import { isDate } from "./lib/health";
-import { langOf } from "./lib/language";
+import { Lang, langOf } from "./lib/language";
 import { daysLeft } from "./lib/meds";
 import { dueTimes, isTimed } from "./lib/reminders";
 import { unitsOf } from "./lib/units";
@@ -33,6 +34,49 @@ const FALLBACK: ChartMetric[] = ["symptom", "pain", "glucose", "mood", "sleepHou
 
 const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
 
+// Up to four 28-day trend charts for someone, in `lang` (the viewer's language: the user, or a Care Circle member)
+// and in that person's own units. Also returns what was gathered, for the dashboard's other cards.
+export async function trendCharts(ctx: QueryCtx, user: Doc<"users">, today: string, lang: Lang) {
+  const units = unitsOf(user);
+  const from = shiftDate(today, -(DAYS - 1));
+  const dates = dateList(from, today);
+  const input = await gatherInputs(ctx, user._id, from, today);
+
+  // The most-rated symptom stands in for "symptom".
+  const counts = new Map<string, number>();
+  for (const e of input.entries) if (e.severity !== undefined) counts.set(e.symptom, (counts.get(e.symptom) ?? 0) + 1);
+  const topSymptom = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+
+  // Medication starts and dose changes, marked on every chart.
+  const marks = chartMarks(await medChanges(ctx, user._id, from), from, today);
+  const order = [...new Set([...(user.focus ?? []).flatMap((f) => BY_FOCUS[f] ?? []), ...FALLBACK])];
+  const weekStart = shiftDate(today, -6);
+  const prevStart = shiftDate(today, -13);
+  const charts = [];
+  for (const metric of order) {
+    if (charts.length >= MAX_CHARTS) break;
+    if (metric === "symptom" && !topSymptom) continue;
+    const series = chartSeries(input, metric, dates, topSymptom, units);
+    if (!series.points.length) continue;
+    const week = series.points.filter((p) => p.date >= weekStart).map((p) => p.value);
+    const prev = series.points.filter((p) => p.date >= prevStart && p.date < weekStart).map((p) => p.value);
+    // Glucose in mg/dL reads as a whole number, like the readings themselves.
+    const whole = (n: number | null) => (n !== null && metric === "glucose" && units.glucose === "mg/dL" ? Math.round(n) : n);
+    charts.push({
+      metric,
+      ...chartName(metric, lang, topSymptom, units),
+      from,
+      to: today,
+      ...series,
+      meds: marks,
+      latest: series.points[series.points.length - 1],
+      week: whole(avg(week)),
+      prevWeek: week.length >= 2 && prev.length >= 2 ? whole(avg(prev)) : null,
+    });
+  }
+  return { charts, input, weekStart };
+}
+
 export const view = query({
   // The phone's local date and clock (queries can't read the clock).
   args: { today: v.string(), now: v.number() },
@@ -40,44 +84,7 @@ export const view = query({
     const userId = await getAuthUserId(ctx);
     const user = userId ? await ctx.db.get(userId) : null;
     if (!user || !isDate(today)) return null;
-    const lang = langOf(user);
-    const units = unitsOf(user);
-    const from = shiftDate(today, -(DAYS - 1));
-    const dates = dateList(from, today);
-    const input = await gatherInputs(ctx, user._id, from, today);
-
-    // The most-rated symptom stands in for "symptom".
-    const counts = new Map<string, number>();
-    for (const e of input.entries) if (e.severity !== undefined) counts.set(e.symptom, (counts.get(e.symptom) ?? 0) + 1);
-    const topSymptom = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-
-    // Medication starts and dose changes, marked on every chart.
-    const marks = chartMarks(await medChanges(ctx, user._id, from), from, today);
-    const order = [...new Set([...(user.focus ?? []).flatMap((f) => BY_FOCUS[f] ?? []), ...FALLBACK])];
-    const weekStart = shiftDate(today, -6);
-    const prevStart = shiftDate(today, -13);
-    const charts = [];
-    for (const metric of order) {
-      if (charts.length >= MAX_CHARTS) break;
-      if (metric === "symptom" && !topSymptom) continue;
-      const series = chartSeries(input, metric, dates, topSymptom, units);
-      if (!series.points.length) continue;
-      const week = series.points.filter((p) => p.date >= weekStart).map((p) => p.value);
-      const prev = series.points.filter((p) => p.date >= prevStart && p.date < weekStart).map((p) => p.value);
-      // Glucose in mg/dL reads as a whole number, like the readings themselves.
-      const whole = (n: number | null) => (n !== null && metric === "glucose" && units.glucose === "mg/dL" ? Math.round(n) : n);
-      charts.push({
-        metric,
-        ...chartName(metric, lang, topSymptom, units),
-        from,
-        to: today,
-        ...series,
-        meds: marks,
-        latest: series.points[series.points.length - 1],
-        week: whole(avg(week)),
-        prevWeek: week.length >= 2 && prev.length >= 2 ? whole(avg(prev)) : null,
-      });
-    }
+    const { charts, input, weekStart } = await trendCharts(ctx, user, today, langOf(user));
 
     // Days this week with anything in the journal.
     const logged = new Set(
