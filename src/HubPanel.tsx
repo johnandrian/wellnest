@@ -1,8 +1,9 @@
-// "Health tools": a dashboard home (./HomePanel) with the journal, medications, exercise, appointments, guides,
-// reports, records, care and the Care Circle one tap away. It's the home screen and covers the whole width; the gear
-// opens Settings under the header and the Chat button at the top right goes to the conversation.
-// Inside a tool, the back button returns to the dashboard and the row under the header switches tools.
-import { ReactNode, useState } from "react";
+// "Health tools": a dashboard home (./HomePanel) with every tool one tap away, grouped into Track, Medications, Visits,
+// Care, and Actions (GROUPS). It's the home screen and covers the whole width; the gear opens Settings under the header
+// and the Chat button at the top right goes to the conversation. Inside a tool, the back button returns to the
+// dashboard, the row under the header switches groups (back to the tool last open in that group), and a second row
+// switches tools within a group that has more than one.
+import { ReactNode, useRef, useState } from "react";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
@@ -41,6 +42,17 @@ export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; lab
   { tab: "agent", icon: "agent", tint: "agent", label: (s) => s.tabAgent, desc: (s) => s.toolAgentDesc },
 ];
 
+export type GroupKey = "track" | "meds" | "visits" | "care" | "actions";
+export const GROUPS: { key: GroupKey; icon: IconName; label: (s: Strings) => string; tools: ToolTab[] }[] = [
+  { key: "track", icon: "journal", label: (s) => s.groupTrack, tools: ["journal", "exercise"] },
+  { key: "meds", icon: "medications", label: (s) => s.tabMeds, tools: ["reminders"] },
+  { key: "visits", icon: "appointments", label: (s) => s.tabVisits, tools: ["visits", "guides", "visit", "records"] },
+  { key: "care", icon: "care", label: (s) => s.tabCare, tools: ["care", "circle"] },
+  { key: "actions", icon: "agent", label: (s) => s.tabAgent, tools: ["agent"] },
+];
+export const groupOf = (tab: ToolTab) => GROUPS.find((g) => g.tools.includes(tab))!;
+const toolOf = (tab: ToolTab) => TOOLS.find((t) => t.tab === tab)!;
+
 export function greeting(s: Strings, name: string | null) {
   const h = new Date().getHours();
   const hi = h < 12 ? s.greetMorning : h < 18 ? s.greetAfternoon : s.greetEvening;
@@ -69,6 +81,10 @@ export function HubPanel({
   const [summaryReason, setSummaryReason] = useState<string | undefined>(undefined);
   const me = useQuery(api.chat.me);
   const tool = TOOLS.find((t) => t.tab === tab);
+  const group = tool ? groupOf(tool.tab) : null;
+  // The tool last open in each group, so switching back lands where you were.
+  const lastIn = useRef<Partial<Record<GroupKey, ToolTab>>>({});
+  if (tool && group) lastIn.current[group.key] = tool.tab;
   // On a phone the Chat button is just its icon, so the greeting has room next to the gear.
   const narrow = useWindowDimensions().width < 440;
   const insets = useInsets();
@@ -107,26 +123,42 @@ export function HubPanel({
             {!narrow && <Text style={styles.chatText}>{s.backToChat}</Text>}
           </Tap>
         </View>
-        {tool && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
-            {TOOLS.map((t) => {
-              const on = tab === t.tab;
-              return (
-                <Tap
-                  key={t.tab}
-                  style={[styles.tab, on && styles.tabOn]}
-                  onPress={() => onTab(t.tab)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: on }}
-                >
-                  <Icon name={t.icon} size={16} color={on ? colors.onBarAction : colors.onBar} />
-                  <Text style={[styles.tabText, on && styles.tabTextOn]} numberOfLines={1}>
-                    {t.label(s)}
-                  </Text>
-                </Tap>
-              );
-            })}
-          </ScrollView>
+        {tool && group && (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
+              {GROUPS.map((g) => {
+                const on = g.key === group.key;
+                return (
+                  <Tap
+                    key={g.key}
+                    style={[styles.tab, on && styles.tabOn]}
+                    onPress={() => onTab(lastIn.current[g.key] ?? g.tools[0])}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Icon name={g.icon} size={16} color={on ? colors.onBarAction : colors.onBar} />
+                    <Text style={[styles.tabText, on && styles.tabTextOn]} numberOfLines={1}>
+                      {g.label(s)}
+                    </Text>
+                  </Tap>
+                );
+              })}
+            </ScrollView>
+            {group.tools.length > 1 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
+                {group.tools.map((t) => {
+                  const on = tab === t;
+                  return (
+                    <Tap key={t} style={[styles.sub, on && styles.subOn]} onPress={() => onTab(t)} accessibilityRole="tab" accessibilityState={{ selected: on }}>
+                      <Text style={[styles.subText, on && styles.subTextOn]} numberOfLines={1}>
+                        {toolOf(t).label(s)}
+                      </Text>
+                    </Tap>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </>
         )}
       </View>
       {children}
@@ -183,4 +215,10 @@ const styles = themed(() => ({
   tabOn: { backgroundColor: colors.barAction },
   tabText: { color: colors.onBar, fontSize: 14, fontWeight: "600" },
   tabTextOn: { color: colors.onBarAction },
+  // The tools inside a group: smaller, outlined, so the two rows read as levels.
+  subScroll: { flexGrow: 0, width: "100%", marginTop: 8 },
+  sub: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, justifyContent: "center", borderWidth: 1, borderColor: colors.barFill },
+  subOn: { backgroundColor: colors.barFill, borderColor: colors.onBar },
+  subText: { color: colors.onBarMuted, fontSize: 13, fontWeight: "600" },
+  subTextOn: { color: colors.onBar },
 }));
