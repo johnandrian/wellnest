@@ -36,13 +36,16 @@ export const medEventKind = v.union(
   v.literal("refilled"),
 );
 
+// Average doses a day: fewer on a schedule that skips days, none for as-needed (it has no pace to count down).
 export function dosesPerDay(s: Schedule): number {
-  return s.kind === "daily" ? s.times.length : 24 / s.everyHours;
+  if (s.kind === "asNeeded") return 0;
+  if (s.kind === "interval") return 24 / s.everyHours;
+  return s.times.length * (s.weekdays ? s.weekdays.length / 7 : 1) * (s.everyOtherDay ? 0.5 : 1);
 }
 
-// Whole days the supply lasts at this schedule, or null without a supply set.
+// Whole days the supply lasts at this schedule, or null without a supply set (or for as-needed).
 export function daysLeft(s: Schedule, supply?: Supply): number | null {
-  if (!supply || supply.perDose <= 0) return null;
+  if (!supply || supply.perDose <= 0 || dosesPerDay(s) === 0) return null;
   return Math.floor(supply.left / (supply.perDose * dosesPerDay(s)));
 }
 
