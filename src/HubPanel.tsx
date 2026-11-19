@@ -21,20 +21,19 @@ import { CarePanel } from "./CarePanel";
 import { ExercisePanel } from "./ExercisePanel";
 import { RecordsPanel } from "./RecordsPanel";
 import { CirclePanel } from "./CirclePanel";
-import { GuidesPanel } from "./GuidesPanel";
 import { AgentPanel } from "./AgentPanel";
 import { Enter, SwapIcon } from "./Motion";
 import { barTop, useInsets } from "./safeArea";
 
-export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "guides" | "visit" | "records" | "care" | "circle" | "agent";
-export type HubTab = "home" | ToolTab;
+export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "records" | "care" | "circle" | "agent";
+// "prep" opens Visits on its Prep view.
+export type HubTab = "home" | ToolTab | "prep";
 
 export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; label: (s: Strings) => string; desc: (s: Strings) => string }[] = [
   { tab: "journal", icon: "journal", tint: "journal", label: (s) => s.tabJournal, desc: (s) => s.toolJournalDesc },
   { tab: "reminders", icon: "medications", tint: "medications", label: (s) => s.tabMeds, desc: (s) => s.toolMedsDesc },
   { tab: "exercise", icon: "exercise", tint: "exercise", label: (s) => s.tabExercise, desc: (s) => s.toolExerciseDesc },
   { tab: "visits", icon: "appointments", tint: "appointments", label: (s) => s.tabVisits, desc: (s) => s.toolVisitsDesc },
-  { tab: "guides", icon: "guides", tint: "guides", label: (s) => s.tabGuides, desc: (s) => s.toolGuidesDesc },
   { tab: "visit", icon: "reports", tint: "reports", label: (s) => s.tabVisit, desc: (s) => s.toolVisitDesc },
   { tab: "records", icon: "records", tint: "records", label: (s) => s.tabRecords, desc: (s) => s.toolRecordsDesc },
   { tab: "care", icon: "care", tint: "care", label: (s) => s.tabCare, desc: (s) => s.toolCareDesc },
@@ -46,7 +45,7 @@ export type GroupKey = "track" | "meds" | "visits" | "care" | "actions";
 export const GROUPS: { key: GroupKey; icon: IconName; label: (s: Strings) => string; tools: ToolTab[] }[] = [
   { key: "track", icon: "journal", label: (s) => s.groupTrack, tools: ["journal", "exercise"] },
   { key: "meds", icon: "medications", label: (s) => s.tabMeds, tools: ["reminders"] },
-  { key: "visits", icon: "appointments", label: (s) => s.tabVisits, tools: ["visits", "guides", "visit", "records"] },
+  { key: "visits", icon: "appointments", label: (s) => s.tabVisits, tools: ["visits", "visit", "records"] },
   { key: "care", icon: "care", label: (s) => s.tabCare, tools: ["care", "circle"] },
   { key: "actions", icon: "agent", label: (s) => s.tabAgent, tools: ["agent"] },
 ];
@@ -80,7 +79,7 @@ export function HubPanel({
   // "Make a visit summary" on an appointment opens the summary tab with its title as the reason.
   const [summaryReason, setSummaryReason] = useState<string | undefined>(undefined);
   const me = useQuery(api.chat.me);
-  const tool = TOOLS.find((t) => t.tab === tab);
+  const tool = TOOLS.find((t) => t.tab === (tab === "prep" ? "visits" : tab));
   const group = tool ? groupOf(tool.tab) : null;
   // The tool last open in each group, so switching back lands where you were.
   const lastIn = useRef<Partial<Record<GroupKey, ToolTab>>>({});
@@ -147,7 +146,7 @@ export function HubPanel({
             {group.tools.length > 1 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll} contentContainerStyle={styles.tabs} accessibilityRole="tablist">
                 {group.tools.map((t) => {
-                  const on = tab === t;
+                  const on = tool.tab === t;
                   return (
                     <Tap key={t} style={[styles.sub, on && styles.subOn]} onPress={() => onTab(t)} accessibilityRole="tab" accessibilityState={{ selected: on }}>
                       <Text style={[styles.subText, on && styles.subTextOn]} numberOfLines={1}>
@@ -168,16 +167,16 @@ export function HubPanel({
         {tab === "journal" && <JournalPanel s={s} />}
         {tab === "reminders" && <MedicationsPanel s={s} />}
         {tab === "exercise" && <ExercisePanel s={s} />}
-        {tab === "visits" && (
+        {(tab === "visits" || tab === "prep") && (
           <VisitsPanel
             s={s}
+            openPrep={tab === "prep"}
             onPrepare={(reason) => {
               setSummaryReason(reason);
               onTab("visit");
             }}
           />
         )}
-        {tab === "guides" && <GuidesPanel s={s} onOpen={onTab} />}
         {tab === "visit" && <VisitPanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
         {tab === "records" && <RecordsPanel s={s} />}
         {tab === "care" && <CarePanel s={s} />}

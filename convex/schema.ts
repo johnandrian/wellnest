@@ -294,7 +294,7 @@ export default defineSchema({
     prep: v.optional(v.string()), // questions and things to bring
     notes: v.optional(v.string()), // what was said, written afterwards
     questions: v.optional(v.array(v.string())), // suggested questions to ask, from what changed (convex/visits.ts)
-    checked: v.optional(v.array(v.string())), // ticked items of the appointment prep checklist (src/GuidesPanel.tsx)
+    checked: v.optional(v.array(v.string())), // ticked items of the appointment prep checklist (src/VisitPrep.tsx)
     status: v.union(v.literal("upcoming"), v.literal("done"), v.literal("cancelled")),
     remindJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_user_and_start", ["userId", "startsAt"]),
