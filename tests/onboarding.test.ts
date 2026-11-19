@@ -92,6 +92,21 @@ describe("account setup", () => {
     );
   });
 
+  test("after the short setup, the dashboard asks for the rest until it's done or put off", async () => {
+    const t = setup();
+    const { as } = await createAppUser(t);
+    const view = () => as.query(api.dashboard.view, { today: "2026-11-02", now: Date.now() });
+    expect((await view())!.finishProfile).toBeNull(); // not set up yet
+    await as.mutation(api.onboarding.finish, {});
+    expect((await view())!.finishProfile).toEqual(["about", "conditions", "city"]);
+    await as.mutation(api.onboarding.saveProfile, { name: "Maria" });
+    await as.mutation(api.chat.setLocation, { location: "Athens" });
+    expect((await view())!.finishProfile).toEqual(["conditions"]);
+    await as.mutation(api.onboarding.finishProfile, {});
+    expect((await view())!.finishProfile).toBeNull();
+    expect((await as.query(api.onboarding.state))!.profileDone).toBe(true);
+  });
+
   test("the model is told who the user is and what they use Wellnest for", async () => {
     const t = setup();
     const { calls } = mockApis();

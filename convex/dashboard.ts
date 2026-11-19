@@ -12,6 +12,7 @@ import { daysLeft } from "./lib/meds";
 import { dueTimes, isTimed } from "./lib/reminders";
 import { unitsOf } from "./lib/units";
 import { gatherInputs, medChanges } from "./insights";
+import { profileMissing } from "./onboarding";
 
 const DAYS = 28;
 const MAX_CHARTS = 4;
@@ -125,6 +126,8 @@ export const view = query({
 
     return {
       name: user.profile?.name ?? null,
+      // The parts of setup still to do, for the "Finish your profile" card.
+      finishProfile: await profileMissing(ctx, user),
       charts,
       logged,
       meds: {

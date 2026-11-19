@@ -20,6 +20,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastHost } from "./src/feedback";
 import { useInsets } from "./src/safeArea";
 import { LockGate } from "./src/AppLock";
+import { SetupContext, SetupMode } from "./src/setup";
 
 // A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
 takeInviteFromUrl();
@@ -117,10 +118,11 @@ function Themed() {
   );
 }
 
-// Account setup first (once, or again from Settings), then the dashboard and chat.
+// A short account setup first (once), then the dashboard and chat. The rest of setup opens from the dashboard's
+// "Finish your profile" card, and all of it again from Settings.
 function Home() {
   const me = useQuery(api.chat.me);
-  const [redo, setRedo] = useState(false);
+  const [setup, setSetup] = useState<SetupMode | null>(null);
   const setTimeZone = useMutation(api.chat.setTimeZone);
   // Medication reminders fire at local times, so the backend needs this device's time zone, already during setup.
   useEffect(() => {
@@ -131,7 +133,13 @@ function Home() {
   // On phones with app lock on, a lock screen covers the app until the PIN or Face ID / fingerprint (src/AppLock.tsx).
   return (
     <LockGate s={strings(me?.language)}>
-      {me && (!me.onboarded || redo) ? <Onboarding onDone={() => setRedo(false)} /> : <Chat onRedoSetup={() => setRedo(true)} />}
+      <SetupContext.Provider value={setSetup}>
+        {me && (!me.onboarded || setup) ? (
+          <Onboarding mode={setup ?? "short"} onDone={() => setSetup(null)} />
+        ) : (
+          <Chat onRedoSetup={() => setSetup("full")} />
+        )}
+      </SetupContext.Provider>
     </LockGate>
   );
 }
