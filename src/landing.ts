@@ -13,6 +13,25 @@ export const FEATURES: { icon: IconName; tint: keyof typeof tint }[] = [
   { icon: "history", tint: "records" },
 ];
 
+// App Store and Google Play buttons, shown only once the apps are live: each needs its EXPO_PUBLIC_ address set at
+// build time, and only a store's own https address counts.
+export type StoreLink = { store: "apple" | "google"; url: string };
+export function storeLinks(apple: string | undefined, google: string | undefined): StoreLink[] {
+  const ok = (url: string | undefined, host: string) => {
+    try {
+      const u = new URL(url ?? "");
+      return u.protocol === "https:" && u.hostname === host;
+    } catch {
+      return false;
+    }
+  };
+  return [
+    ...(ok(apple, "apps.apple.com") ? [{ store: "apple" as const, url: apple! }] : []),
+    ...(ok(google, "play.google.com") ? [{ store: "google" as const, url: google! }] : []),
+  ];
+}
+export const STORE_LINKS = storeLinks(process.env.EXPO_PUBLIC_APP_STORE_URL, process.env.EXPO_PUBLIC_PLAY_STORE_URL);
+
 export const TOOLS: { path: string; icon: IconName; tint: keyof typeof tint }[] = [
   { path: "/medication-list", icon: "medList", tint: "medications" },
   { path: "/appointment-checklist", icon: "guides", tint: "guides" },

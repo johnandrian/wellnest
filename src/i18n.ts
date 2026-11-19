@@ -411,6 +411,9 @@ const STRINGS = {
     landSub: "Log symptoms, pain, mood, sleep, and medicines in a tap, or just say it. Wellnest turns your logs into trends and patterns you can bring to your doctor.",
     landCreate: "Create an account",
     landDemo: "See an example dashboard",
+    landGetApp: "Get the app:",
+    landAppStore: "App Store",
+    landPlayStore: "Google Play",
     landStoryBeats: ["Found it", "Warned you", "For your doctor", "Proved it"],
     landStories: [
       { tab: "Rheumatoid arthritis", bars: "Joint pain", mark: "Air pressure drop", med: "Dose change", pattern: "Flares came on 4 of the 5 days air pressure dropped (joint pain 7/10, vs 4.4/10 on other days).", forecast: "Air pressure drops tomorrow evening. Plan a lighter day and keep your medicine close.", doctor: "\"Should my plan change ahead of weather-linked flares?\"", proven: "Since the dose change, joint pain has averaged 3.7/10, down from 6.1/10." },
@@ -1526,6 +1529,9 @@ const STRINGS = {
     landSub: "Anota síntomas, dolor, ánimo, sueño y medicamentos con un toque, o simplemente dilo. Wellnest convierte tus registros en tendencias y patrones que puedes llevar a tu médico.",
     landCreate: "Crear una cuenta",
     landDemo: "Ver un panel de ejemplo",
+    landGetApp: "Descarga la app:",
+    landAppStore: "App Store",
+    landPlayStore: "Google Play",
     landStoryBeats: ["Lo encontró", "Te avisó", "Para tu médico", "Lo comprobó"],
     landStories: [
       { tab: "Artritis reumatoide", bars: "Dolor articular", mark: "Bajada de presión", med: "Cambio de dosis", pattern: "Hubo brotes en 4 de los 5 días en que bajó la presión atmosférica (dolor articular de 7/10, frente a 4,4/10 los demás días).", forecast: "Mañana por la tarde baja la presión atmosférica. Planea un día más tranquilo y ten tu medicamento a mano.", doctor: "«¿Debería cambiar mi plan antes de los brotes ligados al clima?»", proven: "Desde el cambio de dosis, el dolor articular es de 3,7/10 de media, antes 6,1/10." },
@@ -2641,6 +2647,9 @@ const STRINGS = {
     landSub: "Σημείωσε συμπτώματα, πόνο, διάθεση, ύπνο και φάρμακα με ένα άγγιγμα, ή απλώς πες το. Το Wellnest κάνει τις καταγραφές σου τάσεις και μοτίβα που μπορείς να δείξεις στον γιατρό σου.",
     landCreate: "Δημιουργία λογαριασμού",
     landDemo: "Δες ένα παράδειγμα πίνακα",
+    landGetApp: "Κατέβασε την εφαρμογή:",
+    landAppStore: "App Store",
+    landPlayStore: "Google Play",
     landStoryBeats: ["Το βρήκε", "Σε προειδοποίησε", "Για τον γιατρό σου", "Το επιβεβαίωσε"],
     landStories: [
       { tab: "Ρευματοειδής αρθρίτιδα", bars: "Πόνος στις αρθρώσεις", mark: "Πτώση πίεσης", med: "Αλλαγή δόσης", pattern: "Είχες έξαρση σε 4 από τις 5 μέρες που έπεσε η ατμοσφαιρική πίεση (πόνος 7/10, έναντι 4,4/10 τις άλλες μέρες).", forecast: "Αύριο το βράδυ πέφτει η ατμοσφαιρική πίεση. Κάνε πιο ήρεμο πρόγραμμα και έχε το φάρμακό σου κοντά.", doctor: "«Πρέπει να αλλάξει το πλάνο μου πριν από εξάρσεις που σχετίζονται με τον καιρό;»", proven: "Από την αλλαγή δόσης, ο πόνος είναι 3,7/10 κατά μέσο όρο, από 6,1/10." },
@@ -3756,6 +3765,9 @@ const STRINGS = {
     landSub: "轻点一下记录症状、疼痛、情绪、睡眠和用药，或者直接说出来。Wellnest 会把你的记录变成趋势和规律，方便你带给医生看。",
     landCreate: "创建账户",
     landDemo: "查看示例总览",
+    landGetApp: "下载应用：",
+    landAppStore: "App Store",
+    landPlayStore: "Google Play",
     landStoryBeats: ["发现规律", "提前提醒", "带给医生", "效果验证"],
     landStories: [
       { tab: "类风湿关节炎", bars: "关节疼痛", mark: "气压下降", med: "调整剂量", pattern: "气压下降的 5 天里有 4 天出现发作（关节疼痛 7/10，其他日子为 4.4/10）。", forecast: "明天傍晚气压下降。安排轻松一点的一天，把药放在手边。", doctor: "“在和天气有关的发作之前，我的治疗计划需要调整吗？”", proven: "调整剂量后，关节疼痛平均为 3.7/10，之前为 6.1/10。" },
