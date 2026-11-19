@@ -11,6 +11,8 @@ import type { Id } from "../convex/_generated/dataModel";
 import type { Strings } from "./i18n";
 
 export const pushSupported = true;
+// Only the web has a button to turn notifications on (./push.web.ts); phones ask when the app opens.
+export const useBrowserPush = (): { state: "on" | "off" | "blocked"; enable: () => Promise<void> } | null => null;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),

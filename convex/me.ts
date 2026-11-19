@@ -281,7 +281,7 @@ const STEPS = {
   actions: ["agentActions"],
 } as const;
 // Only "everything" also removes the account's devices and sign-in records.
-const ACCOUNT_STEPS = ["pushTokens", "auth"] as const;
+const ACCOUNT_STEPS = ["pushTokens", "webPushSubs", "auth"] as const;
 type Step = (typeof STEPS)[keyof typeof STEPS][number] | (typeof ACCOUNT_STEPS)[number];
 
 export const deleteData = mutation({
@@ -373,6 +373,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       return rows.length;
     }
     case "pushTokens":
+    case "webPushSubs":
     case "shareLinks":
     case "emergencyPlans":
     case "careTeam":

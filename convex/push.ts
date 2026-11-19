@@ -1,6 +1,7 @@
 // Push notifications for medication reminders, appointment updates (the user's choice of what pushes), and the weekly
 // summary, flare forecast and care circle alerts (each switched off with the feature itself).
-// The phone registers its Expo push token here; `notify` sends to every device the user has signed in on.
+// The phone registers its Expo push token here, and a browser its Web Push subscription (convex/webPush.ts);
+// `notify` sends to every device the user has signed in on.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalAction, internalMutation, mutation, MutationCtx } from "./_generated/server";
@@ -31,7 +32,27 @@ export const register = mutation({
   },
 });
 
-// On sign-out, so a shared phone stops getting this account's notifications.
+export const registerWeb = mutation({
+  args: { endpoint: v.string(), p256dh: v.string(), auth: v.string() },
+  handler: async (ctx, { endpoint, p256dh, auth }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    if (!/^https:\/\/\S+$/.test(endpoint) || endpoint.length > 1000 || !p256dh || !auth || p256dh.length > 200 || auth.length > 100) {
+      throw new Error("Not a push subscription");
+    }
+    const existing = await ctx.db.query("webPushSubs").withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint)).unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, { userId, p256dh, auth });
+      return;
+    }
+    const mine = await ctx.db.query("webPushSubs").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_DEVICES + 1);
+    for (const old of mine.slice(0, Math.max(0, mine.length - MAX_DEVICES + 1))) await ctx.db.delete(old._id);
+    await ctx.db.insert("webPushSubs", { userId, endpoint, p256dh, auth });
+  },
+});
+
+// On sign-out, so a shared phone or browser stops getting this account's notifications (`token` is a browser's
+// endpoint there).
 export const unregister = mutation({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
@@ -39,6 +60,8 @@ export const unregister = mutation({
     if (!userId) return;
     const row = await ctx.db.query("pushTokens").withIndex("by_token", (q) => q.eq("token", token)).unique();
     if (row?.userId === userId) await ctx.db.delete(row._id);
+    const sub = await ctx.db.query("webPushSubs").withIndex("by_endpoint", (q) => q.eq("endpoint", token)).unique();
+    if (sub?.userId === userId) await ctx.db.delete(sub._id);
   },
 });
 
@@ -63,15 +86,16 @@ export async function notify(
   const user = await ctx.db.get(userId);
   if (!user || ((kind === "reminders" || kind === "appointments") && user.notifications?.[kind] === false)) return;
   const devices = await ctx.db.query("pushTokens").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_DEVICES);
-  if (!devices.length) return;
-  await ctx.scheduler.runAfter(0, internal.push.send, {
-    tokens: devices.map((d) => d.token),
-    title: plain(message.title).slice(0, 120),
-    body: plain(message.body).slice(0, 400),
-    data: { kind, ...message.data },
-    categoryId: message.categoryId,
-    channelId: kind,
-  });
+  const browsers = await ctx.db.query("webPushSubs").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_DEVICES);
+  const title = plain(message.title).slice(0, 120);
+  const body = plain(message.body).slice(0, 400);
+  const data = { kind, ...message.data };
+  if (devices.length) {
+    await ctx.scheduler.runAfter(0, internal.push.send, { tokens: devices.map((d) => d.token), title, body, data, categoryId: message.categoryId, channelId: kind });
+  }
+  if (browsers.length && process.env.WEB_PUSH_PRIVATE_KEY) {
+    await ctx.scheduler.runAfter(0, internal.webPush.send, { subs: browsers.map(({ endpoint, p256dh, auth }) => ({ endpoint, p256dh, auth })), title, body, data });
+  }
 }
 
 export const send = internalAction({
@@ -90,6 +114,16 @@ export const send = internalAction({
       if (deadTokens.length) await ctx.runMutation(internal.push.forget, { tokens: deadTokens });
     } catch (e) {
       console.error("push failed", e);
+    }
+  },
+});
+
+export const forgetWeb = internalMutation({
+  args: { endpoints: v.array(v.string()) },
+  handler: async (ctx, { endpoints }) => {
+    for (const endpoint of endpoints) {
+      const row = await ctx.db.query("webPushSubs").withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint)).unique();
+      if (row) await ctx.db.delete(row._id);
     }
   },
 });
