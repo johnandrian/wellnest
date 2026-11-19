@@ -41,6 +41,20 @@ describe("agent action inbox", () => {
     await expect(as.mutation(api.agent.approve, { id: id! })).rejects.toThrow("already handled");
   });
 
+  test("the waiting count covers only open proposals, flags an urgent one, and is private", async () => {
+    const t = setup();
+    mockApis();
+    const { userId, as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    expect(await as.query(api.agent.waiting, {})).toEqual({ count: 0, urgent: false });
+    const a = await t.mutation(internal.agent.propose, { userId, ...draft });
+    await t.mutation(internal.agent.propose, { userId, ...draft, title: "Call now", urgent: true });
+    expect(await as.query(api.agent.waiting, {})).toEqual({ count: 2, urgent: true });
+    expect(await other.as.query(api.agent.waiting, {})).toEqual({ count: 0, urgent: false });
+    await as.mutation(api.agent.dismiss, { id: a! });
+    expect(await as.query(api.agent.waiting, {})).toEqual({ count: 1, urgent: true });
+  });
+
   test("dismissed actions never run, and unbuilt kinds fail honestly", async () => {
     const t = setup();
     mockApis();
