@@ -10,7 +10,8 @@ import { api } from "../convex/_generated/api";
 import { colors, themed, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
-import { useEmergencyNumber } from "./emergency";
+import { deviceRegion, useEmergencyNumber } from "./emergency";
+import { openNow, usesMiles } from "./openingHours";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
 import { Icon, IconName } from "./Icon";
@@ -39,8 +40,11 @@ async function here(): Promise<{ lat: number; lon: number } | null> {
 export function CarePanel({ s }: { s: Strings }) {
   const search = useAction(api.care.search);
   const sos = useEmergencyNumber(s);
-  // Miles for people who chose pounds in Settings.
-  const imperial = useQuery(api.chat.me)?.units.weight === "lb";
+  // Miles where that's the unit (the saved location's country, else the phone's region), else for people who chose
+  // pounds in Settings.
+  const me = useQuery(api.chat.me);
+  const imperial = usesMiles(me?.country ?? deviceRegion()) ?? me?.units.weight === "lb";
+  const [openOnly, setOpenOnly] = useState(false);
   const [kind, setKind] = useState<Kind | null>(null);
   const [useHere, setUseHere] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -116,28 +120,51 @@ export function CarePanel({ s }: { s: Strings }) {
           <Text style={styles.small}>
             {s.careNear.replace("{place}", result.near)} · {s.careHoursNote}
           </Text>
+          {result.places.length > 0 && (
+            <Tap style={styles.toggle} onPress={() => setOpenOnly(!openOnly)} accessibilityRole="switch" accessibilityState={{ checked: openOnly }}>
+              <SwapIcon id={openOnly ? "on" : "off"}>
+                <Ionicons name={openOnly ? "checkbox" : "square-outline"} size={20} color={colors.primary} />
+              </SwapIcon>
+              <Text style={styles.line}>{s.careOpenOnly}</Text>
+            </Tap>
+          )}
           {result.places.length === 0 && <Text style={styles.empty}>{s.careNone}</Text>}
-          {result.places.map((p) => (
-            <View key={`${p.name}-${p.lat}`} style={styles.card}>
-              <Text style={styles.name}>{p.name}</Text>
-              <Text style={styles.small}>
-                {formatDistance(p.km, imperial)}{p.address ? ` · ${p.address}` : ""}
-                {p.open24 ? ` · ${s.careOpen24}` : p.hours ? ` · ${p.hours}` : ""}
-              </Text>
-              <View style={styles.actions}>
-                {p.phone && (
-                  <Tap style={styles.action} onPress={() => void Linking.openURL(`tel:${p.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
-                    <Ionicons name="call-outline" size={16} color={colors.primary} />
-                    <Text style={styles.link}>{s.careCall}</Text>
-                  </Tap>
-                )}
-                <Tap style={styles.action} onPress={() => void Linking.openURL(directions(p))} accessibilityRole="link">
-                  <Ionicons name="navigate-outline" size={16} color={colors.primary} />
-                  <Text style={styles.link}>{s.careDirections}</Text>
-                </Tap>
-              </View>
-            </View>
-          ))}
+          {(() => {
+            const now = new Date();
+            const shown = openOnly ? result.places.filter((p) => openNow(p.hours, now) === true) : result.places;
+            const hidden = result.places.length - shown.length;
+            return (
+              <>
+                {openOnly && !shown.length && <Text style={styles.empty}>{s.careNoneOpen}</Text>}
+                {openOnly && hidden > 0 && <Text style={styles.small}>{s.careHiddenClosed.replace("{n}", String(hidden))}</Text>}
+                {shown.map((p) => {
+                  const open = openNow(p.hours, now);
+                  return (
+                    <View key={`${p.name}-${p.lat}`} style={styles.card}>
+                      <Text style={styles.name}>{p.name}</Text>
+                      {open !== null && <Text style={[styles.openState, open ? styles.open : styles.closed]}>{open ? s.careOpenNow : s.careClosedNow}</Text>}
+                      <Text style={styles.small}>
+                        {formatDistance(p.km, imperial)}{p.address ? ` · ${p.address}` : ""}
+                        {p.open24 ? ` · ${s.careOpen24}` : p.hours ? ` · ${p.hours}` : ""}
+                      </Text>
+                      <View style={styles.actions}>
+                        {p.phone && (
+                          <Tap style={styles.action} onPress={() => void Linking.openURL(`tel:${p.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
+                            <Ionicons name="call-outline" size={16} color={colors.primary} />
+                            <Text style={styles.link}>{s.careCall}</Text>
+                          </Tap>
+                        )}
+                        <Tap style={styles.action} onPress={() => void Linking.openURL(directions(p))} accessibilityRole="link">
+                          <Ionicons name="navigate-outline" size={16} color={colors.primary} />
+                          <Text style={styles.link}>{s.careDirections}</Text>
+                        </Tap>
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
+            );
+          })()}
           <Text style={styles.attribution}>© OpenStreetMap contributors</Text>
         </>
       )}
@@ -148,6 +175,9 @@ export function CarePanel({ s }: { s: Strings }) {
 const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
+  openState: { fontSize: 13, fontWeight: "700" },
+  open: { color: colors.primary },
+  closed: { color: colors.warningText },
   emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: 15, padding: 11 },
   emergencyText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
