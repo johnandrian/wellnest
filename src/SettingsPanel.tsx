@@ -13,6 +13,7 @@ import { HealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { Lang, LANGUAGE_NAMES, Strings } from "./i18n";
 import { pushSupported } from "./push";
+import { AppLockSetting } from "./AppLock";
 
 export type SettingsMe = {
   email: string | null;
@@ -292,6 +293,7 @@ export function SettingsPanel({
       </Group>
 
       <Group title={s.settingsPrivacy}>
+        <AppLockSetting s={s} />
         <Text style={styles.settingHint}>{s.settingsPrivacyHint}</Text>
         <Button label={s.aboutMe} onPress={onOpenAbout} />
       </Group>
