@@ -127,6 +127,15 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const toggle = (p: Panel) => setPanel((open) => (open === p || (p === "settings" && open === "about") ? null : p));
   const [notice, setNotice] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
+  // Follow new messages only while the list is already at the bottom; scrolled up reading, a "New messages"
+  // button appears instead of the list jumping away.
+  const atBottom = useRef(true);
+  const [behind, setBehind] = useState(false);
+  const toBottom = (animated = true) => {
+    atBottom.current = true;
+    setBehind(false);
+    listRef.current?.scrollToEnd({ animated });
+  };
 
   const last = messages?.[messages.length - 1];
   const waiting = last?.role === "user";
@@ -136,6 +145,8 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
     if (!value.trim() && !attached) return;
     setText("");
     setNotice(null);
+    // Sending always brings the conversation back to the newest message.
+    toBottom();
     let imageId: Id<"_storage"> | undefined;
     if (attached) {
       setSending(true);
@@ -297,7 +308,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           extraData={themeVersion()}
           keyExtractor={(m) => m._id}
           contentContainerStyle={styles.list}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => (atBottom.current ? listRef.current?.scrollToEnd({ animated: true }) : setBehind(true))}
+          onScroll={(e) => {
+            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+            const near = contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
+            atBottom.current = near;
+            if (near && behind) setBehind(false);
+          }}
+          scrollEventThrottle={100}
           ListEmptyComponent={
             <View style={styles.welcome}>
               <View style={styles.welcomeIcon}>
@@ -412,6 +430,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
         />
       )}
 
+      {behind && (
+        <Enter style={styles.jumpWrap} from={8}>
+          <Pressable style={({ pressed }) => [styles.jump, pressed && styles.pressed]} onPress={() => toBottom()} accessibilityRole="button">
+            <Ionicons name="arrow-down" size={16} color={colors.onPrimary} />
+            <Text style={styles.jumpText}>{s.newMessages}</Text>
+          </Pressable>
+        </Enter>
+      )}
       {photo && (
         <View style={styles.attachment}>
           <Image source={{ uri: photo.uri }} style={styles.attachmentThumb} />
@@ -457,14 +483,27 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             )}
           </Pressable>
         </View>
+        {/* Grows with the message up to about five lines, then scrolls. On a computer Enter sends and Shift+Enter
+            starts a new line; on a phone the return key adds a line and the arrow sends. */}
         <TextInput
           style={styles.input}
           placeholder={photo ? s.placeholderPhoto : s.placeholderVoice}
           placeholderTextColor={colors.muted}
+          accessibilityLabel={s.messageLabel}
           value={text}
           onChangeText={setText}
-          onSubmitEditing={() => submit()}
-          returnKeyType="send"
+          multiline
+          onKeyPress={
+            Platform.OS === "web"
+              ? (e) => {
+                  const k = e.nativeEvent as unknown as { key: string; shiftKey?: boolean; isComposing?: boolean };
+                  if (k.key === "Enter" && !k.shiftKey && !k.isComposing) {
+                    e.preventDefault();
+                    void submit();
+                  }
+                }
+              : undefined
+          }
         />
         <Pressable
           style={({ pressed }) => [styles.iconButton, styles.send, !text.trim() && !photo && styles.sendIdle, pressed && styles.pressed]}
@@ -832,9 +871,13 @@ const styles = themed(() => ({
   photoButton: { backgroundColor: colors.primarySoft },
   botText: { color: colors.text, fontSize: 16, lineHeight: 22 },
   channel: { fontSize: 11, color: colors.muted, marginTop: 4 },
+  jumpWrap: { alignItems: "center", marginTop: -48, marginBottom: 8, zIndex: 2 },
+  jump: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: colors.primary, ...softShadow() },
+  jumpText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
   inputRow: {
     flexDirection: "row",
-    alignItems: "center",
+    // The buttons stay at the bottom as the message box grows.
+    alignItems: "flex-end",
     gap: 8,
     padding: 12,
     backgroundColor: colors.surface,
@@ -852,12 +895,16 @@ const styles = themed(() => ({
     minWidth: 0, // web inputs otherwise keep their default width and push the send button off small screens
     flex: 1,
     minHeight: 44,
+    maxHeight: 132,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 33,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 11,
+    paddingBottom: 11,
     fontSize: 16,
+    lineHeight: 21,
+    textAlignVertical: "top",
     backgroundColor: colors.bg,
   },
   iconButton: { width: 44, height: 44, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
