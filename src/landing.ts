@@ -40,7 +40,7 @@ export const TOOLS: { path: string; icon: IconName; tint: keyof typeof tint }[] 
 // The welcome page's example stories (`s.landStories`, in this order), four weeks of made-up days each. `values`: the
 // measure the bars show; `marked`: the days the factor hit (the markers above the bars); `med`: the day a medicine
 // was started or its dose changed (the green marker). The numbers in the story text are worked out from these
-// (src/landing.test.ts checks them), and the example dashboard (src/DemoPage.tsx) uses the first one.
+// (src/landing.test.ts checks them), and the example dashboard (src/demo/seed.ts) uses the first one.
 export type Story = {
   values: number[];
   marked: number[];

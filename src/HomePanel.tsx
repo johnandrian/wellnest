@@ -1,7 +1,7 @@
 // The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, questions
 // to ask at an appointment in the coming week, four weeks of charts for what the user tracks, tomorrow's flare
 // forecast, the strongest pattern, and every tool as a tile. It fills the window: more columns on wider screens.
-// DashboardView draws it from data passed in, so the public demo (src/DemoPage.tsx) shows the same screen.
+// The example dashboard (src/DemoPage.tsx) shows this same screen on sample data.
 import { MedBand, MedLegend, MedPins, TrendDot } from "./ChartMarks";
 import { ReactNode, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
@@ -97,7 +97,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   );
 }
 
-// The dashboard itself. `checkin`: today's check-in card. `demo`: sample data, so nothing asks the server.
+// The dashboard itself. `checkin`: today's check-in card.
 export function DashboardView(p: {
   data: DashboardData;
   insights: InsightsData | null;
@@ -106,7 +106,7 @@ export function DashboardView(p: {
   onOpen: (t: HubTab) => void;
   onChat: () => void;
   checkin: ReactNode;
-  // Today's doses to answer (./TodayDoses.tsx); the example dashboard has none.
+  // Today's doses to answer (./TodayDoses.tsx).
   doses?: ReactNode;
   // Actions waiting for the user's OK (convex/agent.ts waiting).
   waiting?: { count: number; urgent: boolean };
@@ -114,8 +114,6 @@ export function DashboardView(p: {
   emergency?: ReactNode;
   // "Finish your profile", while parts of setup are still to do.
   profile?: ReactNode;
-  demo?: boolean;
-  header?: ReactNode;
 }) {
   const { data, insights, now, s, onOpen, onChat } = p;
   const { width } = useWindowDimensions();
@@ -126,7 +124,6 @@ export function DashboardView(p: {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {p.header}
       <View style={styles.stats}>
         <Stat
           icon="medications"
@@ -193,7 +190,7 @@ export function DashboardView(p: {
 
       {p.checkin}
 
-      {data.visit && data.visit.startsAt - now < QUESTIONS_DAYS * 86_400_000 && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} demo={p.demo} />}
+      {data.visit && data.visit.startsAt - now < QUESTIONS_DAYS * 86_400_000 && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} />}
 
       <View style={styles.sectionRow}>
         <Text style={styles.section} accessibilityRole="header">
@@ -305,7 +302,7 @@ export function DashboardView(p: {
 type Visit = NonNullable<DashboardData["visit"]>;
 
 // The next appointment's questions to ask (convex/questions.ts), or a button to write some, and the prep checklist.
-function VisitQuestions({ visit, s, onOpen, demo }: { visit: Visit; s: Strings; onOpen: (t: HubTab) => void; demo?: boolean }) {
+function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen: (t: HubTab) => void }) {
   const suggest = useAction(api.questions.suggest);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -344,7 +341,7 @@ function VisitQuestions({ visit, s, onOpen, demo }: { visit: Visit; s: Strings; 
         <Text style={styles.small}>{s.homeQuestionsEmpty}</Text>
       )}
       <View style={styles.actions}>
-        {!visit.questions.length && !demo && (
+        {!visit.questions.length && (
           <Tap style={styles.ask} onPress={() => void write()} disabled={busy} accessibilityRole="button" accessibilityState={{ busy }}>
             <SwapIcon id={busy ? "busy" : "idle"}>
               {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
