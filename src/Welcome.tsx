@@ -5,7 +5,7 @@
 // language switch, and links. Each section fades up as it scrolls into view. In the phone's or browser's language,
 // with a switch at the bottom. Someone who came from a Care Circle invite sees whose it is first.
 import { useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -16,9 +16,9 @@ import { SingingBrand, SingingMark } from "./SingingMark";
 import { BreathingGrid } from "./BreathingGrid";
 import { SignIn } from "./SignIn";
 import { pendingInvite } from "./invite";
-import { colors, tint, TOUCH, themed } from "./theme";
+import { colors, radius, tint, TOUCH, themed } from "./theme";
 import { LANGUAGE_NAMES, Lang, Strings, strings } from "./i18n";
-import { FEATURES, TOOLS } from "./landing";
+import { FEATURES, STORE_LINKS, TOOLS } from "./landing";
 import { LandingStory } from "./LandingStory";
 import { Bezel, Eyebrow, font, Pill, settle } from "./soft";
 
@@ -258,6 +258,17 @@ function Landing({ s, lang, onLang, onAuth, onOpen }: Props) {
                 </Tap>
               ))}
             </View>
+            {Platform.OS === "web" && STORE_LINKS.length > 0 && (
+              <View style={styles.stores}>
+                <Text style={styles.footerText}>{s.landGetApp}</Text>
+                {STORE_LINKS.map((l) => (
+                  <Tap key={l.store} style={styles.store} onPress={() => void Linking.openURL(l.url)} accessibilityRole="link">
+                    <Ionicons name={l.store === "apple" ? "logo-apple" : "logo-google-playstore"} size={18} color={colors.primary} />
+                    <Text style={styles.storeText}>{l.store === "apple" ? s.landAppStore : s.landPlayStore}</Text>
+                  </Tap>
+                ))}
+              </View>
+            )}
             <View style={styles.footerRow}>
               <Tap onPress={() => onOpen("/privacy")} accessibilityRole="link">
                 <Text style={styles.footerLink}>{s.landPrivacy}</Text>
@@ -380,6 +391,9 @@ const styles = themed(() => ({
   langChipOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   langText: { ...font.medium, fontSize: 14, color: colors.text },
   langTextOn: { ...font.bold, color: colors.primary },
+  stores: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  store: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.primary },
+  storeText: { ...font.semibold, fontSize: 15, color: colors.primary },
   footerRow: { flexDirection: "row", alignItems: "center", columnGap: 20, flexWrap: "wrap" },
   footerLink: { ...font.semibold, fontSize: 15, color: colors.primary, minHeight: TOUCH, textAlignVertical: "center", paddingVertical: 12 },
   footerText: { ...font.regular, fontSize: 14, color: colors.muted },
