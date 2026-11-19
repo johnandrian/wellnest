@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../convex/_generated/api";
 import { cleanBp, cleanTemperature, cleanWeight, entryLine, trackersText } from "../convex/lib/trackers";
-import { outcomes } from "../convex/lib/insights";
+import { dateList, findPatterns, outcomes, shiftDate } from "../convex/lib/insights";
+import { patternText } from "../convex/lib/insightsText";
 import { fmtTemp, tempToC, unitsOf, weightToKg } from "../convex/lib/units";
 import { cortexCalls, createAppUser, drain, mockApis, setEnv, setup } from "./helpers";
 
@@ -63,6 +64,28 @@ describe("vitals helpers", () => {
     };
     const weight = outcomes(input, ["2026-11-01", "2026-11-02"]).find((o) => o.key === "weight")!;
     expect([...weight.values]).toEqual([["2026-11-01", 80], ["2026-11-02", 81]]);
+  });
+});
+
+describe("vitals in patterns", () => {
+  test("blood pressure is an outcome and a fever is a factor", () => {
+    const dates = dateList("2026-10-01", "2026-10-20");
+    const trackers = dates.flatMap((date, i) => {
+      const fever = i % 3 === 0;
+      const at = Date.parse(`${date}T15:00:00Z`);
+      return [
+        { date, at, tracker: "temperature" as const, temperature: { c: fever ? 38.6 : 36.8 } },
+        { date, at, tracker: "pain" as const, pain: { severity: fever ? 7 : 3, locations: [], types: [] } },
+        { date, at, tracker: "bp" as const, bp: { systolic: 120 + (i % 2) * 30 + (i % 5), diastolic: 80 } },
+      ];
+    });
+    const input = { entries: [], daily: [], health: [], weather: [], trackers };
+    const found = findPatterns(input, dates, 10);
+    const fever = found.find((p) => p.outcome === "pain" && p.factor === "fever")!;
+    expect(fever).toMatchObject({ side: "yes", worse: 7, other: 3, worseDays: 7, otherDays: 13 });
+    expect(patternText(fever, "en")).toBe("Pain averaged 7/10 on days with a fever (7 days), vs 3/10 on other days (13).");
+    expect(outcomes(input, dates).find((o) => o.key === "bp")!.values.get(shiftDate("2026-10-01", 1))).toBe(151);
+    expect(patternText({ ...fever, outcome: "bp", worse: 150, other: 121 }, "es")).toBe("Presión arterial (alta): media de 150 mmHg los días con fiebre (7 días), frente a 121 mmHg el resto (13).");
   });
 });
 

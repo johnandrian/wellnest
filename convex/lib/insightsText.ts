@@ -10,10 +10,10 @@ const num = (n: number, lang: Lang) => n.toLocaleString(LOCALE[lang], { maximumF
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const OUTCOMES: Record<Lang, Record<Exclude<OutcomeKey, `symptom:${string}`>, string>> = {
-  en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures", glucose: "glucose", weight: "weight" },
-  es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis", glucose: "glucosa", weight: "peso" },
-  el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις", glucose: "γλυκόζη", weight: "βάρος" },
-  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作", glucose: "血糖", weight: "体重" },
+  en: { pain: "pain", mood: "mood", energy: "energy", sleepQuality: "sleep quality", peakFlow: "peak flow", reliever: "reliever puffs", seizures: "seizures", glucose: "glucose", weight: "weight", bp: "blood pressure (top number)" },
+  es: { pain: "dolor", mood: "ánimo", energy: "energía", sleepQuality: "calidad del sueño", peakFlow: "flujo máximo", reliever: "inhalaciones de rescate", seizures: "crisis", glucose: "glucosa", weight: "peso", bp: "presión arterial (alta)" },
+  el: { pain: "πόνος", mood: "διάθεση", energy: "ενέργεια", sleepQuality: "ποιότητα ύπνου", peakFlow: "μέγιστη ροή", reliever: "εισπνοές ανακουφιστικού", seizures: "κρίσεις", glucose: "γλυκόζη", weight: "βάρος", bp: "αρτηριακή πίεση (μεγάλη)" },
+  zh: { pain: "疼痛", mood: "心情", energy: "精力", sleepQuality: "睡眠质量", peakFlow: "峰流速", reliever: "缓解药吸入次数", seizures: "癫痫发作", glucose: "血糖", weight: "体重", bp: "血压（高压）" },
 };
 
 export function outcomeName(key: OutcomeKey, lang: Lang): string {
@@ -28,6 +28,7 @@ export function outcomeValue(key: OutcomeKey, n: number, lang: Lang, units: Unit
   if (key === "pain" || key.startsWith("symptom:")) return `${num(n, lang)}/10`;
   if (key === "mood" || key === "energy" || key === "sleepQuality") return `${num(n, lang)}/5`;
   if (key === "peakFlow") return `${num(n, lang)} L/min`;
+  if (key === "bp") return `${Math.round(n)} mmHg`;
   return lang === "zh" ? `${num(n, lang)}${perDay}` : `${num(n, lang)} ${perDay}`;
 }
 
@@ -42,6 +43,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     period: { yes: "a period" },
     weightGain: { yes: "a weight gain of {g} or more over 3 days" },
     glucose: { below: "average glucose under {t}", atLeast: "average glucose of {t} or more" },
+    fever: { yes: "a fever" },
     tempMax: { below: "highs under {t}°C", atLeast: "highs of {t}°C or more" },
     humidity: { below: "humidity under {t}%", atLeast: "humidity of {t}% or more" },
     pressureDrop: { yes: "a drop in air pressure" },
@@ -58,6 +60,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     period: { yes: "regla" },
     weightGain: { yes: "un aumento de peso de {g} o más en 3 días" },
     glucose: { below: "glucosa media menor de {t}", atLeast: "glucosa media de {t} o más" },
+    fever: { yes: "fiebre" },
     tempMax: { below: "máximas de menos de {t} °C", atLeast: "máximas de {t} °C o más" },
     humidity: { below: "humedad menor del {t} %", atLeast: "humedad del {t} % o más" },
     pressureDrop: { yes: "una bajada de la presión atmosférica" },
@@ -74,6 +77,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     period: { yes: "περίοδο" },
     weightGain: { yes: "αύξηση βάρους {g} ή περισσότερο μέσα σε 3 μέρες" },
     glucose: { below: "μέση γλυκόζη κάτω από {t}", atLeast: "μέση γλυκόζη {t} ή παραπάνω" },
+    fever: { yes: "πυρετό" },
     tempMax: { below: "μέγιστη θερμοκρασία κάτω από {t}°C", atLeast: "μέγιστη θερμοκρασία {t}°C ή παραπάνω" },
     humidity: { below: "υγρασία κάτω από {t}%", atLeast: "υγρασία {t}% ή παραπάνω" },
     pressureDrop: { yes: "πτώση της ατμοσφαιρικής πίεσης" },
@@ -90,6 +94,7 @@ const FACTORS: Record<Lang, Record<FactorKey, { below?: string; atLeast?: string
     period: { yes: "经期" },
     weightGain: { yes: "3 天内体重增加 {g} 或以上" },
     glucose: { below: "平均血糖低于 {t}", atLeast: "平均血糖 {t} 或以上" },
+    fever: { yes: "发烧" },
     tempMax: { below: "最高气温低于 {t}°C", atLeast: "最高气温 {t}°C 或以上" },
     humidity: { below: "湿度低于 {t}%", atLeast: "湿度 {t}% 或以上" },
     pressureDrop: { yes: "气压下降" },
