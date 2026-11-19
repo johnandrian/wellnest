@@ -292,6 +292,9 @@ Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a
 - **Telegram:** photos (the largest size up to 1600px) and images sent as files, with the caption as the question. They're stored the same way, so the app shows them too. Over 8 MB or over the daily limit is refused before downloading.
 - **Model:** the photo goes to Cortex as an image content part (a base64 data URL) with that turn only, using `CORTEX_VISION_MODEL` (default: the core model). The system prompt asks it to read labels exactly and say when text is unreadable, to describe skin/wound photos without diagnosing and list what would make them urgent, and never to identify people. Later turns see "[sent a photo]" in the history, not the image.
 
+## Signing in
+Email and password (Convex Auth's Password provider). The password field has a show / hide button, and sign-up says it needs at least 8 characters. Errors say what happened (`src/authErrors.ts`): an address that isn't an email, a password that's too short, an email that already has an account, a wrong email or password, or no connection. There's no email service, so there's no password reset by email.
+
 ## What Wellnest knows about me
 Settings → **What Wellnest knows about me** shows, in one place:
 - **Saved facts:** lasting health facts (allergies, conditions, regular medications...) that go into the system prompt on every turn and into visit summaries. The model saves them with `remember_fact` and removes them with `forget_fact` ("I'm not allergic to penicillin after all"); the user can add, edit and remove them. Up to 50, each labelled "saved by Wellnest" or "added by you".

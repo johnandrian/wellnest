@@ -4,7 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { colors, radius, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
-import { Enter } from "./Motion";
+import { Enter, SwapIcon } from "./Motion";
+import { authProblem, looksLikeEmail } from "./authErrors";
 
 export function SignIn({ s, initialFlow = "signIn", onBack }: { s: Strings; initialFlow?: "signIn" | "signUp"; onBack?: () => void }) {
   const { signIn } = useAuthActions();
@@ -13,19 +14,28 @@ export function SignIn({ s, initialFlow = "signIn", onBack }: { s: Strings; init
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async () => {
     setError(null);
-    // Check the length here so a sign-up failure below can only mean the email is taken.
-    if (flow === "signUp" && password.length < 8) {
-      setError(s.authShortPassword);
-      return;
-    }
+    // Checked here first, so the server's errors below are about the account itself.
+    if (!looksLikeEmail(email)) return setError(s.authBadEmail);
+    if (flow === "signUp" && password.length < 8) return setError(s.authShortPassword);
     setBusy(true);
     try {
       await signIn("password", { email: email.trim(), password, flow });
-    } catch {
-      setError(flow === "signIn" ? s.authWrong : s.authTaken);
+    } catch (e) {
+      const problem = authProblem(e, flow);
+      setError(
+        {
+          taken: s.authTaken,
+          wrong: s.authWrong,
+          shortPassword: s.authShortPassword,
+          badEmail: s.authBadEmail,
+          offline: s.authOffline,
+          signUpFailed: s.authSignUpFailed,
+        }[problem],
+      );
     } finally {
       setBusy(false);
     }
@@ -59,17 +69,31 @@ export function SignIn({ s, initialFlow = "signIn", onBack }: { s: Strings; init
         onChangeText={setEmail}
         accessibilityLabel={s.authEmail}
       />
-      <TextInput
-        style={styles.input}
-        placeholder={s.authPassword}
-        placeholderTextColor={colors.muted}
-        secureTextEntry
-        autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-        value={password}
-        onChangeText={setPassword}
-        onSubmitEditing={submit}
-        accessibilityLabel={s.authPassword}
-      />
+      <View style={styles.passwordRow}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder={s.authPassword}
+          placeholderTextColor={colors.muted}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+          value={password}
+          onChangeText={setPassword}
+          onSubmitEditing={submit}
+          accessibilityLabel={s.authPassword}
+        />
+        <Pressable
+          style={styles.eye}
+          onPress={() => setShowPassword(!showPassword)}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? s.authHidePassword : s.authShowPassword}
+        >
+          <SwapIcon id={showPassword ? "shown" : "hidden"}>
+            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.muted} />
+          </SwapIcon>
+        </Pressable>
+      </View>
+      {flow === "signUp" && <Text style={styles.hint}>{s.authPasswordHint}</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={styles.button} onPress={submit} disabled={busy} accessibilityRole="button">
         {busy ? (
@@ -112,4 +136,8 @@ const styles = themed(() => ({
   buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "600" },
   link: { color: colors.primary, textAlign: "center", marginTop: 8, fontSize: 14 },
   error: { color: colors.danger, fontSize: 14 },
+  hint: { color: colors.muted, fontSize: 13, marginTop: -4 },
+  passwordRow: { flexDirection: "row", alignItems: "center" },
+  passwordInput: { flex: 1, paddingRight: 52 },
+  eye: { position: "absolute", right: 4, width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
 }));
