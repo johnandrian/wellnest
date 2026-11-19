@@ -17,6 +17,7 @@ import { EmergencyCard } from "./EmergencyCard";
 import { Icon, IconName } from "./Icon";
 import { SwapIcon } from "./Motion";
 import { formatDistance } from "./format";
+import { telUrl } from "../convex/lib/phone";
 
 type Kind = "er" | "urgent_care" | "pharmacy" | "doctor";
 type Place = { name: string; lat: number; lon: number; km: number; phone?: string; address?: string; hours?: string; open24?: boolean };
@@ -149,7 +150,7 @@ export function CarePanel({ s }: { s: Strings }) {
                       </Text>
                       <View style={styles.actions}>
                         {p.phone && (
-                          <Tap style={styles.action} onPress={() => void Linking.openURL(`tel:${p.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
+                          <Tap style={styles.action} onPress={() => void Linking.openURL(telUrl(p.phone!))} accessibilityRole="button">
                             <Ionicons name="call-outline" size={16} color={colors.primary} />
                             <Text style={styles.link}>{s.careCall}</Text>
                           </Tap>

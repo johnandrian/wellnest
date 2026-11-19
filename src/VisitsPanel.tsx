@@ -18,6 +18,7 @@ import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 import { VisitPrep } from "./VisitPrep";
 import { icsFile, Repeat, repeatTimes } from "./ics";
 import { saveTextFile } from "./saveFile";
+import { telUrl } from "../convex/lib/phone";
 
 const REPEATS: (Repeat | null)[] = [null, "week", "twoWeeks", "month"];
 const COUNTS = [4, 6, 12];
@@ -125,7 +126,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
         <View style={styles.body}>
           <View style={styles.row}>
             {item.phone && (
-              <Tap style={styles.action} onPress={() => void Linking.openURL(`tel:${item.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button">
+              <Tap style={styles.action} onPress={() => void Linking.openURL(telUrl(item.phone!))} accessibilityRole="button">
                 <Ionicons name="call-outline" size={16} color={colors.primary} />
                 <Text style={styles.link}>{s.careCall}</Text>
               </Tap>
@@ -281,7 +282,7 @@ function TeamSection({ s }: { s: Strings }) {
             <Text style={styles.small}>{[m.role, m.clinic, m.phone, m.email].filter(Boolean).join(" · ")}</Text>
           </View>
           {m.phone && (
-            <Tap onPress={() => void Linking.openURL(`tel:${m.phone!.replace(/[^\d+]/g, "")}`)} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${m.name}`}>
+            <Tap onPress={() => void Linking.openURL(telUrl(m.phone!))} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${m.name}`}>
               <Ionicons name="call-outline" size={20} color={colors.primary} />
             </Tap>
           )}

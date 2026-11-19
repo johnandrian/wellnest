@@ -13,12 +13,12 @@ import { shareUrl } from "./ShareParts";
 import { errorText, showToast } from "./feedback";
 import { useInsets } from "./safeArea";
 import { useEmergencyNumber } from "./emergency";
+import { telUrl } from "../convex/lib/phone";
 
 type Section = { title: string; steps: string[] };
 type Contact = { name: string; relation?: string; phone: string };
 type Asthma = { preventer?: string; reliever?: string; green?: string; yellow?: string; red?: string; best?: number };
 
-const tel = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 
 function PlanView({ sections, contacts, asthma, notes, s, big = false }: { sections: Section[]; contacts: Contact[]; asthma?: Asthma; notes?: string; s: Strings; big?: boolean }) {
   return (
@@ -45,7 +45,7 @@ function PlanView({ sections, contacts, asthma, notes, s, big = false }: { secti
         </View>
       )}
       {contacts.map((c, i) => (
-        <Tap key={i} style={styles.contact} onPress={() => void Linking.openURL(tel(c.phone))} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${c.name}`}>
+        <Tap key={i} style={styles.contact} onPress={() => void Linking.openURL(telUrl(c.phone))} accessibilityRole="button" accessibilityLabel={`${s.careCall} ${c.name}`}>
           <Ionicons name="call" size={big ? 22 : 18} color={colors.primary} />
           <Text style={[styles.contactText, big && styles.bigStep]}>
             {c.name}
