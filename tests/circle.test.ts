@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api } from "../convex/_generated/api";
+import { api, internal } from "../convex/_generated/api";
 import { createAppUser, messagesOf, mockApis, pushSends, setEnv, setup } from "./helpers";
 
 const NOW = Date.parse("2026-11-02T18:00:00Z");
@@ -24,7 +24,7 @@ const tokenOf = (url: string) => new URL(url).searchParams.get("join")!;
 const ALL = { missedDoses: true, forecast: true };
 
 // Ana invites Sam; Sam joins.
-async function circle(t: ReturnType<typeof setup>, alerts = ALL) {
+async function circle(t: ReturnType<typeof setup>, alerts: { missedDoses: boolean; forecast: boolean; urgent?: boolean; quiet?: boolean } = ALL) {
   mockApis();
   const ana = await createAppUser(t, "ana@example.com");
   const sam = await createAppUser(t, "sam@example.com");
@@ -48,7 +48,7 @@ describe("care circle: invites and joining", () => {
     expect(await ana.as.query(api.circle.inviteInfo, { token: tokenOf(url), now: NOW })).toEqual({ name: "Ana", own: true });
 
     expect(await sam.as.mutation(api.circle.join, { token: tokenOf(url) })).toEqual({ ownerId: ana.userId, name: "Ana" });
-    expect(await sam.as.query(api.circle.caringFor, {})).toEqual([expect.objectContaining({ ownerId: ana.userId, name: "Ana", alerts: ALL })]);
+    expect(await sam.as.query(api.circle.caringFor, {})).toEqual([expect.objectContaining({ ownerId: ana.userId, name: "Ana", alerts: { ...ALL, urgent: false, quiet: false } })]);
     const mine = await ana.as.query(api.circle.mine, { now: NOW });
     expect(mine).toEqual({ members: [expect.objectContaining({ name: "sam", label: "Sam (son)", alerts: ALL })], invites: [] });
     expect((await messagesOf(t, ana.userId)).filter((m) => m.kind === "circle").map((m) => m.text)).toEqual([
@@ -125,7 +125,7 @@ describe("care circle: what members see", () => {
     const [row] = (await ana.as.query(api.circle.mine, { now: NOW }))!.members;
     await expect(sam.as.mutation(api.circle.setAlerts, { id: row._id, alerts: ALL })).rejects.toThrow("Not found");
     await ana.as.mutation(api.circle.setAlerts, { id: row._id, alerts: { missedDoses: false, forecast: true } });
-    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual({ missedDoses: false, forecast: true });
+    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual({ missedDoses: false, forecast: true, urgent: false, quiet: false });
     await expect(lee.as.mutation(api.circle.remove, { id: row._id })).rejects.toThrow("Not found");
     await sam.as.mutation(api.circle.remove, { id: row._id });
     expect(await sam.as.query(api.circle.caringFor, {})).toEqual([]);
@@ -164,7 +164,7 @@ describe("care circle: alerts", () => {
     await expect(ana.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: true })).rejects.toThrow("Not found");
     await expect(lee.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: true })).rejects.toThrow("Not found");
     await sam.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: true });
-    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual({ missedDoses: false, forecast: true });
+    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual({ missedDoses: false, forecast: true, urgent: false, quiet: false });
     expect(await sam.as.query(api.circle.person, { ownerId: ana.userId, now: NOW })).toMatchObject({ alerts: ALL, muted: { missedDoses: true, forecast: false } });
     const [mine] = (await ana.as.query(api.circle.mine, { now: NOW }))!.members;
     expect(mine).toMatchObject({ alerts: ALL, muted: { missedDoses: true, forecast: false } });
@@ -178,7 +178,7 @@ describe("care circle: alerts", () => {
     expect((await messagesOf(t, sam.userId)).filter((m) => m.kind === "circle")).toEqual([]);
     expect(pushSends(calls).filter((p) => p.channelId === "circle")).toEqual([]);
     await sam.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: false });
-    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual(ALL);
+    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual({ ...ALL, urgent: false, quiet: false });
   });
 
   test("members see the person's trend charts in the person's units", async () => {
@@ -192,6 +192,47 @@ describe("care circle: alerts", () => {
     const view = (await sam.as.query(api.circle.person, { ownerId: ana.userId, now: NOW }))!;
     expect(view.charts.map((c) => c.metric)).toContain("pain");
     expect(view.charts.find((c) => c.metric === "pain")).toMatchObject({ to: "2026-11-02", latest: { date: "2026-11-02", value: 4 } });
+  });
+
+  test("a message that sounds urgent alerts members who chose it, without what it said, at most every 6 hours", async () => {
+    const t = setup();
+    const { ana, sam } = await circle(t, { ...ALL, urgent: true });
+    const lee = await createAppUser(t, "lee@example.com");
+    const { url } = await ana.as.mutation(api.circle.invite, { alerts: ALL });
+    await lee.as.mutation(api.circle.join, { token: tokenOf(url) });
+    mockApis({ jev: { urgent: 0.95 }, core: [{ content: "Call 911 now." }, { content: "Please call 911." }] });
+    await ana.as.mutation(api.chat.send, { text: "crushing chest pain and my left arm is numb" });
+    await settle(t);
+    await ana.as.mutation(api.chat.send, { text: "it's still there" });
+    await settle(t);
+    const alerts = (await messagesOf(t, sam.userId)).filter((m) => m.kind === "circle").map((m) => m.text);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatch(/\*\*Ana\*\* sent Wellnest a message that sounded urgent/);
+    expect(alerts[0]).not.toMatch(/chest|arm/);
+    expect((await messagesOf(t, lee.userId)).filter((m) => m.kind === "circle")).toEqual([]);
+    vi.advanceTimersByTime(6 * H + 1);
+    expect(await t.mutation(internal.circle.urgentAlert, { ownerId: ana.userId })).toBe(1);
+  });
+
+  test("three days with nothing logged alerts members who chose it, once for that gap", async () => {
+    const t = setup();
+    const { ana, sam } = await circle(t, { ...ALL, quiet: true });
+    const log = (date: string) =>
+      t.run((ctx) => ctx.db.insert("trackerEntries", { userId: ana.userId, tracker: "pain", date, at: Date.parse(`${date}T12:00:00Z`), pain: { severity: 3, locations: [], types: [] }, source: "manual" }));
+    const quiet = async () => (await messagesOf(t, sam.userId)).filter((m) => m.kind === "circle").map((m) => m.text);
+    await log("2026-10-31");
+    await t.mutation(internal.agentScan.check, { userId: ana.userId, force: true });
+    expect(await quiet()).toEqual([]);
+    await t.run(async (ctx) => {
+      for (const e of await ctx.db.query("trackerEntries").collect()) await ctx.db.delete(e._id);
+    });
+    await log("2026-10-29");
+    await t.mutation(internal.agentScan.check, { userId: ana.userId, force: true });
+    await t.mutation(internal.agentScan.check, { userId: ana.userId, force: true });
+    expect(await quiet()).toEqual(["🌙 **Ana** hasn't logged anything in Wellnest for 4 days. A friendly check-in might help."]);
+    await log("2026-10-30");
+    await t.mutation(internal.agentScan.check, { userId: ana.userId, force: true });
+    expect(await quiet()).toHaveLength(2);
   });
 
   test("deleting an account removes it from every care circle", async () => {

@@ -123,6 +123,8 @@ export default defineSchema({
     forecastSentAt: v.optional(v.number()),
     // The agent's morning check of the user's logs (convex/agentScan.ts); stops a second one that day.
     agentScannedAt: v.optional(v.number()),
+    // Care Circle alerts sent about this person: the last urgent one, and the last logged day a quiet alert was for.
+    circleAlertedAt: v.optional(v.object({ urgent: v.optional(v.number()), quietSince: v.optional(v.string()) })),
     // Which kinds of push notification the user wants (convex/push.ts); both on when unset.
     notifications: v.optional(v.object({ reminders: v.boolean(), appointments: v.boolean() })),
     // Set while "Delete everything" runs (convex/me.ts).
