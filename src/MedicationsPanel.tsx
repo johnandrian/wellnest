@@ -1,8 +1,9 @@
-// Medications (convex/medications.ts, convex/reminders.ts): a box per medication with its dose, schedule, next dose,
-// status and supply (two to a row on phones, three on wider screens, so none is missed going down the list); the open
-// one spans the row with that medication's details: generic name, form, prescriber, how to take it, per-time doses,
-// refills, the eScript photo, side effects and history. A pill bottle scan fills the add form, and the medication
-// list prints or saves as a PDF (./medList.ts). Reminder messages with Taken / Skip appear in the chat.
+// Medications (convex/medications.ts, convex/reminders.ts): today's doses to answer first (./TodayDoses.tsx), then a
+// box per medication with its dose, schedule, next dose, status and supply (two to a row on phones, three on wider
+// screens, so none is missed going down the list); the open one spans the row with that medication's details: generic
+// name, form, prescriber, how to take it, per-time doses, its schedule, a month of doses (./DoseCalendar.tsx),
+// refills, the eScript photo, side effects and history. Then the interaction check and the printable medication list
+// (./medList.ts). A pill bottle scan fills the add form. Reminder messages with Taken / Skip / Snooze appear in the chat.
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Tap } from "./Tap";
@@ -18,6 +19,8 @@ import { DoseInput } from "./DoseInput";
 import { useLabelScan, timesFor } from "./labelScan";
 import { medListHtml, printHtml } from "./medList";
 import { Icon } from "./Icon";
+import { TodayDoses } from "./TodayDoses";
+import { DoseCalendar } from "./DoseCalendar";
 import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
 import { formatDate, formatTime } from "./format";
 import { splitTimes } from "./times";
@@ -367,6 +370,9 @@ function Detail({ id, s }: { id: Id<"medications">; s: Strings }) {
         </Tap>
       </View>
 
+      <Text style={styles.section}>{s.medCalendar}</Text>
+      <DoseCalendar id={id} asNeeded={med.rule.kind === "asNeeded"} s={s} />
+
       {med.events.length > 0 && <Text style={styles.section}>{s.medHistory}</Text>}
       {med.events.map((e) => (
         <Text key={e._id} style={styles.small}>
@@ -495,21 +501,7 @@ export function MedicationsPanel({ s }: { s: Strings }) {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <Text style={styles.note}>{s.medsIntro}</Text>
-      <SafetyCard s={s} />
-      {current.length > 0 && (
-        <Tap style={styles.listCard} onPress={() => void printList()} disabled={printing} accessibilityRole="button" accessibilityState={{ busy: printing }}>
-          <View style={styles.listIcon}>
-            <SwapIcon id={printing ? "busy" : "list"}>
-              {printing ? <ActivityIndicator color={colors.primary} /> : <Icon name="medList" size={20} color={colors.primary} />}
-            </SwapIcon>
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.medName}>{s.medList}</Text>
-            <Text style={styles.small}>{s.medListHint}</Text>
-          </View>
-          <Ionicons name="print-outline" size={20} color={colors.primary} />
-        </Tap>
-      )}
+      {current.length > 0 && <TodayDoses s={s} />}
       {meds?.length === 0 && !adding && <Text style={styles.empty}>{s.remindersEmpty}</Text>}
       {list.length > 0 && (
         <View style={styles.tiles}>
@@ -635,6 +627,21 @@ export function MedicationsPanel({ s }: { s: Strings }) {
         </View>
       )}
       {(error || label.error) && <Text style={styles.error}>{error ?? label.error}</Text>}
+      <SafetyCard s={s} />
+      {current.length > 0 && (
+        <Tap style={styles.listCard} onPress={() => void printList()} disabled={printing} accessibilityRole="button" accessibilityState={{ busy: printing }}>
+          <View style={styles.listIcon}>
+            <SwapIcon id={printing ? "busy" : "list"}>
+              {printing ? <ActivityIndicator color={colors.primary} /> : <Icon name="medList" size={20} color={colors.primary} />}
+            </SwapIcon>
+          </View>
+          <View style={styles.flex}>
+            <Text style={styles.medName}>{s.medList}</Text>
+            <Text style={styles.small}>{s.medListHint}</Text>
+          </View>
+          <Ionicons name="print-outline" size={20} color={colors.primary} />
+        </Tap>
+      )}
     </ScrollView>
   );
 }
