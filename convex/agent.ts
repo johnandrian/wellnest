@@ -25,6 +25,20 @@ export const list = query({
   },
 });
 
+// How many actions wait for the user's OK, and whether one is urgent: the badge on the Actions tab and the dashboard.
+export const waiting = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { count: 0, urgent: false };
+    const open = await ctx.db
+      .query("agentActions")
+      .withIndex("by_user_and_status", (q) => q.eq("userId", userId).eq("status", "proposed"))
+      .take(MAX_OPEN);
+    return { count: open.length, urgent: open.some((a) => a.urgent) };
+  },
+});
+
 async function ownProposal(ctx: MutationCtx, userId: Id<"users"> | null, id: Id<"agentActions">): Promise<Doc<"agentActions">> {
   if (!userId) throw new Error("Not signed in");
   const action = await ctx.db.get(id);

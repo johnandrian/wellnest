@@ -341,7 +341,7 @@ The start of Wellnest's agent (`convex/agent.ts`, `convex/lib/agent.ts`). The ag
 - **Message to the doctor:** a draft the person reads and copies into their patient portal; nothing is sent.
 - **Reminder:** not built yet, so approving it fails and says so.
 
-**Health tools → Actions** (`src/AgentPanel.tsx`) lists what needs the person's OK first, each card with Approve and Dismiss and a "Based on" list of its facts, then History with what happened; new actions appear live. Actions marked `urgent` are red flags: the card shows a fixed "call your care team now, or 911" notice written by the app, not the model.
+**Health tools → Actions** (`src/AgentPanel.tsx`) lists what needs the person's OK first (a count on the Actions tab and tile, and a card at the top of the dashboard, red when one is urgent: `agent.waiting`), each card with Approve and Dismiss and a "Based on" list of its facts, then History with what happened; new actions appear live. Actions marked `urgent` are red flags: the card shows a fixed "call your care team now, or 911" notice written by the app, not the model.
 
 **The morning check** (`convex/agentScan.ts`, rules in `convex/lib/agentRules.ts`, hourly cron) runs at 9 AM local time and proposes from the person's own logs, with fixed thresholds rather than a model's judgment:
 - **High fasting glucose:** the first fasting reading above 130 mg/dL on 3 days in a row, ending today or yesterday, drafts a message to the doctor with the readings and any medication started or changed in the 30 days before.
