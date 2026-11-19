@@ -94,3 +94,23 @@ describe("samples", () => {
     expect((await kinds()).filter((k) => k === "book_visit")).toHaveLength(1);
   });
 });
+
+describe("doctor message drafts", () => {
+  test("the user can change a draft before approving it, but not after, and not someone else's", async () => {
+    const t = setup();
+    const { userId, as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    vi.stubEnv("TELEHEALTH_PROVIDER", "");
+    await t.mutation(internal.agent.proposeSamples, { userId });
+    const draft = (await as.query(api.agent.list, {})).find((a) => a.details.kind === "message_doctor")!;
+    const reminder = (await as.query(api.agent.list, {})).find((a) => a.details.kind === "set_reminder")!;
+    await expect(other.as.mutation(api.agent.editDraft, { id: draft._id, subject: "x", body: "y" })).rejects.toThrow("Action not found");
+    await expect(as.mutation(api.agent.editDraft, { id: reminder._id, subject: "x", body: "y" })).rejects.toThrow("Only a message draft");
+    await expect(as.mutation(api.agent.editDraft, { id: draft._id, subject: " ", body: "y" })).rejects.toThrow("needs a subject");
+    await as.mutation(api.agent.editDraft, { id: draft._id, subject: " Glucose question ", body: "Hi Dr. Lee, my readings are high." });
+    const edited = (await as.query(api.agent.list, {})).find((a) => a._id === draft._id)!;
+    expect(edited.details).toMatchObject({ kind: "message_doctor", subject: "Glucose question", body: "Hi Dr. Lee, my readings are high.", to: "Primary care doctor" });
+    await as.mutation(api.agent.approve, { id: draft._id });
+    await expect(as.mutation(api.agent.editDraft, { id: draft._id, subject: "x", body: "y" })).rejects.toThrow("already handled");
+  });
+});
