@@ -1,5 +1,5 @@
 // Condition trackers (convex/lib/trackers.ts): pain / CRPS, asthma (with a personal-best peak flow), seizures, and
-// glucose readings (stored in mg/dL).
+// glucose readings (stored in mg/dL), plus the vitals: blood pressure, weight (kg), and temperature (°C).
 // Several entries a day are fine, on any day up to today, and each can be changed later. Logged from the Journal tab
 // or by the model (log_condition_event), charted in the
 // Journal tab, and included in visit summaries, reports and the model's journal reads. Pain feeds the journal's
@@ -12,10 +12,19 @@ import { internal } from "./_generated/api";
 import {
   asthmaDetails,
   AsthmaDetails,
+  bpDetails,
+  BpDetails,
   cleanAsthma,
+  cleanBp,
   cleanGlucose,
   cleanPain,
   cleanSeizure,
+  cleanTemperature,
+  cleanWeight,
+  temperatureDetails,
+  TemperatureDetails,
+  weightDetails,
+  WeightDetails,
   glucoseDetails,
   GlucoseDetails,
   painDetails,
@@ -39,7 +48,16 @@ type AddArgs = {
   asthma?: Partial<AsthmaDetails>;
   seizure?: Partial<SeizureDetails>;
   glucose?: Partial<GlucoseDetails>;
+  bp?: Partial<BpDetails>;
+  weight?: Partial<WeightDetails>;
+  temperature?: Partial<TemperatureDetails>;
   note?: string;
+};
+
+// Each cleaner returns the stored details or an error to show.
+const check = <T,>(r: T | { error: string }): T => {
+  if (r && typeof r === "object" && "error" in r) throw new Error(r.error);
+  return r as T;
 };
 
 // One tracker's details, checked, as they're stored.
@@ -59,6 +77,9 @@ function cleaned(a: AddArgs) {
     if ("error" in glucose) throw new Error(glucose.error);
     return { glucose };
   }
+  if (a.tracker === "bp") return { bp: check(cleanBp(a.bp ?? {})) };
+  if (a.tracker === "weight") return { weight: check(cleanWeight(a.weight ?? {})) };
+  if (a.tracker === "temperature") return { temperature: check(cleanTemperature(a.temperature ?? {})) };
   return { seizure: cleanSeizure(a.seizure ?? {}) };
 }
 
@@ -87,7 +108,8 @@ async function addEntry(ctx: MutationCtx, userId: Id<"users">, a: AddArgs, sourc
     await ctx.scheduler.runAfter(0, internal.agentScan.afterGlucose, { userId });
     return { id, date };
   }
-  return { id: await ctx.db.insert("trackerEntries", { ...base, seizure: cleanSeizure(a.seizure ?? {}) }), date };
+  // Seizures and the vitals: cleaned the same way as when they're changed.
+  return { id: await ctx.db.insert("trackerEntries", { ...base, ...cleaned(a) }), date };
 }
 
 export const add = mutation({
@@ -99,6 +121,9 @@ export const add = mutation({
     asthma: v.optional(asthmaDetails),
     seizure: v.optional(seizureDetails),
     glucose: v.optional(glucoseDetails),
+    bp: v.optional(bpDetails),
+    weight: v.optional(weightDetails),
+    temperature: v.optional(temperatureDetails),
     note: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
@@ -118,6 +143,9 @@ export const update = mutation({
     asthma: v.optional(asthmaDetails),
     seizure: v.optional(seizureDetails),
     glucose: v.optional(glucoseDetails),
+    bp: v.optional(bpDetails),
+    weight: v.optional(weightDetails),
+    temperature: v.optional(temperatureDetails),
     note: v.optional(v.string()),
   },
   handler: async (ctx, { id, date, at, note, ...details }) => {
@@ -127,7 +155,7 @@ export const update = mutation({
     const today = localToday(await ctx.db.get(userId));
     if (!isDate(date) || date > today || at > Date.now() + 60_000) throw new Error("Pick a day and time up to now.");
     const fields = cleaned({ tracker: row.tracker, ...details });
-    await ctx.db.patch(id, { date, at, note: note?.trim().slice(0, 500) || undefined, pain: undefined, asthma: undefined, seizure: undefined, glucose: undefined, ...fields });
+    await ctx.db.patch(id, { date, at, note: note?.trim().slice(0, 500) || undefined, pain: undefined, asthma: undefined, seizure: undefined, glucose: undefined, bp: undefined, weight: undefined, temperature: undefined, ...fields });
     if (row.tracker === "glucose") await ctx.scheduler.runAfter(0, internal.agentScan.afterGlucose, { userId });
   },
 });
@@ -155,7 +183,7 @@ export const setPeakFlowBest = mutation({
 export async function trackersSince(ctx: QueryCtx, userId: Id<"users">, since: string): Promise<TrackerEntry[]> {
   const rows = await ctx.db.query("trackerEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since)).take(1000);
   return rows
-    .map(({ date, at, tracker, pain, asthma, seizure, glucose, note }) => ({ date, at, tracker, pain, asthma, seizure, glucose, note }))
+    .map(({ date, at, tracker, pain, asthma, seizure, glucose, bp, weight, temperature, note }) => ({ date, at, tracker, pain, asthma, seizure, glucose, bp, weight, temperature, note }))
     .sort((a, b) => a.at - b.at);
 }
 
@@ -182,6 +210,9 @@ export const view = query({
       asthma: of("asthma").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.asthma! })),
       seizure: of("seizure").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.seizure! })),
       glucose: of("glucose").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.glucose! })),
+      bp: of("bp").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.bp! })),
+      weight: of("weight").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.weight! })),
+      temperature: of("temperature").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.temperature! })),
     };
   },
 });
@@ -196,6 +227,9 @@ export const fromChat = internalMutation({
     asthma: v.optional(v.any()),
     seizure: v.optional(v.any()),
     glucose: v.optional(v.any()),
+    bp: v.optional(v.any()),
+    weight: v.optional(v.any()),
+    temperature: v.optional(v.any()),
     note: v.optional(v.string()),
   },
   handler: async (ctx, { userId, ...a }) => {

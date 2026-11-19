@@ -1,7 +1,8 @@
-// Condition trackers: pain / CRPS, asthma, seizures, and glucose, each with its own fields (convex/trackers.ts).
+// Condition trackers: pain / CRPS, asthma, seizures, and glucose, and the vitals blood pressure, weight, and
+// temperature, each with its own fields (convex/trackers.ts).
 // Validation, the option lists the app shows, and the text the model, visit summaries, and reports read.
 import { Infer, v } from "convex/values";
-import { DEFAULT_UNITS, fmtGlucose, type Units } from "./units";
+import { DEFAULT_UNITS, FEVER_C, fmtGlucose, fmtTemp, fmtWeight, type Units } from "./units";
 
 export const PAIN_LOCATIONS = [
   "head", "neck", "shoulders", "chest", "upper_back", "lower_back", "abdomen", "hips",
@@ -12,7 +13,15 @@ export const ASTHMA_SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathles
 export const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] as const;
 export const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
 
-export const tracker = v.union(v.literal("pain"), v.literal("asthma"), v.literal("seizure"), v.literal("glucose"));
+export const tracker = v.union(
+  v.literal("pain"),
+  v.literal("asthma"),
+  v.literal("seizure"),
+  v.literal("glucose"),
+  v.literal("bp"),
+  v.literal("weight"),
+  v.literal("temperature"),
+);
 export type Tracker = Infer<typeof tracker>;
 
 export const painDetails = v.object({
@@ -52,6 +61,13 @@ export const glucoseDetails = v.object({
   context: v.optional(v.string()), // one of GLUCOSE_CONTEXTS
 });
 export type GlucoseDetails = Infer<typeof glucoseDetails>;
+// Vitals, logged by hand: blood pressure (mmHg, with the pulse if taken), weight (kg), and temperature (°C).
+export const bpDetails = v.object({ systolic: v.number(), diastolic: v.number(), pulse: v.optional(v.number()) });
+export const weightDetails = v.object({ kg: v.number() });
+export const temperatureDetails = v.object({ c: v.number() });
+export type BpDetails = Infer<typeof bpDetails>;
+export type WeightDetails = Infer<typeof weightDetails>;
+export type TemperatureDetails = Infer<typeof temperatureDetails>;
 export type PainDetails = Infer<typeof painDetails>;
 export type AsthmaDetails = Infer<typeof asthmaDetails>;
 export type SeizureDetails = Infer<typeof seizureDetails>;
@@ -104,6 +120,33 @@ export function cleanGlucose(g: Partial<GlucoseDetails>): GlucoseDetails | { err
   return { value: Math.round(value), context: (GLUCOSE_CONTEXTS as readonly string[]).includes(g.context ?? "") ? g.context : undefined };
 }
 
+const exact = (x: unknown, lo: number, hi: number) => {
+  const n = Number(x);
+  return x !== undefined && x !== null && Number.isFinite(n) && n >= lo && n <= hi ? n : undefined;
+};
+
+export function cleanBp(b: Partial<BpDetails>): BpDetails | { error: string } {
+  const systolic = exact(b.systolic, 50, 300);
+  const diastolic = exact(b.diastolic, 20, 200);
+  if (systolic === undefined || diastolic === undefined) return { error: "Give both blood pressure numbers, like 120 over 80." };
+  if (systolic <= diastolic) return { error: "The top number (systolic) is the bigger one." };
+  const pulse = exact(b.pulse, 20, 250);
+  return { systolic: Math.round(systolic), diastolic: Math.round(diastolic), pulse: pulse === undefined ? undefined : Math.round(pulse) };
+}
+
+// Kept to the gram and a hundredth of a degree, so a reading typed in lb or °F reads back the same.
+export function cleanWeight(w: Partial<WeightDetails>): WeightDetails | { error: string } {
+  const kg = exact(w.kg, 2, 650);
+  if (kg === undefined) return { error: "Give a weight between 5 and 1,400 lb (2 to 650 kg)." };
+  return { kg: Math.round(kg * 1000) / 1000 };
+}
+
+export function cleanTemperature(t: Partial<TemperatureDetails>): TemperatureDetails | { error: string } {
+  const c = exact(t.c, 30, 45);
+  if (c === undefined) return { error: "Give a temperature between 86 and 113 °F (30 to 45 °C)." };
+  return { c: Math.round(c * 100) / 100 };
+}
+
 export function cleanSeizure(s: Partial<SeizureDetails>): SeizureDetails {
   return {
     type: (SEIZURE_TYPES as readonly string[]).includes(s.type ?? "") ? s.type : undefined,
@@ -124,6 +167,9 @@ export type TrackerEntry = {
   asthma?: AsthmaDetails;
   seizure?: SeizureDetails;
   glucose?: GlucoseDetails;
+  bp?: BpDetails;
+  weight?: WeightDetails;
+  temperature?: TemperatureDetails;
   note?: string;
 };
 
@@ -132,6 +178,9 @@ const flags = (p: PainDetails) =>
   [p.flare && "flare", p.swelling && "swelling", p.colourChange && "color change", p.temperatureChange && "temperature change", p.touchSensitive && "touch-sensitive"].filter(Boolean);
 
 export function entryLine(e: TrackerEntry, peakFlowBest?: number, units: Units = DEFAULT_UNITS): string {
+  if (e.tracker === "bp" && e.bp) return `blood pressure ${e.bp.systolic}/${e.bp.diastolic} mmHg${e.bp.pulse ? `, pulse ${e.bp.pulse}` : ""}`;
+  if (e.tracker === "weight" && e.weight) return `weight ${fmtWeight(e.weight.kg, units)}`;
+  if (e.tracker === "temperature" && e.temperature) return `temperature ${fmtTemp(e.temperature.c, units)}${e.temperature.c >= FEVER_C ? " (fever)" : ""}`;
   if (e.tracker === "glucose" && e.glucose) {
     return `glucose ${fmtGlucose(e.glucose.value, units)}${e.glucose.context ? ` (${human(e.glucose.context)})` : ""}`;
   }
@@ -210,6 +259,24 @@ export function trackersText(entries: TrackerEntry[], peakFlowBest?: number, uni
     const avg = glucose.reduce((a, b) => a + b, 0) / glucose.length;
     const range = `${fmtGlucose(Math.min(...glucose), units)} to ${fmtGlucose(Math.max(...glucose), units)}`;
     out.push(`Glucose: ${glucose.length} readings, average ${fmtGlucose(avg, units)}, ${range}.`);
+  }
+  const bp = entries.flatMap((e) => (e.bp ? [e.bp] : []));
+  if (bp.length) {
+    const avg = (k: "systolic" | "diastolic") => Math.round(bp.reduce((s, b) => s + b[k], 0) / bp.length);
+    const top = bp.reduce((a, b) => (b.systolic > a.systolic ? b : a));
+    out.push(`Blood pressure: ${bp.length} readings, average ${avg("systolic")}/${avg("diastolic")} mmHg, highest ${top.systolic}/${top.diastolic}.`);
+  }
+  const weights = entries.filter((e) => e.weight);
+  if (weights.length) {
+    const first = weights[0].weight!.kg;
+    const last = weights[weights.length - 1].weight!.kg;
+    out.push(`Weight: ${weights.length} weigh-ins${weights.length > 1 ? `, from ${fmtWeight(first, units)} to ${fmtWeight(last, units)}` : `, ${fmtWeight(last, units)}`}.`);
+  }
+  const temps = entries.filter((e) => e.temperature);
+  if (temps.length) {
+    const max = Math.max(...temps.map((e) => e.temperature!.c));
+    const feverDays = new Set(temps.filter((e) => e.temperature!.c >= FEVER_C).map((e) => e.date)).size;
+    out.push(`Temperature: ${temps.length} readings, highest ${fmtTemp(max, units)}${feverDays ? `, fever on ${feverDays} days` : ""}.`);
   }
   return out.join("\n") + "\n" + entries.map((e) => `${e.date}: ${entryLine(e, peakFlowBest, units)}${e.note ? ` (${e.note})` : ""}`).join("\n");
 }
