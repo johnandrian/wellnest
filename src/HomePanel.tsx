@@ -396,7 +396,8 @@ function Stat(p: {
 // Read when drawing, so it follows the theme.
 const bad = () => ({ better: colors.primary, worse: colors.danger, same: colors.muted });
 
-function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: Strings; wide: boolean; wider: boolean; onPress: () => void }) {
+// Also shown read only to Care Circle members (src/CirclePanel.tsx), without onPress.
+export function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: Strings; wide: boolean; wider: boolean; onPress?: () => void }) {
   const t = trend(chart);
   const byDate = new Map(chart.points.map((p) => [p.date, p.value]));
   const dates: string[] = [];
@@ -423,7 +424,7 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
   return (
     <View style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]}>
       {/* The head opens the tool. The bars are a button of their own, so they sit beside it, not inside it. */}
-      <Tap style={styles.trendTop} onPress={onPress} accessibilityRole="button"
+      <Tap style={styles.trendTop} onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : "summary"}
         accessibilityLabel={`${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`}>
         <View style={styles.trendHead}>
           <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
