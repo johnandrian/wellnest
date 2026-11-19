@@ -186,6 +186,8 @@ flowchart LR
 ```bash
 npm install
 npx convex dev          # backend (writes EXPO_PUBLIC_CONVEX_URL to .env.local)
+# optional, once the apps are live: EXPO_PUBLIC_APP_STORE_URL (apps.apple.com) and EXPO_PUBLIC_PLAY_STORE_URL
+# (play.google.com) add App Store and Google Play buttons to the welcome page's footer on the web (src/landing.ts)
 npx expo start --web    # or press i / a for iOS / Android
 ```
 Voice recording, Apple Health / Health Connect, push and PDF sharing need a development build on native (`npx eas-cli build --profile development`), not Expo Go.
