@@ -149,6 +149,24 @@ describe("records", () => {
     expect((await as.query(api.records.list))[0].flagged).toBe(0);
   });
 
+  test("a test's full history lists every result, newest first, with its record", async () => {
+    const t = setup();
+    mockApis({ core: [{ content: lab("2026-04-02", 5.9) }, { content: lab("2026-10-20", 6.1) }] });
+    const { as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    await as.mutation(api.records.add, { storageId: await upload(t, as) });
+    await settle(t);
+    await as.mutation(api.records.add, { storageId: await upload(t, as) });
+    await settle(t);
+    const key = (await as.query(api.records.trends))[0].key;
+    const rows = await as.query(api.records.testHistory, { key });
+    expect(rows.map((r) => [r.date, r.value, r.flag, r.recordTitle])).toEqual([
+      ["2026-10-20", 6.1, "high", "Blood test"],
+      ["2026-04-02", 5.9, "high", "Blood test"],
+    ]);
+    expect(await other.as.query(api.records.testHistory, { key })).toEqual([]);
+  });
+
   test("a value's flag comes from the printed range", () => {
     expect(flagFor(6.1, 4, 5.6)).toBe("high");
     expect(flagFor(3.9, 4, 5.6)).toBe("low");

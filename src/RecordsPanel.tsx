@@ -1,8 +1,9 @@
 // Records (convex/records.ts): lab reports and clinic letters added as a photo or PDF. Each is read into a plain
 // summary and its test results; tests seen more than once (or out of range) get a small trend at the top. Records can
-// be renamed, a misread value fixed, and the list searched and filtered.
+// be renamed, a misread value fixed, and the list searched and filtered. The original opens inside the app
+// (./FileViewer.tsx), and any test opens its full history.
 import { useState } from "react";
-import { ActivityIndicator, Linking, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -10,11 +11,54 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { Tap } from "./Tap";
 import { Icon, IconName } from "./Icon";
-import { colors, radius, tint, ui, themed } from "./theme";
+import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
 import { pickPhoto, uploadFile, uploadPhoto } from "./photo";
 import { Enter, Reveal, SwapIcon } from "./Motion";
 import { confirmAsk, errorText } from "./feedback";
+import { FileViewer } from "./FileViewer";
+import { openPdf } from "./saveFile";
+import { useInsets } from "./safeArea";
+
+type TestRef = { key: string; test: string };
+
+// A file name for the share sheet from the record's title.
+const fileName = (title: string | null | undefined) => `${(title ?? "").replace(/[^\w\- ]+/g, "").trim().slice(0, 60) || "record"}.pdf`;
+
+// Every result of one test across all records, newest first.
+function TestHistory({ test, onClose, s }: { test: TestRef | null; onClose: () => void; s: Strings }) {
+  const rows = useQuery(api.records.testHistory, test ? { key: test.key } : "skip");
+  const insets = useInsets();
+  return (
+    <Modal visible={test !== null} animationType="slide" onRequestClose={onClose}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.panel, { paddingTop: 16 + insets.top, paddingBottom: 16 + insets.bottom }]}>
+        <View style={styles.rowTop}>
+          <Text style={[styles.historyTitle, styles.flex]} accessibilityRole="header">
+            {test?.test}
+          </Text>
+          <Tap style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel={s.close}>
+            <Ionicons name="close" size={26} color={colors.text} />
+          </Tap>
+        </View>
+        <Text style={styles.small}>{s.recordsHistoryNote}</Text>
+        {rows === undefined ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : (
+          rows.map((r) => (
+            <View key={r._id} style={styles.result}>
+              <View style={styles.rowTop}>
+                <Text style={[styles.line, styles.flex]}>{longDate(r.date, s)}</Text>
+                <Text style={[styles.value, out(r.flag) && styles.valueOut]}>{valueText(r)}</Text>
+                <FlagChip flag={r.flag} s={s} />
+              </View>
+              <Text style={styles.small}>{[r.recordTitle, rangeText(r.low, r.high, s), r.corrected && s.recordsCorrected].filter(Boolean).join(" · ")}</Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    </Modal>
+  );
+}
 
 type Flag = "low" | "normal" | "high" | "abnormal";
 const KIND_ICON: Record<string, IconName> = { lab: "recordLab", letter: "recordLetter", imaging: "recordImaging", other: "recordOther" };
@@ -90,7 +134,7 @@ const parseValue = (raw: string) => {
   return raw.trim() && Number.isFinite(n) ? { value: n } : { text: raw.trim() };
 };
 
-function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
+function Detail({ id, s, onHistory }: { id: Id<"records">; s: Strings; onHistory: (t: TestRef) => void }) {
   const record = useQuery(api.records.detail, { id });
   const remove = useMutation(api.records.remove);
   const rename = useMutation(api.records.rename);
@@ -99,7 +143,15 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
   const [naming, setNaming] = useState<string | null>(null);
   const [fixing, setFixing] = useState<{ id: Id<"labResults">; value: string; unit: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<{ url: string; type: "image" | "pdf" } | null>(null);
   if (record === undefined) return <ActivityIndicator color={colors.primary} />;
+  const openFile = async () => {
+    if (!record.fileUrl) return;
+    setError(null);
+    // Photos everywhere and PDFs on the web open in the app; phones hand a PDF to their own PDF preview.
+    if (record.fileType === "image" || Platform.OS === "web") return setViewing({ url: record.fileUrl, type: record.fileType });
+    await openPdf(record.fileUrl, fileName(record.title)).catch((e) => setError(errorText(e)));
+  };
   const saveName = async () => {
     setError(null);
     try {
@@ -150,6 +202,10 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
             <View style={styles.explain}>
               {rangeText(r.low, r.high, s) ? <Text style={styles.small}>{rangeText(r.low, r.high, s)}</Text> : null}
               {r.explanation ? <Text style={styles.line}>{r.explanation}</Text> : null}
+              <Tap style={styles.action} onPress={() => onHistory({ key: r.key, test: r.test })} accessibilityRole="button" accessibilityLabel={`${s.recordsHistory}: ${r.test}`}>
+                <Ionicons name="time-outline" size={16} color={colors.primary} />
+                <Text style={styles.link}>{s.recordsHistory}</Text>
+              </Tap>
               {fixing?.id === r._id ? (
                 <View style={styles.editRow}>
                   <TextInput
@@ -200,7 +256,7 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
           </Tap>
         )}
         {record.fileUrl && (
-          <Tap style={styles.action} onPress={() => void Linking.openURL(record.fileUrl!)} accessibilityRole="link">
+          <Tap style={styles.action} onPress={() => void openFile()} accessibilityRole="button">
             <Icon name={record.fileType === "pdf" ? "pdf" : "photo"} size={18} color={colors.primary} />
             <Text style={styles.link}>{s.recordsOpenFile}</Text>
           </Tap>
@@ -216,6 +272,7 @@ function Detail({ id, s }: { id: Id<"records">; s: Strings }) {
           <Text style={[styles.link, styles.danger]}>{s.remove}</Text>
         </Tap>
       </View>
+      <FileViewer file={viewing} title={record.title ?? s.recordsOpenFile} onClose={() => setViewing(null)} s={s} />
     </View>
   );
 }
@@ -242,6 +299,7 @@ export function RecordsPanel({ s }: { s: Strings }) {
   const [open, setOpen] = useState<Id<"records"> | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [history, setHistory] = useState<TestRef | null>(null);
   const [busy, setBusy] = useState<"photo" | "pdf" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -295,7 +353,9 @@ export function RecordsPanel({ s }: { s: Strings }) {
           <View style={styles.trends}>
             {trends.map((t) => (
               <Enter key={t.key} style={styles.trendWrap}>
-                <Trend t={t} s={s} />
+                <Tap onPress={() => setHistory({ key: t.key, test: t.test })} accessibilityRole="button" accessibilityHint={s.recordsHistory}>
+                  <Trend t={t} s={s} />
+                </Tap>
               </Enter>
             ))}
           </View>
@@ -380,12 +440,13 @@ export function RecordsPanel({ s }: { s: Strings }) {
                   </Tap>
                 )}
               </View>
-              <Reveal open={expanded}>{expanded ? <Detail id={r._id} s={s} /> : null}</Reveal>
+              <Reveal open={expanded}>{expanded ? <Detail id={r._id} s={s} onHistory={setHistory} /> : null}</Reveal>
             </View>
           </Enter>
         );
       })}
       <Text style={styles.disclaimer}>{s.recordsDisclaimer}</Text>
+      <TestHistory test={history} onClose={() => setHistory(null)} s={s} />
     </ScrollView>
   );
 }
@@ -438,6 +499,8 @@ const styles = themed(() => ({
   barLabel: { flex: 1, color: colors.muted, fontSize: 11, textAlign: "center" },
   disclaimer: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 8 },
   editRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  historyTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  closeButton: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
   input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 120 },
   unitInput: { width: 90, minWidth: 0 },
   search: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, minHeight: 44 },
