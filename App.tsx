@@ -89,7 +89,7 @@ function Themed() {
     ) : path === "/appointment-checklist" ? (
       <ChecklistPage s={pageLang} onBack={() => go("/")} onCreate={create} />
     ) : path === "/demo" ? (
-      <DemoPage s={pageLang} onBack={() => go("/")} onCreate={create} />
+      <DemoPage s={pageLang} lang={me?.language ?? deviceLang()} onBack={() => go("/")} onCreate={create} />
     ) : null;
   if (!fontsReady) return <View style={styles.root} />;
   return (
