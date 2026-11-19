@@ -12,7 +12,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
 import { Enter, Reveal, SwapIcon } from "./Motion";
-import { shareUrl } from "./ShareCard";
+import { shareUrl } from "./ShareParts";
 import { colors, radius, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { errorText, showToast } from "./feedback";
