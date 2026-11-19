@@ -403,38 +403,41 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
   const [picked, setPicked] = useState<string | null>(null);
   const pickedValue = picked ? byDate.get(picked) : undefined;
   return (
-    <Tap style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]} onPress={onPress} accessibilityRole="button"
-      accessibilityLabel={`${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`}>
-      <View style={styles.trendHead}>
-        <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
-          <Icon name={METRIC_ICON[chart.metric] ?? "insights"} size={18} color={colors.primary} />
-        </View>
-        <Text style={styles.trendTitle} numberOfLines={1}>
-          {chart.title}
-        </Text>
-        {t && (
-          <View style={[styles.pill, { borderColor: bad()[t] }]}>
-            <Ionicons
-              name={
-                t === "same" || !moved(chart) ? "remove"
-                : moved(chart) > 0 ? "trending-up"
-                : "trending-down"
-              }
-              size={14}
-              color={bad()[t]}
-            />
-            <Text style={[styles.pillText, { color: bad()[t] }]}>{label}</Text>
+    <View style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]}>
+      {/* The head opens the tool. The bars are a button of their own, so they sit beside it, not inside it. */}
+      <Tap style={styles.trendTop} onPress={onPress} accessibilityRole="button"
+        accessibilityLabel={`${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`}>
+        <View style={styles.trendHead}>
+          <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
+            <Icon name={METRIC_ICON[chart.metric] ?? "insights"} size={18} color={colors.primary} />
           </View>
-        )}
-      </View>
-      <View style={styles.valueRow}>
-        <Text style={styles.big}>{withUnit(chart.latest.value, chart.unit)}</Text>
-        {chart.prevWeek !== null && chart.week !== null && (
-          <Text style={styles.small} numberOfLines={1}>
-            {s.homeThisWeek} {withUnit(chart.week, chart.unit)} · {s.homeLastWeek.replace("{v}", withUnit(chart.prevWeek, chart.unit))}
+          <Text style={styles.trendTitle} numberOfLines={1}>
+            {chart.title}
           </Text>
-        )}
-      </View>
+          {t && (
+            <View style={[styles.pill, { borderColor: bad()[t] }]}>
+              <Ionicons
+                name={
+                  t === "same" || !moved(chart) ? "remove"
+                  : moved(chart) > 0 ? "trending-up"
+                  : "trending-down"
+                }
+                size={14}
+                color={bad()[t]}
+              />
+              <Text style={[styles.pillText, { color: bad()[t] }]}>{label}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.valueRow}>
+          <Text style={styles.big}>{withUnit(chart.latest.value, chart.unit)}</Text>
+          {chart.prevWeek !== null && chart.week !== null && (
+            <Text style={styles.small} numberOfLines={1}>
+              {s.homeThisWeek} {withUnit(chart.week, chart.unit)} · {s.homeLastWeek.replace("{v}", withUnit(chart.prevWeek, chart.unit))}
+            </Text>
+          )}
+        </View>
+      </Tap>
       {chart.meds.length > 0 && <MedPins dates={dates} meds={chart.meds} gap={2} />}
       <TapBars count={dates.length} onPick={(i) => setPicked(dates[i] === picked ? null : dates[i])} style={styles.bars} label={`${chart.title}. ${s.chartTapHint}`}>
         {dates.map((d) => {
@@ -465,7 +468,7 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
       )}
       {trendBy.size > 0 && <Text style={styles.axisText}>● {s.chartTrend}</Text>}
       <MedLegend meds={chart.meds} s={s} />
-    </Tap>
+    </View>
   );
 }
 
@@ -506,6 +509,7 @@ const styles = themed(() => ({
   seeAll: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 44, paddingHorizontal: 4, marginTop: 8 },
   seeAllText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   trend: { ...ui.card, padding: 12, gap: 8 },
+  trendTop: { gap: 8 },
   trendHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   trendTitle: { flex: 1, fontSize: 15, fontWeight: "700", color: colors.text },
   pill: { flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
