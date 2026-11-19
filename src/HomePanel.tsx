@@ -11,12 +11,12 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
-import { colors, radius, scaleColor, themed, tint, ui } from "./theme";
+import { colors, kicker, radius, scaleColor, themed, tint, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
 import { TodayDoses } from "./TodayDoses";
-import { TOOLS, type HubTab } from "./HubPanel";
+import { GROUPS, TOOLS, type HubTab } from "./HubPanel";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 import { axisDay } from "./format";
@@ -210,21 +210,28 @@ export function DashboardView(p: {
       <Text style={styles.section} accessibilityRole="header">
         {s.homeTools}
       </Text>
-      <View style={styles.grid}>
-        {TOOLS.map((t) => (
-          <Tap key={t.tab} style={[styles.tool, wide ? styles.third : styles.half]} onPress={() => onOpen(t.tab)} accessibilityRole="button" accessibilityLabel={`${t.label(s)}. ${t.desc(s)}`}>
-            <View style={[styles.toolIcon, { backgroundColor: tint[t.tint].bg }]}>
-              <Icon name={t.icon} size={24} color={tint[t.tint].fg} />
-            </View>
-            <Text style={styles.toolTitle} numberOfLines={1}>
-              {t.label(s)}
-            </Text>
-            <Text style={styles.toolDesc} numberOfLines={2}>
-              {t.desc(s)}
-            </Text>
-          </Tap>
-        ))}
-      </View>
+      {GROUPS.map((g) => (
+        <View key={g.key} style={styles.group}>
+          <Text style={styles.groupTitle} accessibilityRole="header">
+            {g.label(s)}
+          </Text>
+          <View style={styles.grid}>
+            {g.tools.map((tab) => TOOLS.find((t) => t.tab === tab)!).map((t) => (
+              <Tap key={t.tab} style={[styles.tool, wide ? styles.third : styles.half]} onPress={() => onOpen(t.tab)} accessibilityRole="button" accessibilityLabel={`${t.label(s)}. ${t.desc(s)}`}>
+                <View style={[styles.toolIcon, { backgroundColor: tint[t.tint].bg }]}>
+                  <Icon name={t.icon} size={24} color={tint[t.tint].fg} />
+                </View>
+                <Text style={styles.toolTitle} numberOfLines={1}>
+                  {t.label(s)}
+                </Text>
+                <Text style={styles.toolDesc} numberOfLines={2}>
+                  {t.desc(s)}
+                </Text>
+              </Tap>
+            ))}
+          </View>
+        </View>
+      ))}
     </ScrollView>
   );
 }
@@ -411,6 +418,8 @@ const styles = themed(() => ({
   flex: { flex: 1 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  group: { gap: 8 },
+  groupTitle: { color: colors.muted, fontWeight: "700", ...kicker() },
   // Two per row on phones; four (stats) or three (tools) on wider screens. The gap is taken out of each share.
   half: { flexBasis: "47%", flexGrow: 1 },
   quarter: { flexBasis: "22%", flexGrow: 1 },
