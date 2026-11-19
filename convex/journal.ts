@@ -7,7 +7,7 @@ import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx
 import { Doc, Id } from "./_generated/dataModel";
 import { clampSeverity, dailyPatterns, exercisePatterns, dailySeverity, dailySummary, DailyLog, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
 import { isDate } from "./lib/health";
-import { painAsEntries } from "./lib/trackers";
+import { painAsEntries, withLoggedPeriods } from "./lib/trackers";
 import { trackersSince } from "./trackers";
 import { adherence } from "./exercises";
 import { normalizeTime, zoneOffsetMin } from "./lib/reminders";
@@ -162,12 +162,16 @@ export const view = query({
     const tracked = await trackersSince(ctx, userId, since);
     const entries = [...(await entriesSince(ctx, userId, since)), ...painAsEntries(tracked)];
     const daily = await dailySince(ctx, userId, since);
-    const health = (
-      await ctx.db
-        .query("healthDays")
-        .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
-        .take(100)
-    ).map(({ date, metrics }) => ({ date, metrics }));
+    // Period days logged in the app count with the phone's (convex/lib/trackers.ts).
+    const health = withLoggedPeriods(
+      (
+        await ctx.db
+          .query("healthDays")
+          .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
+          .take(100)
+      ).map(({ date, metrics }) => ({ date, metrics })),
+      tracked,
+    );
     const recent = await ctx.db
       .query("symptomEntries")
       .withIndex("by_user_and_date", (q) => q.eq("userId", userId))
