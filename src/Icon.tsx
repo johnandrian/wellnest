@@ -25,6 +25,7 @@ const ICONS = {
   weight: ["mci", "scale-bathroom"],
   bp: ["mci", "heart-pulse"],
   temperature: ["mci", "thermometer"],
+  period: ["mci", "calendar-heart"],
   glucose: ["mci", "water-outline"],
   weather: ["ion", "partly-sunny-outline"],
   er: ["mci", "hospital-building"],

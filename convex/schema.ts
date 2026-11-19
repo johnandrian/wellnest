@@ -8,7 +8,7 @@ import { language } from "./lib/language";
 import { entrySource } from "./lib/journal";
 import { slot, urgency as visitUrgency } from "./lib/telehealth";
 import { medEventKind, medForm, supply, timeDose } from "./lib/meds";
-import { asthmaDetails, bpDetails, glucoseDetails, painDetails, seizureDetails, temperatureDetails, tracker, weightDetails } from "./lib/trackers";
+import { asthmaDetails, bpDetails, glucoseDetails, painDetails, periodDetails, seizureDetails, temperatureDetails, tracker, weightDetails } from "./lib/trackers";
 import { section } from "./lib/report";
 import { asthmaPlan, contact, planSection } from "./lib/emergency";
 import { chartValidator } from "./lib/insights";
@@ -382,6 +382,7 @@ export default defineSchema({
     bp: v.optional(bpDetails),
     weight: v.optional(weightDetails),
     temperature: v.optional(temperatureDetails),
+    period: v.optional(periodDetails),
     note: v.optional(v.string()),
     source: v.union(v.literal("manual"), v.literal("chat")),
   }).index("by_user_and_date", ["userId", "date"]),

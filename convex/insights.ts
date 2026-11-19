@@ -17,6 +17,7 @@ import { trackersSince } from "./trackers";
 import { weatherSince } from "./weather";
 import { parseCoords } from "./lib/places";
 import { unitsOf } from "./lib/units";
+import { withLoggedPeriods } from "./lib/trackers";
 
 export const LOOKBACK_DAYS = 90;
 const MED_LOOKBACK_DAYS = 120;
@@ -25,16 +26,21 @@ const LAB_LOOKBACK_DAYS = 365;
 
 export async function gatherInputs(ctx: QueryCtx, userId: Id<"users">, from: string, to: string): Promise<Inputs> {
   const inRange = <T extends { date: string }>(xs: T[]) => xs.filter((x) => x.date >= from && x.date <= to);
+  const trackers = inRange(await trackersSince(ctx, userId, from));
   return {
     entries: inRange(await entriesSince(ctx, userId, from)),
-    trackers: inRange(await trackersSince(ctx, userId, from)),
+    trackers,
     daily: inRange(await dailySince(ctx, userId, from)),
-    health: (
-      await ctx.db
-        .query("healthDays")
-        .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", from).lte("date", to))
-        .take(400)
-    ).map(({ date, metrics }) => ({ date, metrics })),
+    // With the period days logged in the app (convex/lib/trackers.ts).
+    health: withLoggedPeriods(
+      (
+        await ctx.db
+          .query("healthDays")
+          .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", from).lte("date", to))
+          .take(400)
+      ).map(({ date, metrics }) => ({ date, metrics })),
+      trackers,
+    ),
     weather: await weatherSince(ctx, userId, from, to),
   };
 }

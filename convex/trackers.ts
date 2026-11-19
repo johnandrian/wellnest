@@ -1,5 +1,6 @@
 // Condition trackers (convex/lib/trackers.ts): pain / CRPS, asthma (with a personal-best peak flow), seizures, and
-// glucose readings (stored in mg/dL), plus the vitals: blood pressure, weight (kg), and temperature (°C).
+// glucose readings (stored in mg/dL), plus the vitals: blood pressure, weight (kg), and temperature (°C), and period
+// days (merged with the phone's health data by withLoggedPeriods).
 // Several entries a day are fine, on any day up to today, and each can be changed later. Logged from the Journal tab
 // or by the model (log_condition_event), charted in the
 // Journal tab, and included in visit summaries, reports and the model's journal reads. Pain feeds the journal's
@@ -18,9 +19,12 @@ import {
   cleanBp,
   cleanGlucose,
   cleanPain,
+  cleanPeriod,
   cleanSeizure,
   cleanTemperature,
   cleanWeight,
+  periodDetails,
+  PeriodDetails,
   temperatureDetails,
   TemperatureDetails,
   weightDetails,
@@ -51,6 +55,7 @@ type AddArgs = {
   bp?: Partial<BpDetails>;
   weight?: Partial<WeightDetails>;
   temperature?: Partial<TemperatureDetails>;
+  period?: Partial<PeriodDetails>;
   note?: string;
 };
 
@@ -80,6 +85,7 @@ function cleaned(a: AddArgs) {
   if (a.tracker === "bp") return { bp: check(cleanBp(a.bp ?? {})) };
   if (a.tracker === "weight") return { weight: check(cleanWeight(a.weight ?? {})) };
   if (a.tracker === "temperature") return { temperature: check(cleanTemperature(a.temperature ?? {})) };
+  if (a.tracker === "period") return { period: cleanPeriod(a.period ?? {}) };
   return { seizure: cleanSeizure(a.seizure ?? {}) };
 }
 
@@ -124,6 +130,7 @@ export const add = mutation({
     bp: v.optional(bpDetails),
     weight: v.optional(weightDetails),
     temperature: v.optional(temperatureDetails),
+    period: v.optional(periodDetails),
     note: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
@@ -146,6 +153,7 @@ export const update = mutation({
     bp: v.optional(bpDetails),
     weight: v.optional(weightDetails),
     temperature: v.optional(temperatureDetails),
+    period: v.optional(periodDetails),
     note: v.optional(v.string()),
   },
   handler: async (ctx, { id, date, at, note, ...details }) => {
@@ -155,7 +163,7 @@ export const update = mutation({
     const today = localToday(await ctx.db.get(userId));
     if (!isDate(date) || date > today || at > Date.now() + 60_000) throw new Error("Pick a day and time up to now.");
     const fields = cleaned({ tracker: row.tracker, ...details });
-    await ctx.db.patch(id, { date, at, note: note?.trim().slice(0, 500) || undefined, pain: undefined, asthma: undefined, seizure: undefined, glucose: undefined, bp: undefined, weight: undefined, temperature: undefined, ...fields });
+    await ctx.db.patch(id, { date, at, note: note?.trim().slice(0, 500) || undefined, pain: undefined, asthma: undefined, seizure: undefined, glucose: undefined, bp: undefined, weight: undefined, temperature: undefined, period: undefined, ...fields });
     if (row.tracker === "glucose") await ctx.scheduler.runAfter(0, internal.agentScan.afterGlucose, { userId });
   },
 });
@@ -183,7 +191,9 @@ export const setPeakFlowBest = mutation({
 export async function trackersSince(ctx: QueryCtx, userId: Id<"users">, since: string): Promise<TrackerEntry[]> {
   const rows = await ctx.db.query("trackerEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since)).take(1000);
   return rows
-    .map(({ date, at, tracker, pain, asthma, seizure, glucose, bp, weight, temperature, note }) => ({ date, at, tracker, pain, asthma, seizure, glucose, bp, weight, temperature, note }))
+    .map(({ date, at, tracker, pain, asthma, seizure, glucose, bp, weight, temperature, period, note }) => (
+      { date, at, tracker, pain, asthma, seizure, glucose, bp, weight, temperature, period, note }
+    ))
     .sort((a, b) => a.at - b.at);
 }
 
@@ -213,6 +223,7 @@ export const view = query({
       bp: of("bp").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.bp! })),
       weight: of("weight").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.weight! })),
       temperature: of("temperature").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.temperature! })),
+      period: of("period").map((r) => ({ _id: r._id, date: r.date, at: r.at, note: r.note ?? null, ...r.period! })),
     };
   },
 });
@@ -230,6 +241,7 @@ export const fromChat = internalMutation({
     bp: v.optional(v.any()),
     weight: v.optional(v.any()),
     temperature: v.optional(v.any()),
+    period: v.optional(v.any()),
     note: v.optional(v.string()),
   },
   handler: async (ctx, { userId, ...a }) => {

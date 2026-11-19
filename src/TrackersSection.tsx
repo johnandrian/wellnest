@@ -19,7 +19,9 @@ import { SeverityScale } from "./SeverityScale";
 import { useOfflineSend } from "./offline";
 import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 
-type Tracker = "pain" | "asthma" | "seizure" | "glucose" | "bp" | "weight" | "temperature";
+type Tracker = "pain" | "asthma" | "seizure" | "glucose" | "bp" | "weight" | "temperature" | "period";
+const FLOWS = ["light", "medium", "heavy", "unspecified"] as const;
+type Flow = (typeof FLOWS)[number];
 const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
 // Under 70 mg/dL is low; over 180 high, over 250 very high.
 const glucoseColor = (mgdl: number) => (mgdl < 70 || mgdl > 250 ? colors.danger : mgdl > 180 ? colors.amber : colors.mint);
@@ -72,11 +74,11 @@ function DayBars({ days, values, max, min = 0, color }: { days: string[]; values
 
 const FIRST_ENTRIES = 15;
 const CONDITIONS = ["pain", "asthma", "seizure", "glucose"] as const;
-// Vitals are for everyone, so they always show.
-const VITALS = ["bp", "weight", "temperature"] as const;
+// Vitals and the period log are for everyone, so they always show.
+const VITALS = ["bp", "weight", "temperature", "period"] as const;
 const TRACKERS = [...CONDITIONS, ...VITALS];
 const FOCUS_OF: Record<(typeof CONDITIONS)[number], string> = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "diabetes" };
-const ICON_OF = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "glucose", bp: "bp", weight: "weight", temperature: "temperature" } as const;
+const ICON_OF = { pain: "pain", asthma: "asthma", seizure: "seizures", glucose: "glucose", bp: "bp", weight: "weight", temperature: "temperature", period: "period" } as const;
 
 // The condition trackers someone picked in setup, plus any they've already used (all of them when they picked
 // none), then the vitals.
@@ -134,6 +136,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const [pulse, setPulse] = useState("");
   const [weightText, setWeightText] = useState("");
   const [tempText, setTempText] = useState("");
+  const [flow, setFlow] = useState<Flow | null>(null);
   const [note, setNote] = useState("");
   const units: Units = me?.units ?? DEFAULT_UNITS;
 
@@ -142,7 +145,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     setPeakFlow(""); setPuffs(""); setPreventer(null); setSymptoms([]); setNight(false); setAttack(false);
     setSeizureType(null); setSeconds(""); setAura(""); setRescue(null); setRecovery(""); setWitness(""); setNote("");
     setReading(""); setGlucoseContext(null);
-    setSystolic(""); setDiastolic(""); setPulse(""); setWeightText(""); setTempText("");
+    setSystolic(""); setDiastolic(""); setPulse(""); setWeightText(""); setTempText(""); setFlow(null);
     setEditing(null); setDay(dayString(new Date())); setClock(timeString(new Date()));
   };
 
@@ -160,6 +163,8 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
       setWeightText(oneDp(showWeight(e.kg, units)));
     } else if (t === "temperature") {
       setTempText(oneDp(showTemp(e.c, units)));
+    } else if (t === "period") {
+      setFlow(e.flow);
     } else if (t === "pain") {
       setSeverity(e.severity); setLocations(e.locations ?? []); setTypes(e.types ?? []);
       setFlags(PAIN_FLAGS.filter((f) => e[f])); setDuration(e.durationMin ? String(e.durationMin) : ""); setHelped(e.helped ?? "");
@@ -216,6 +221,8 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
         const value = numOrUndef(tempText);
         if (value === undefined) return setError(s.trkTempNeed);
         await send({ temperature: { c: tempToC(value, units.temperature) } });
+      } else if (tracker === "period") {
+        await send({ period: { flow: flow ?? "unspecified" } });
       } else if (tracker === "glucose") {
         const value = numOrUndef(reading.replace(",", "."));
         if (value === undefined) return setError(s.trkGlucoseNeed);
@@ -264,10 +271,14 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const tempByDay = new Map<string, number>();
   for (const x of data?.temperature ?? []) tempByDay.set(x.date, Math.max(tempByDay.get(x.date) ?? 0, x.c));
   const weights = [...weightByDay.values()];
+  const periodByDay = new Map<string, number>();
+  const flowLevel: Record<string, number> = { heavy: 3, medium: 2 };
+  for (const p of data?.period ?? []) periodByDay.set(p.date, Math.max(periodByDay.get(p.date) ?? 0, flowLevel[p.flow] ?? 1));
 
   const line = (t: Tracker, e: any) => {
     if (t === "bp") return [`${e.systolic}/${e.diastolic} mmHg`, e.pulse && `${s.trkPulse} ${e.pulse}`].filter(Boolean).join(" · ");
     if (t === "weight") return fmtWeight(e.kg, units, s.locale);
+    if (t === "period") return e.flow === "unspecified" ? s.trk_period : `${s.trk_period} · ${s[`flow_${e.flow as Flow}`]}`;
     if (t === "temperature") return [fmtTemp(e.c, units, s.locale), e.c >= FEVER_C && s.trkFever].filter(Boolean).join(" · ");
     if (t === "pain") return [`${e.severity}/10`, e.locations.map((l: string) => s[`loc_${l}` as "loc_head"]).join(", "), e.types.map((x: string) => s[`ptype_${x}` as "ptype_aching"]).join(", "), e.flare && s.trk_flare].filter(Boolean).join(" · ");
     if (t === "asthma") return [e.attack && `⚠️ ${s.trkAttack}`, e.peakFlow && `${e.peakFlow} L/min${bestFlow ? ` (${Math.round((e.peakFlow / bestFlow) * 100)}%)` : ""}`, e.reliever !== undefined && `${e.reliever} ${s.trkPuffs}`, e.symptoms.map((x: string) => s[`asym_${x}` as "asym_wheeze"]).join(", ")].filter(Boolean).join(" · ");
@@ -477,6 +488,20 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
             <Text style={styles.label}>°{units.temperature}</Text>
           </View>
           <Text style={styles.small}>{s.trkTempNote}</Text>
+        </View>
+      )}
+
+      {tracker === "period" && (
+        <View style={styles.form}>
+          {periodByDay.size > 0 && (
+            <>
+              <Text style={styles.small}>{s.trkPeriodChart}</Text>
+              <DayBars days={days} values={periodByDay} max={3} color={() => colors.period} />
+            </>
+          )}
+          <Text style={styles.label}>{s.trkFlow}</Text>
+          <Chips items={FLOWS} selected={flow ? [flow] : []} onToggle={(x) => setFlow(flow === x ? null : x)} label={(x) => s[`flow_${x}`]} />
+          <Text style={styles.small}>{s.trkPeriodNote}</Text>
         </View>
       )}
 

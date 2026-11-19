@@ -220,7 +220,7 @@ export const respond = internalAction({
             });
           }
           if (name === "log_condition_event") {
-            const TRACKERS = ["pain", "asthma", "seizure", "glucose", "bp", "weight", "temperature"] as const;
+            const TRACKERS = ["pain", "asthma", "seizure", "glucose", "bp", "weight", "temperature", "period"] as const;
             const tracker = TRACKERS.find((t) => t === args.tracker) ?? null;
             if (!tracker) return Promise.resolve(`Tool error: tracker must be one of ${TRACKERS.join(", ")}.`);
             const a = args as Record<string, any>;
@@ -248,6 +248,7 @@ export const respond = internalAction({
                 context: a.glucose_context,
               } : undefined,
               bp: tracker === "bp" ? { systolic: a.systolic, diastolic: a.diastolic, pulse: a.pulse } : undefined,
+              period: tracker === "period" ? { flow: a.flow } : undefined,
               weight:
                 tracker === "weight" && typeof a.weight_value === "number"
                   ? { kg: weightToKg(a.weight_value, a.weight_unit === "kg" ? "kg" : "lb") }
