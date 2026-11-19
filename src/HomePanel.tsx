@@ -20,6 +20,7 @@ import { CountBadge, GROUPS, TOOLS, type HubTab } from "./HubPanel";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 import { axisDay } from "./format";
+import { useNow } from "./useNow";
 
 // Questions show on the dashboard in the week before an appointment.
 const QUESTIONS_DAYS = 7;
@@ -28,10 +29,10 @@ export type DashboardData = NonNullable<FunctionReturnType<typeof api.dashboard.
 export type InsightsData = NonNullable<FunctionReturnType<typeof api.insights.view>>;
 type Chart = DashboardData["charts"][number];
 
+// The query re-runs every 5 minutes (not on every render), so a dose that comes due or a passed appointment updates.
 function useDashboard() {
-  // Fixed while the screen is open, so the query isn't re-run on every render.
-  const [now] = useState(() => Date.now());
-  return useQuery(api.dashboard.view, { today: localDate(), now });
+  const now = useNow(5 * 60_000);
+  return useQuery(api.dashboard.view, { today: localDate(new Date(now)), now });
 }
 
 const fmt = (n: number) => (Math.round(n * 10) / 10).toLocaleString();
@@ -42,6 +43,9 @@ function when(at: number, locale: string) {
   const time = d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" })}, ${time}`;
 }
+
+// Up or down against last week, for the arrow: the real direction, whether that's good or bad.
+const moved = (c: Chart) => (c.week === null || c.prevWeek === null ? 0 : Math.sign(c.week - c.prevWeek));
 
 // Better, worse or steady against last week, for measures where one direction is bad.
 function trend(c: Chart): "better" | "worse" | "same" | null {
@@ -55,7 +59,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   const data = useDashboard();
   const insights = useQuery(api.insights.view, { today: localDate() });
   const waiting = useQuery(api.agent.waiting);
-  const [now] = useState(() => Date.now());
+  const now = useNow();
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
   return (
@@ -104,7 +108,12 @@ export function DashboardView(p: {
           tint="medications"
           label={s.homeNextDose}
           value={m.next ? when(m.next.at, s.locale) : s.homeNoDose}
-          sub={m.next?.name}
+          sub={
+            m.overdue === 1 ? s.homeOverdueOne
+            : m.overdue ? s.homeOverdueMany.replace("{n}", String(m.overdue))
+            : m.next?.name
+          }
+          warn={m.overdue > 0}
           onPress={() => onOpen("reminders")}
           wide={wide}
         />
@@ -390,7 +399,15 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
         </Text>
         {t && (
           <View style={[styles.pill, { borderColor: bad()[t] }]}>
-            <Ionicons name={t === "same" ? "remove" : t === "better" ? "trending-up" : "trending-down"} size={14} color={bad()[t]} />
+            <Ionicons
+              name={
+                t === "same" || !moved(chart) ? "remove"
+                : moved(chart) > 0 ? "trending-up"
+                : "trending-down"
+              }
+              size={14}
+              color={bad()[t]}
+            />
             <Text style={[styles.pillText, { color: bad()[t] }]}>{label}</Text>
           </View>
         )}

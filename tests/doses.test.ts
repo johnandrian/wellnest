@@ -39,6 +39,22 @@ async function user(t: ReturnType<typeof setup>) {
 }
 
 describe("today's doses", () => {
+  test("the dashboard counts doses an hour past due and unanswered as overdue", async () => {
+    const t = setup();
+    vi.setSystemTime(NOW - 24 * H);
+    const { as } = await user(t);
+    const id = (await as.mutation(api.reminders.add, { name: "Metformin", schedule: { kind: "daily", times: ["08:00", "09:30", "20:00"] } })) as Id<"medications">;
+    vi.setSystemTime(NOW);
+    const overdue = async () => (await as.query(api.dashboard.view, { today: "2026-11-02", now: Date.now() }))!.meds.overdue;
+    // 10:00: 08:00 is two hours late, 09:30 only half an hour, 20:00 not yet due.
+    expect(await overdue()).toBe(1);
+    const [morning] = (await as.query(api.reminders.today, DAY))!.doses;
+    await as.mutation(api.reminders.mark, { medicationId: id, dueAt: morning.dueAt, status: "skipped" });
+    expect(await overdue()).toBe(0);
+    vi.setSystemTime(NOW + H);
+    expect(await overdue()).toBe(1);
+  });
+
   test("lists the day's doses and answers them, with Taken late and the supply", async () => {
     const t = setup();
     // Added yesterday, so this morning's dose is owed.

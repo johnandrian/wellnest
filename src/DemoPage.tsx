@@ -104,7 +104,7 @@ export function demoData(s: Strings, now: number): { data: DashboardData; insigh
         chart("sleepQuality", s.dailySleep, "/5", 5, sleep),
       ] as DashboardData["charts"],
       logged: 6,
-      meds: { count: 3, next: { name: s.demoMed, at: nextDose.getTime() }, taken: 12, answered: 13, lowSupply: 1 },
+      meds: { count: 3, next: { name: s.demoMed, at: nextDose.getTime() }, taken: 12, answered: 13, lowSupply: 1, overdue: 0 },
       visit: { _id: "demo" as Id<"visits">, title: s.demoVisit, startsAt: visitAt.getTime(), kind: "in_person", questions: s.demoQuestions },
     },
     insights: {
