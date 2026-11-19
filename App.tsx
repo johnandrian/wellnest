@@ -21,6 +21,7 @@ import { ToastHost } from "./src/feedback";
 import { useInsets } from "./src/safeArea";
 import { LockGate } from "./src/AppLock";
 import { SetupContext, SetupMode } from "./src/setup";
+import { OfflineProvider } from "./src/offline";
 
 // A care circle invite in the address (?join=...) is kept before anything renders (./src/invite.ts).
 takeInviteFromUrl();
@@ -133,13 +134,15 @@ function Home() {
   // On phones with app lock on, a lock screen covers the app until the PIN or Face ID / fingerprint (src/AppLock.tsx).
   return (
     <LockGate s={strings(me?.language)}>
-      <SetupContext.Provider value={setSetup}>
-        {me && (!me.onboarded || setup) ? (
-          <Onboarding mode={setup ?? "short"} onDone={() => setSetup(null)} />
-        ) : (
-          <Chat onRedoSetup={() => setSetup("full")} />
-        )}
-      </SetupContext.Provider>
+      <OfflineProvider s={strings(me?.language)} user={me?.email ?? ""}>
+        <SetupContext.Provider value={setSetup}>
+          {me && (!me.onboarded || setup) ? (
+            <Onboarding mode={setup ?? "short"} onDone={() => setSetup(null)} />
+          ) : (
+            <Chat onRedoSetup={() => setSetup("full")} />
+          )}
+        </SetupContext.Provider>
+      </OfflineProvider>
     </LockGate>
   );
 }

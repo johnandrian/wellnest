@@ -17,6 +17,7 @@ import { localDate } from "./DailyCard";
 import { DateField, TimeField } from "./DateTimeField";
 import { formatDate, formatTime } from "./format";
 import { levelOf, SeverityScale } from "./SeverityScale";
+import { useOfflineSend } from "./offline";
 
 export { levelOf } from "./SeverityScale";
 
@@ -46,7 +47,8 @@ const timeText = (hhmm: string, s: Strings) => {
 type Entry = { _id: Id<"symptomEntries">; date: string; symptom: string; severity: number | null; note: string | null; time?: string | null };
 
 export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; recent: Entry[] }) {
-  const add = useMutation(api.journal.add);
+  // A new entry still saves offline (./offline.tsx); changing one needs a connection.
+  const send = useOfflineSend();
   const update = useMutation(api.journal.update);
   const remove = useMutation(api.journal.remove);
   const [editing, setEditing] = useState<Entry | null>(null);
@@ -118,8 +120,8 @@ export function SymptomLog({ s, mine, recent }: { s: Strings; mine: string[]; re
         await update({ id: editing._id, symptom, severity, note: note.trim(), date, time: time ?? "" });
         showToast(`${s.saved}: ${symptom}`);
       } else {
-        await add({ symptom, severity: severity ?? undefined, note: note.trim() || undefined, date, ...(time && { time }) });
-        showToast(s.logSaved.replace("{what}", severity === null ? symptom : `${symptom} · ${s.logOutOf.replace("{n}", String(severity))}`));
+        const r = await send({ fn: "journal.add", args: { symptom, severity: severity ?? undefined, note: note.trim() || undefined, date, ...(time && { time }) } });
+        if (r === "sent") showToast(s.logSaved.replace("{what}", severity === null ? symptom : `${symptom} · ${s.logOutOf.replace("{n}", String(severity))}`));
       }
       clear();
     } catch (e) {
