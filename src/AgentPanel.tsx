@@ -1,8 +1,10 @@
 // Actions: the agent's inbox (convex/agent.ts). Each card says what the assistant wants to do, why, and the logged
 // facts it's based on; nothing happens until the user taps Approve. Red flags carry a fixed "call your care team or
-// 911" notice, written here rather than by the model. Handled actions move to History with what happened.
+// 911" notice, written here rather than by the model. A doctor message draft can be changed before approving and
+// copied at any time. Handled actions move to History, grouped by week, with what happened.
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -12,9 +14,39 @@ import { Icon } from "./Icon";
 import { Enter, Reveal, SwapIcon } from "./Motion";
 import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
-import { errorText } from "./feedback";
+import { errorText, showToast } from "./feedback";
+import { formatDate } from "./format";
 
 type Action = Doc<"agentActions">;
+
+// Monday of the week `at` falls in, local time.
+function weekStart(at: number) {
+  const d = new Date(at);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getTime();
+}
+
+// History in weeks, newest first: "This week", "Last week", then "Week of Nov 3".
+function byWeek(actions: Action[], s: Strings) {
+  const now = weekStart(Date.now());
+  const weeks: { label: string; items: Action[] }[] = [];
+  let key: number | null = null;
+  for (const a of actions) {
+    const start = weekStart(a.decidedAt ?? a._creationTime);
+    if (start !== key) {
+      key = start;
+      const ago = Math.round((now - start) / (7 * 86_400_000));
+      const label =
+        ago <= 0 ? s.agentThisWeek
+        : ago === 1 ? s.agentLastWeek
+        : s.agentWeekOf.replace("{date}", formatDate(start, s));
+      weeks.push({ label, items: [] });
+    }
+    weeks[weeks.length - 1].items.push(a);
+  }
+  return weeks;
+}
 
 
 export function AgentPanel({ s }: { s: Strings }) {
@@ -47,10 +79,15 @@ export function AgentPanel({ s }: { s: Strings }) {
           <Text style={styles.section} accessibilityRole="header">
             {s.agentHistory}
           </Text>
-          {past.map((a) => (
-            <Enter key={a._id}>
-              <ActionCard s={s} action={a} />
-            </Enter>
+          {byWeek(past, s).map((w) => (
+            <View key={w.label} style={styles.week}>
+              <Text style={styles.weekLabel}>{w.label}</Text>
+              {w.items.map((a) => (
+                <Enter key={a._id}>
+                  <ActionCard s={s} action={a} />
+                </Enter>
+              ))}
+            </View>
           ))}
         </>
       )}
@@ -61,7 +98,10 @@ export function AgentPanel({ s }: { s: Strings }) {
 function ActionCard({ s, action }: { s: Strings; action: Action }) {
   const approve = useMutation(api.agent.approve);
   const dismiss = useMutation(api.agent.dismiss);
+  const editDraft = useMutation(api.agent.editDraft);
   const [busy, setBusy] = useState<"approve" | "dismiss" | null>(null);
+  const [editing, setEditing] = useState<{ subject: string; body: string } | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWhy, setShowWhy] = useState(false);
   const pending = action.status === "proposed";
@@ -106,10 +146,78 @@ function ActionCard({ s, action }: { s: Strings; action: Action }) {
           <Text style={styles.small}>
             {s.agentTo}: {d.to}
           </Text>
-          <Text style={styles.draftSubject}>{d.subject}</Text>
-          <Text style={styles.draftBody} selectable>
-            {d.body}
-          </Text>
+          {editing ? (
+            <>
+              <TextInput
+                style={[styles.input, styles.draftSubject]}
+                value={editing.subject}
+                onChangeText={(subject) => setEditing({ ...editing, subject })}
+                maxLength={200}
+                accessibilityLabel={s.agentSubject}
+              />
+              <TextInput
+                style={[styles.input, styles.draftBody, styles.bodyInput]}
+                value={editing.body}
+                onChangeText={(body) => setEditing({ ...editing, body })}
+                multiline
+                maxLength={4000}
+                textAlignVertical="top"
+                accessibilityLabel={s.agentMessage}
+              />
+              <View style={styles.inline}>
+                <Tap
+                  style={ui.button}
+                  disabled={saving}
+                  onPress={async () => {
+                    setSaving(true);
+                    setError(null);
+                    try {
+                      await editDraft({ id: action._id, ...editing });
+                      setEditing(null);
+                    } catch (e) {
+                      setError(errorText(e));
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  accessibilityRole="button"
+                >
+                  {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>{s.save}</Text>}
+                </Tap>
+                <Tap style={styles.textButton} onPress={() => setEditing(null)} accessibilityRole="button">
+                  <Text style={styles.link}>{s.cancel}</Text>
+                </Tap>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.draftSubject}>{d.subject}</Text>
+              <Text style={styles.draftBody} selectable>
+                {d.body}
+              </Text>
+              <View style={styles.inline}>
+                {pending && (
+                  <Tap style={styles.textButton} onPress={() => setEditing({ subject: d.subject, body: d.body })} accessibilityRole="button" accessibilityLabel={`${s.agentEditDraft}: ${action.title}`}>
+                    <Ionicons name="create-outline" size={16} color={colors.primary} />
+                    <Text style={styles.link}>{s.agentEditDraft}</Text>
+                  </Tap>
+                )}
+                <Tap
+                  style={styles.textButton}
+                  onPress={() =>
+                    void Clipboard.setStringAsync(`${d.subject}\n\n${d.body}`).then(
+                      () => showToast(s.copied),
+                      (e) => showToast(errorText(e)),
+                    )
+                  }
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                  <Text style={styles.link}>{s.copy}</Text>
+                </Tap>
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -184,6 +292,12 @@ const styles = themed(() => ({
   draft: { gap: 4, padding: 12, borderRadius: radius.sm, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.hairline },
   draftSubject: { fontSize: 15, fontWeight: "700", color: colors.text },
   draftBody: { fontSize: 15, lineHeight: 21, color: colors.text },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
+  bodyInput: { minHeight: 140 },
+  inline: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 4 },
+  textButton: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: TOUCH },
+  week: { gap: 10 },
+  weekLabel: { fontSize: 13, fontWeight: "700", color: colors.muted, marginTop: 4 },
   why: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: TOUCH, alignSelf: "flex-start" },
   evidence: { gap: 6, paddingBottom: 4 },
   evRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },

@@ -58,6 +58,20 @@ export const approve = mutation({
   },
 });
 
+// The user rewrites a doctor message draft before approving it.
+export const editDraft = mutation({
+  args: { id: v.id("agentActions"), subject: v.string(), body: v.string() },
+  handler: async (ctx, { id, subject, body }) => {
+    const action = await ownProposal(ctx, await getAuthUserId(ctx), id);
+    if (action.details.kind !== "message_doctor") throw new Error("Only a message draft can be changed.");
+    const s = subject.trim().slice(0, 200);
+    const b = body.trim().slice(0, 4000);
+    if (!s || !b) throw new Error("The message needs a subject and some text.");
+    await ctx.db.patch("agentActions", id, { details: { ...action.details, subject: s, body: b } });
+    return null;
+  },
+});
+
 export const dismiss = mutation({
   args: { id: v.id("agentActions") },
   handler: async (ctx, { id }) => {
