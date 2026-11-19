@@ -314,6 +314,7 @@ When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps
 - **Model and summaries:** `get_symptom_journal` gives the model the same summaries, patterns and entries; visit summaries include them. The journal can be deleted from "What Wellnest knows about me".
 
 ## The chat
+- **Header and check-in:** the header is one line (the name, with "not a doctor" beside it). Today's check-in sits above the messages as one line, "How's today?", that opens into the faces when tapped. On an empty chat the big mic records, like the one by the message box.
 - **Message box:** grows with the message up to about five lines, then scrolls. On a computer Enter sends and Shift+Enter starts a new line; on a phone the return key adds a line and the arrow sends.
 - **Scrolling:** new messages scroll into view only when you are already at the bottom. Scrolled up, a **New messages** button appears instead, and sending a message always returns to the bottom.
 - **Days and times:** a divider names each day (Today, Yesterday, or the date), and the time shows under the last message of each run (one side, within 5 minutes).
@@ -386,7 +387,7 @@ The **Care** tab (Health tools) lists the nearest urgent care, ERs, pharmacies o
 - **Model:** `find_care` gives the same list as Markdown with `tel:` call links and directions links. Urgent messages are told to call it (ER for anything life-threatening, otherwise urgent care) instead of searching the web. The app's Markdown opens `tel:` links; Telegram shows the number as text.
 
 ## Daily check-in
-"How's today?": mood, energy and sleep quality, 1-5, one tap each (`dailyLogs`). Each row has its icon and names the two ends of its scale (low to great, drained to full, badly to very well). The card sits above the chat until it's answered or "Not today", and stays in the Journal tab to change answers. Saying "I'm wiped out" or "slept great" in chat fills it in too (`log_how_i_feel`). The Journal tab charts the three over 14, 30 or 90 days, and patterns compare mood and energy with sleep, activity and period days (at least 3 days each side, a 1-point gap).
+"How's today?": mood, energy and sleep quality, 1-5, one tap each (`dailyLogs`). Each row has its icon and names the two ends of its scale (low to great, drained to full, badly to very well). In the chat it is one line above the messages, opening into the card, until it's answered or "Not today", and stays in the Journal tab to change answers. Saying "I'm wiped out" or "slept great" in chat fills it in too (`log_how_i_feel`). The Journal tab charts the three over 14, 30 or 90 days, and patterns compare mood and energy with sleep, activity and period days (at least 3 days each side, a 1-point gap).
 
 ## Condition trackers
 Pain / CRPS, asthma, seizures, and glucose, each with its own fields, in the Journal tab (`trackerEntries`; several entries a day are fine):
