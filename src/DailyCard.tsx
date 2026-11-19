@@ -1,6 +1,6 @@
 // "How's today?": mood, energy and sleep quality in one tap each (convex/daily.ts), each row with its icon and the two
-// ends of its scale named under the faces. In the chat it shows until today is answered or skipped; in the Journal tab
-// it's always there to change today's answers.
+// ends of its scale named under the faces. In the chat it's one line above the messages until today is answered or
+// skipped, opening into the card when tapped; in the Journal tab and on the dashboard it's always the full card.
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Tap } from "./Tap";
@@ -11,6 +11,7 @@ import { colors, radius, scaleColor, themed, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { TapBars } from "./TapBars";
 import { formatDate } from "./format";
+import { Reveal, SwapIcon } from "./Motion";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
 const KEYS = ["mood", "energy", "sleepQuality"] as const;
@@ -26,9 +27,31 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
   const today = useQuery(api.daily.today, { date });
   const log = useMutation(api.daily.log);
   const skip = useMutation(api.daily.skip);
+  const [open, setOpen] = useState(false);
   if (!today) return null;
   const answered = KEYS.every((k) => today[k] !== null);
   if (inChat && (answered || today.skipped)) return null;
+  // In the chat: one line, so the messages keep the room.
+  if (inChat && !flush) {
+    const done = KEYS.filter((k) => today[k] !== null).length;
+    return (
+      <View style={[styles.line, styles.inChat]}>
+        <Tap style={styles.lineHead} onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+          <Ionicons name="sunny-outline" size={18} color={colors.primary} />
+          <Text style={styles.lineTitle} numberOfLines={1}>
+            {s.dailyTitle}
+            {done ? <Text style={styles.lineSub}> · {done}/3</Text> : null}
+          </Text>
+          <SwapIcon id={open ? "up" : "down"}>
+            <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+          </SwapIcon>
+        </Tap>
+        <Reveal open={open}>
+          <DailyCardView s={s} values={today} onPick={(k, v) => void log({ [k]: v, date })} onSkip={() => void skip()} bare />
+        </Reveal>
+      </View>
+    );
+  }
   return (
     <DailyCardView
       s={s}
@@ -43,18 +66,20 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
 export type DailyKey = (typeof KEYS)[number];
 
 // The card itself, from values passed in (the public demo keeps its answers on the page).
-export function DailyCardView({ s, values, onPick, onSkip, inset = false }: {
+// `bare`: inside the chat's one-line check-in, which has its own title and frame.
+export function DailyCardView({ s, values, onPick, onSkip, inset = false, bare = false }: {
   s: Strings;
   values: Record<DailyKey, number | null>;
   onPick: (k: DailyKey, v: number) => void;
   onSkip?: () => void;
   inset?: boolean;
+  bare?: boolean;
 }) {
   const label = { mood: s.dailyMood, energy: s.dailyEnergy, sleepQuality: s.dailySleep };
   const ends = { mood: [s.dailyMoodLow, s.dailyMoodHigh], energy: [s.dailyEnergyLow, s.dailyEnergyHigh], sleepQuality: [s.dailySleepLow, s.dailySleepHigh] };
   return (
-    <View style={[styles.card, inset && styles.inChat]}>
-      <Text style={styles.title}>{s.dailyTitle}</Text>
+    <View style={bare ? styles.bare : [styles.card, inset && styles.inChat]}>
+      {!bare && <Text style={styles.title}>{s.dailyTitle}</Text>}
       {KEYS.map((k) => (
         <View key={k} style={styles.row}>
           <View style={styles.labelRow}>
@@ -130,6 +155,11 @@ const styles = themed(() => ({
   card: { ...ui.card, padding: 12, gap: 6 },
   inChat: { margin: 12, marginBottom: 0, maxWidth: 736, width: "100%", alignSelf: "center" },
   title: { fontSize: 15, fontWeight: "700", color: colors.text },
+  line: { ...ui.card, paddingHorizontal: 12, paddingVertical: 2 },
+  lineHead: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: TOUCH },
+  lineTitle: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "600" },
+  lineSub: { color: colors.muted, fontWeight: "400" },
+  bare: { gap: 6, paddingBottom: 6 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   labelRow: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   label: { color: colors.text, fontSize: 14, flexShrink: 1 },
