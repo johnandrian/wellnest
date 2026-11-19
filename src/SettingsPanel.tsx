@@ -12,7 +12,7 @@ import { Reveal, SwapIcon } from "./Motion";
 import { HealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { Lang, LANGUAGE_NAMES, Strings } from "./i18n";
-import { pushSupported } from "./push";
+import { pushSupported, useBrowserPush } from "./push";
 import { AppLockSetting } from "./AppLock";
 
 export type SettingsMe = {
@@ -155,6 +155,7 @@ export function SettingsPanel({
   const saveLocation = () => {
     if (location.trim() !== me.location) void setLocation({ location });
   };
+  const browserPush = useBrowserPush();
   const createLinkUrl = useMutation(api.telegram.createLinkUrl);
   const { signOut } = useAuthActions();
   const [error, setError] = useState<string | null>(null);
@@ -257,6 +258,8 @@ export function SettingsPanel({
       </Group>
 
       <Group title={s.settingsNotifications}>
+        {browserPush?.state === "off" && <Button label={s.browserPushOn} onPress={() => void browserPush.enable().catch((e) => setError(errorText(e)))} />}
+        {browserPush?.state === "blocked" && <Text style={styles.settingHint}>{s.browserPushBlocked}</Text>}
         {pushSupported &&
           (["reminders", "appointments"] as const).map((kind) => (
             <Toggle
