@@ -16,7 +16,7 @@ import { HomePanel } from "./HomePanel";
 import { JournalPanel } from "./JournalPanel";
 import { MedicationsPanel } from "./MedicationsPanel";
 import { VisitsPanel } from "./VisitsPanel";
-import { VisitPanel } from "./VisitPanel";
+import { SharePanel } from "./SharePanel";
 import { CarePanel } from "./CarePanel";
 import { ExercisePanel } from "./ExercisePanel";
 import { RecordsPanel } from "./RecordsPanel";
@@ -182,7 +182,7 @@ export function HubPanel({
             }}
           />
         )}
-        {tab === "visit" && <VisitPanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
+        {tab === "visit" && <SharePanel s={s} initialReason={summaryReason} key={summaryReason ?? ""} />}
         {tab === "records" && <RecordsPanel s={s} />}
         {tab === "care" && <CarePanel s={s} />}
         {tab === "circle" && <CirclePanel s={s} />}

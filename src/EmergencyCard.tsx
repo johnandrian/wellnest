@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import { colors, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
-import { shareUrl } from "./ShareCard";
+import { shareUrl } from "./ShareParts";
 import { errorText, showToast } from "./feedback";
 import { useInsets } from "./safeArea";
 
