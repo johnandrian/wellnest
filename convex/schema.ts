@@ -267,6 +267,7 @@ export default defineSchema({
     symptom: v.string(), // normalized: lower case, singular ("headache")
     severity: v.optional(v.number()), // 0-10
     note: v.optional(v.string()),
+    time: v.optional(v.string()), // "14:30" local, when the user gave one
     source: entrySource,
   }).index("by_user_and_date", ["userId", "date"]),
 
