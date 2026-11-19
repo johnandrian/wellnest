@@ -24,6 +24,7 @@ import { CirclePanel } from "./CirclePanel";
 import { AgentPanel } from "./AgentPanel";
 import { Enter, SwapIcon } from "./Motion";
 import { barTop, useInsets } from "./safeArea";
+import { useNow } from "./useNow";
 
 export type ToolTab = "journal" | "reminders" | "exercise" | "visits" | "visit" | "records" | "care" | "circle" | "agent";
 // "prep" opens Visits on its Prep view.
@@ -52,8 +53,8 @@ export const GROUPS: { key: GroupKey; icon: IconName; label: (s: Strings) => str
 export const groupOf = (tab: ToolTab) => GROUPS.find((g) => g.tools.includes(tab))!;
 const toolOf = (tab: ToolTab) => TOOLS.find((t) => t.tab === tab)!;
 
-export function greeting(s: Strings, name: string | null) {
-  const h = new Date().getHours();
+export function greeting(s: Strings, name: string | null, at = Date.now()) {
+  const h = new Date(at).getHours();
   const hi = h < 12 ? s.greetMorning : h < 18 ? s.greetAfternoon : s.greetEvening;
   return name ? `${hi}, ${name.split(" ")[0]}` : hi;
 }
@@ -79,6 +80,8 @@ export function HubPanel({
   // "Make a visit summary" on an appointment opens the summary tab with its title as the reason.
   const [summaryReason, setSummaryReason] = useState<string | undefined>(undefined);
   const me = useQuery(api.chat.me);
+  // The date and greeting move on at midnight and through the day while the screen stays open.
+  const now = useNow();
   const tool = TOOLS.find((t) => t.tab === (tab === "prep" ? "visits" : tab));
   const waiting = useQuery(api.agent.waiting);
   const group = tool ? groupOf(tool.tab) : null;
@@ -107,10 +110,10 @@ export function HubPanel({
           )}
           <View style={styles.titles}>
             <Text style={styles.kicker} numberOfLines={1}>
-              {tool ? s.dashboard : new Date().toLocaleDateString(s.locale, { weekday: "long", month: "long", day: "numeric" })}
+              {tool ? s.dashboard : new Date(now).toLocaleDateString(s.locale, { weekday: "long", month: "long", day: "numeric" })}
             </Text>
             <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
-              {tool ? tool.label(s) : greeting(s, me?.name ?? null)}
+              {tool ? tool.label(s) : greeting(s, me?.name ?? null, now)}
             </Text>
           </View>
           <Tap style={styles.round} onPress={onSettings} accessibilityRole="button" accessibilityLabel={settingsOpen ? s.closeSettings : s.settings}>
