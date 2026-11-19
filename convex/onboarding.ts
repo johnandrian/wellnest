@@ -4,7 +4,8 @@
 // contacts, and finishing, which posts a welcome in the chat the first time. Existing accounts see it once too.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation, MutationCtx, query } from "./_generated/server";
+import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { ageRange, FACT_PREFIX, focus, sex, welcomeText } from "./lib/onboarding";
 import { langOf } from "./lib/language";
 import { insertFact } from "./me";
@@ -31,6 +32,7 @@ export const state = query({
     const meds = await ctx.db.query("medications").withIndex("by_user_and_active", (q) => q.eq("userId", userId).eq("active", true)).take(20);
     return {
       done: !!user.onboardedAt,
+      profileDone: !!user.profileDoneAt,
       name: user.profile?.name ?? "",
       ageRange: user.profile?.ageRange ?? null,
       sex: user.profile?.sex ?? null,
@@ -125,6 +127,28 @@ export const finish = mutation({
     await ctx.db.patch(userId, { onboardedAt: Date.now() });
   },
 });
+
+// The rest of the profile (name, conditions, city, phone health data, check-ins) was finished, or put off with "Not
+// now" on the dashboard card. Either way the card goes away; Settings can still redo all of setup.
+export const finishProfile = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await me(ctx);
+    await ctx.db.patch(userId, { profileDoneAt: Date.now() });
+  },
+});
+
+// What the dashboard's "Finish your profile" card lists, or null when there's nothing left to ask.
+export async function profileMissing(ctx: QueryCtx, user: Doc<"users">): Promise<("about" | "conditions" | "city")[] | null> {
+  if (!user.onboardedAt || user.profileDoneAt) return null;
+  const facts = await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", user._id)).first();
+  const missing = [
+    ...(!user.profile?.name ? (["about"] as const) : []),
+    ...(!facts ? (["conditions"] as const) : []),
+    ...(!user.location ? (["city"] as const) : []),
+  ];
+  return missing.length ? missing : null;
+}
 
 // The first-time tour (src/Tour.tsx) was finished or skipped; it can be watched again from Settings.
 export const tourDone = mutation({

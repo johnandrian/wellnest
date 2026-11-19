@@ -97,6 +97,7 @@ export function demoData(s: Strings, now: number): { data: DashboardData; insigh
   return {
     data: {
       name: s.demoName,
+      finishProfile: null,
       charts: [
         chart("pain", s.demoPain, "/10", 10, pain),
         chart("mood", s.dailyMood, "/5", 5, mood),

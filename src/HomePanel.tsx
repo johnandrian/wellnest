@@ -6,12 +6,12 @@ import { MedBand, MedLegend, MedPins, TrendDot } from "./ChartMarks";
 import { ReactNode, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../convex/_generated/api";
 import { Tap } from "./Tap";
 import { Icon, IconName, METRIC_ICON } from "./Icon";
-import { colors, kicker, radius, scaleColor, themed, tint, ui } from "./theme";
+import { colors, kicker, radius, scaleColor, themed, tint, TOUCH, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
@@ -23,6 +23,7 @@ import { axisDay, formatDate } from "./format";
 import { TapBars } from "./TapBars";
 import { useNow } from "./useNow";
 import { EmergencyFull } from "./EmergencyCard";
+import { useOpenSetup } from "./setup";
 
 // Questions show on the dashboard in the week before an appointment.
 const QUESTIONS_DAYS = 7;
@@ -77,6 +78,7 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
       checkin={<DailyCard s={s} inChat flush />}
       doses={<TodayDoses s={s} compact />}
       waiting={waiting}
+      profile={data.finishProfile ? <FinishProfile missing={data.finishProfile} s={s} /> : null}
       emergency={
         plan?.exists ? (
           <>
@@ -108,6 +110,8 @@ export function DashboardView(p: {
   waiting?: { count: number; urgent: boolean };
   // A button that opens the emergency plan full screen, when there is one.
   emergency?: ReactNode;
+  // "Finish your profile", while parts of setup are still to do.
+  profile?: ReactNode;
   demo?: boolean;
   header?: ReactNode;
 }) {
@@ -181,6 +185,7 @@ export function DashboardView(p: {
         </Enter>
       )}
 
+      {p.profile}
       {p.emergency}
       {p.doses}
 
@@ -396,6 +401,32 @@ function Stat(p: {
 // Read when drawing, so it follows the theme.
 const bad = () => ({ better: colors.primary, worse: colors.danger, same: colors.muted });
 
+// The parts of setup the first run left out, as one card: open them, or put them off for good ("Not now").
+function FinishProfile({ missing, s }: { missing: ("about" | "conditions" | "city")[]; s: Strings }) {
+  const open = useOpenSetup();
+  const notNow = useMutation(api.onboarding.finishProfile);
+  const parts = { about: s.homeProfileAbout, conditions: s.homeProfileConditions, city: s.homeProfileCity };
+  return (
+    <Enter style={styles.profile}>
+      <View style={styles.trendHead}>
+        <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
+          <Ionicons name="person-circle-outline" size={20} color={colors.primary} />
+        </View>
+        <Text style={styles.trendTitle}>{s.homeFinishProfile}</Text>
+      </View>
+      <Text style={styles.small}>{s.homeFinishProfileBody.replace("{list}", missing.map((m) => parts[m]).join(", "))}</Text>
+      <View style={styles.profileButtons}>
+        <Tap style={ui.button} onPress={() => open("rest")} accessibilityRole="button">
+          <Text style={styles.profileButtonText}>{s.homeFinishNow}</Text>
+        </Tap>
+        <Tap style={styles.profileLater} onPress={() => void notNow({})} accessibilityRole="button">
+          <Text style={styles.seeAllText}>{s.homeNotNow}</Text>
+        </Tap>
+      </View>
+    </Enter>
+  );
+}
+
 // Also shown read only to Care Circle members (src/CirclePanel.tsx), without onPress.
 export function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: Strings; wide: boolean; wider: boolean; onPress?: () => void }) {
   const t = trend(chart);
@@ -542,6 +573,10 @@ const styles = themed(() => ({
   seeAll: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 44, paddingHorizontal: 4, marginTop: 8 },
   seeAllText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   trend: { ...ui.card, padding: 12, gap: 8 },
+  profile: { ...ui.card, padding: 14, gap: 10 },
+  profileButtons: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  profileButtonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
+  profileLater: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 8 },
   trendTop: { gap: 8 },
   trendHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   trendTitle: { flex: 1, fontSize: 15, fontWeight: "700", color: colors.text },

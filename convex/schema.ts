@@ -109,6 +109,7 @@ export default defineSchema({
     checkins: v.optional(v.boolean()),
     // Account setup (convex/onboarding.ts): when it was finished, what to call them, and what they use Wellnest for.
     onboardedAt: v.optional(v.number()),
+    profileDoneAt: v.optional(v.number()), // the rest of the profile was finished, or "Not now" on its dashboard card
     // The first-time tour of the app (src/Tour.tsx): when it was finished or skipped.
     touredAt: v.optional(v.number()),
     profile: v.optional(profile),
