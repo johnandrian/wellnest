@@ -60,8 +60,9 @@ const LINKS_PROMPT = `After your reply, the app shows the user Amazon and Walmar
 type Analysis = "none" | "offer" | "run";
 
 export const respond = internalAction({
-  args: { messageId: v.id("messages") },
-  handler: async (ctx, { messageId }) => {
+  // `run`: which try this is (chat.retry starts another).
+  args: { messageId: v.id("messages"), run: v.optional(v.number()) },
+  handler: async (ctx, { messageId, run }) => {
     const message = await ctx.runQuery(internal.pipeline.getMessage, { messageId });
     if (!message) return;
     const { userId } = message;
@@ -78,6 +79,7 @@ export const respond = internalAction({
     let links: string | undefined; // the shopper's store links, saved as their own message after the reply
     const charts: Chart[] = []; // drawn with show_chart, shown under the reply
     let urgent = false;
+    let failed = false;
     try {
       // 1. Recent chat goes to the model as-is.
       const history = await ctx.runQuery(internal.pipeline.recent, { userId, limit: HISTORY_LIMIT });
@@ -367,9 +369,13 @@ export const respond = internalAction({
     } catch (e) {
       console.error("pipeline failed", e);
       reply = t(langOf(user), "failed");
+      failed = true;
     }
 
     await ctx.runMutation(internal.pipeline.saveReply, {
+      replyTo: messageId,
+      run: run ?? 0,
+      failed,
       userId,
       text: reply,
       extra: links,
@@ -636,8 +642,21 @@ export const saveReply = internalMutation({
     channel,
     urgent: v.boolean(),
     heard: v.optional(v.string()), // the transcript, when the user asked by Telegram voice note
+    // The message this answers and which try: dropped if the user tapped Stop or a newer try started.
+    replyTo: v.optional(v.id("messages")),
+    run: v.optional(v.number()),
+    failed: v.optional(v.boolean()),
   },
-  handler: async (ctx, { extra, heard, charts, ...args }) => {
+  handler: async (ctx, { extra, heard, charts, replyTo, run, failed, ...args }) => {
+    if (replyTo) {
+      const asked = await ctx.db.get(replyTo);
+      if (!asked || asked.stopped || (asked.run ?? 0) !== (run ?? 0)) return;
+    }
+    if (failed) {
+      await insertMessage(ctx, { ...args, role: "assistant", failed: true });
+      if (args.channel === "telegram") await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, { userId: args.userId, text: args.text });
+      return;
+    }
     // Two messages in the app; one Telegram message so they can't arrive out of order.
     await saveAssistantReply(ctx, { ...args, charts }, false);
     if (extra) await saveAssistantReply(ctx, { ...args, text: extra, urgent: false, kind: "links" }, false);

@@ -171,6 +171,12 @@ export default defineSchema({
     // Charts the model drew with show_chart, shown under the reply (convex/insights.ts).
     charts: v.optional(v.array(chartValidator)),
     appointmentId: v.optional(v.id("appointments")),
+    // A reply that couldn't be written (the model was down): the app offers Try again (chat.retry).
+    failed: v.optional(v.boolean()),
+    // On a user message: Stop was tapped before the reply came (chat.stop), so that reply is dropped. `run` counts
+    // the tries, so a reply from an earlier try that arrives after Try again is dropped too.
+    stopped: v.optional(v.boolean()),
+    run: v.optional(v.number()),
     // On a reminder: which dose, and the user's Taken / Skip.
     reminder: v.optional(
       v.object({
