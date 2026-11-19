@@ -99,6 +99,7 @@ export function AppointmentCard({ id, s }: { id: Id<"appointments">; s: Strings 
 
 export function TelehealthCard({ s }: { s: Strings }) {
   const visit = useQuery(api.telehealth.current);
+  const available = useQuery(api.telehealth.available);
   const request = useMutation(api.telehealth.request);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
@@ -117,6 +118,8 @@ export function TelehealthCard({ s }: { s: Strings }) {
     }
   };
 
+  // Hidden until a provider is set up, but a visit already booked still shows.
+  if (!live && !available) return null;
   return (
     <View style={styles.card}>
       <View style={styles.row}>

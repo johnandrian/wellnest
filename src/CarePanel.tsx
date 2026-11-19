@@ -1,4 +1,4 @@
-// Care tab: telehealth video visits (./TelehealthCard), and nearby ERs, urgent care, pharmacies and doctors
+// Care tab: telehealth video visits when set up (./TelehealthCard), and nearby ERs, urgent care, pharmacies and doctors
 // (convex/care.ts, OpenStreetMap) with Call and Directions. In an emergency, call 911.
 import { useState } from "react";
 import { ActivityIndicator, Linking, Platform, ScrollView, Text, View } from "react-native";

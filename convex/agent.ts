@@ -8,6 +8,7 @@ import { internalAction, internalMutation, internalQuery, mutation, MutationCtx,
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { actionDetails, evidence, MAX_OPEN, OPEN } from "./lib/agent";
+import { telehealthOn } from "./lib/telehealth";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -192,7 +193,7 @@ export const proposeSamples = internalMutation({
         body: "Hi, my fasting glucose has been 168 to 181 mg/dL for the last three mornings, since my metformin dose changed on Nov 8. Should I adjust anything before my next visit?",
       },
     });
-    await ctx.db.insert("agentActions", {
+    if (telehealthOn()) await ctx.db.insert("agentActions", {
       ...base,
       title: "Find a video visit this week",
       reason: "Pain has been higher and sleep shorter for two weeks, and you have no visit booked.",
