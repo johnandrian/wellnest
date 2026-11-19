@@ -9,6 +9,7 @@ import { dailySeverity, dailySummary, patterns, summaries } from "./journal";
 import type { TrackerEntry } from "./trackers";
 import { entryLine, trackersText } from "./trackers";
 import { DEFAULT_UNITS, showGlucose, type Units } from "./units";
+import { telUrl } from "./phone";
 
 // Glucose bars: red under 70 or over 250 mg/dL, amber over 180, green in range.
 const glucoseBar = (mgdl: number) => (mgdl < 70 || mgdl > 250 ? "#B91C1C" : mgdl > 180 ? "#D97706" : "#81C9AA");
@@ -272,8 +273,10 @@ export function emergencyHtml(e: EmergencyPlanData, lang: Lang): string {
     );
   }
   if (e.contacts.length) {
+    const contact = (c: (typeof e.contacts)[number]) =>
+      `<li><b>${esc(c.name)}</b>${c.relation ? ` (${esc(c.relation)})` : ""}: <a href="${esc(telUrl(c.phone))}">${esc(c.phone)}</a></li>`;
     out.push(
-      `<h3>${H.contacts}</h3><ul>${e.contacts.map((c) => `<li><b>${esc(c.name)}</b>${c.relation ? ` (${esc(c.relation)})` : ""}: <a href="tel:${esc(c.phone.replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a></li>`).join("")}</ul>`,
+      `<h3>${H.contacts}</h3><ul>${e.contacts.map(contact).join("")}</ul>`,
     );
   }
   if (e.notes) out.push(`<p>${lines(e.notes)}</p>`);

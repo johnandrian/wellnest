@@ -50,6 +50,7 @@ import type * as lib_language from "../lib/language.js";
 import type * as lib_links from "../lib/links.js";
 import type * as lib_meds from "../lib/meds.js";
 import type * as lib_onboarding from "../lib/onboarding.js";
+import type * as lib_phone from "../lib/phone.js";
 import type * as lib_places from "../lib/places.js";
 import type * as lib_push from "../lib/push.js";
 import type * as lib_records from "../lib/records.js";
@@ -143,6 +144,7 @@ declare const fullApi: ApiFromModules<{
   "lib/links": typeof lib_links;
   "lib/meds": typeof lib_meds;
   "lib/onboarding": typeof lib_onboarding;
+  "lib/phone": typeof lib_phone;
   "lib/places": typeof lib_places;
   "lib/push": typeof lib_push;
   "lib/records": typeof lib_records;

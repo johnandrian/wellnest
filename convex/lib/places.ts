@@ -1,6 +1,7 @@
 // Nearby care from OpenStreetMap: Nominatim turns a saved location into coordinates, Overpass finds ERs, urgent
 // care, pharmacies and doctors around them. Free, no key; both ask for a descriptive User-Agent and light use.
 import { v } from "convex/values";
+import { telUrl } from "./phone";
 
 export const careKind = v.union(v.literal("er"), v.literal("urgent_care"), v.literal("pharmacy"), v.literal("doctor"));
 export type CareKind = "er" | "urgent_care" | "pharmacy" | "doctor";
@@ -119,7 +120,6 @@ export async function nearby(kind: CareKind, lat: number, lon: number): Promise<
 
 export const directionsUrl = (p: { lat: number; lon: number }) =>
   `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
-export const telUrl = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 
 const LABELS: Record<CareKind, string> = { er: "emergency rooms", urgent_care: "urgent care", pharmacy: "pharmacies", doctor: "clinics and doctors" };
 

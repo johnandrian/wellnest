@@ -17,6 +17,7 @@ import { colors, radius, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { errorText, showToast } from "./feedback";
 import { TrendCard } from "./HomePanel";
+import { telUrl } from "../convex/lib/phone";
 
 type Alerts = { missedDoses: boolean; forecast: boolean; urgent?: boolean; quiet?: boolean };
 type AlertKind = keyof Alerts;
@@ -242,7 +243,7 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
                     <Text style={styles.body}>{c.name}</Text>
                     {!!c.relation && <Text style={styles.small}>{c.relation}</Text>}
                   </View>
-                  <Tap style={styles.callButton} onPress={() => void Linking.openURL(`tel:${c.phone}`)} accessibilityRole="button" accessibilityLabel={`${s.circleCall} ${c.name}`}>
+                  <Tap style={styles.callButton} onPress={() => void Linking.openURL(telUrl(c.phone))} accessibilityRole="button" accessibilityLabel={`${s.circleCall} ${c.name}`}>
                     <Ionicons name="call-outline" size={16} color={colors.onPrimary} />
                     <Text style={styles.buttonText}>{s.circleCall}</Text>
                   </Tap>
