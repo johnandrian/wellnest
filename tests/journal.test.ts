@@ -76,6 +76,27 @@ describe("journal entries", () => {
     await expect(as.mutation(api.journal.add, { symptom: "  " })).rejects.toThrow(/Say which symptom/);
   });
 
+  test("an earlier day and a time can be given, and an entry can be changed", async () => {
+    const t = setup();
+    const a = await createAppUser(t, "a@example.com");
+    const b = await createAppUser(t, "b@example.com");
+    await a.as.mutation(api.journal.add, { symptom: "nausea", severity: 5, date: "2026-10-20", time: "7:30" });
+    await a.as.mutation(api.journal.add, { symptom: "headache", severity: 3, date: "2026-10-21" });
+    let [nausea, headache] = await entriesOf(t);
+    expect([nausea.date, nausea.time]).toEqual(["2026-10-20", "07:30"]);
+
+    // A new day, severity cleared, note added, time removed.
+    await a.as.mutation(api.journal.update, { id: nausea._id, date: "2026-10-22", severity: null, note: "after breakfast", time: "" });
+    [nausea] = await entriesOf(t);
+    expect([nausea.date, nausea.severity, nausea.note, nausea.time]).toEqual(["2026-10-22", undefined, "after breakfast", undefined]);
+
+    // Not onto a day that already has that symptom, not into the future, and not someone else's.
+    await expect(a.as.mutation(api.journal.update, { id: nausea._id, symptom: "headache", date: "2026-10-21" })).rejects.toThrow(/already has this symptom/);
+    await expect(a.as.mutation(api.journal.update, { id: headache._id, date: "2027-01-01" })).rejects.toThrow(/up to today/);
+    await expect(a.as.mutation(api.journal.update, { id: headache._id, time: "25:00" })).rejects.toThrow(/08:00/);
+    await expect(b.as.mutation(api.journal.update, { id: headache._id, severity: 9 })).rejects.toThrow(/Not found/);
+  });
+
   test("future dates fall back to today; only the owner can remove", async () => {
     const t = setup();
     const a = await createAppUser(t, "a@example.com");

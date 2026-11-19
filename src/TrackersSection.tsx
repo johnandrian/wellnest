@@ -7,12 +7,13 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { colors, themed, TOUCH, ui, radius } from "./theme";
+import { colors, severityColor, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { Icon } from "./Icon";
 import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } from "../convex/lib/units";
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 import { formatDateTime } from "./format";
+import { SeverityScale } from "./SeverityScale";
 
 type Tracker = "pain" | "asthma" | "seizure" | "glucose";
 const GLUCOSE_CONTEXTS = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
@@ -24,7 +25,6 @@ const SYMPTOMS = ["wheeze", "cough", "chest_tightness", "breathless"] as const;
 const SEIZURE_TYPES = ["focal_aware", "focal_impaired", "tonic_clonic", "absence", "myoclonic", "atonic", "unknown"] as const;
 const PAIN_FLAGS = ["flare", "swelling", "colourChange", "temperatureChange", "touchSensitive"] as const;
 const numOrUndef = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
-const sevColor = (n: number) => (n >= 7 ? colors.danger : n >= 4 ? colors.amber : colors.mint);
 
 function Chips<T extends string>({ items, selected, onToggle, label }: { items: readonly T[]; selected: T[]; onToggle: (x: T) => void; label: (x: T) => string }) {
   return (
@@ -210,15 +210,9 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
 
       {tracker === "pain" && (
         <View style={styles.form}>
-          {painByDay.size > 0 && <DayBars days={days} values={painByDay} max={10} color={sevColor} />}
+          {painByDay.size > 0 && <DayBars days={days} values={painByDay} max={10} color={severityColor} />}
           <Text style={styles.label}>{s.trkPainScore}</Text>
-          <View style={styles.chips}>
-            {Array.from({ length: 11 }, (_, n) => (
-              <Tap key={n} style={[styles.sev, severity === n && { backgroundColor: sevColor(n), borderColor: sevColor(n) }]} onPress={() => setSeverity(severity === n ? null : n)} accessibilityRole="radio" accessibilityLabel={`${n}/10`} accessibilityState={{ selected: severity === n }}>
-                <Text style={[styles.sevText, severity === n && styles.sevOn]}>{n}</Text>
-              </Tap>
-            ))}
-          </View>
+          <SeverityScale value={severity} onChange={setSeverity} label={s.trkPainScore} s={s} />
           <Text style={styles.label}>{s.trkWhere}</Text>
           <Chips items={LOCATIONS} selected={locations as (typeof LOCATIONS)[number][]} onToggle={(x) => setLocations(toggle(locations, x))} label={(x) => s[`loc_${x}`]} />
           <Text style={styles.label}>{s.trkFeelsLike}</Text>
@@ -360,9 +354,6 @@ const styles = themed(() => ({
   attackText: { color: colors.danger, fontWeight: "700" },
   tbtn: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 5 },
   count: { fontSize: 12, color: colors.muted },
-  sev: { width: 28, height: 28, borderRadius: 21, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
-  sevText: { fontSize: 13, color: colors.text },
-  sevOn: { color: colors.onPrimary, fontWeight: "700" },
   inline: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, minWidth: 0 },
   short: { width: 72, textAlign: "center" },

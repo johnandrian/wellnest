@@ -1,5 +1,6 @@
-// Symptom journal (convex/lib/journal.ts): the model logs symptoms from chat with log_symptom, the user adds or
-// removes entries in the Journal tab, and `view` gives the tab its charts and patterns.
+// Symptom journal (convex/lib/journal.ts): the model logs symptoms from chat with log_symptom, the user adds, edits,
+// or removes entries in the Journal tab (any past day, with an optional time), and `view` gives the tab its charts and
+// patterns.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
@@ -9,7 +10,7 @@ import { isDate } from "./lib/health";
 import { painAsEntries } from "./lib/trackers";
 import { trackersSince } from "./trackers";
 import { adherence } from "./exercises";
-import { zoneOffsetMin } from "./lib/reminders";
+import { normalizeTime, zoneOffsetMin } from "./lib/reminders";
 
 const MAX_ROWS = 1000;
 
@@ -22,7 +23,7 @@ export function localToday(user: Doc<"users"> | null, now = Date.now()) {
 async function addEntry(
   ctx: MutationCtx,
   userId: Id<"users">,
-  args: { symptom: string; severity?: number; note?: string; date?: string; source: "chat" | "manual" | "checkin" },
+  args: { symptom: string; severity?: number; note?: string; date?: string; time?: string; source: "chat" | "manual" | "checkin" },
 ): Promise<{ id: Id<"symptomEntries">; date: string; symptom: string } | { error: string }> {
   const symptom = normalizeSymptom(args.symptom);
   if (!symptom) return { error: "Say which symptom." };
@@ -36,23 +37,64 @@ async function addEntry(
   if (sameDay.length >= MAX_PER_DAY) return { error: `That day already has ${MAX_PER_DAY} entries.` };
   const severity = clampSeverity(args.severity);
   const note = args.note?.trim().slice(0, 300) || undefined;
+  const time = args.time ? (normalizeTime(args.time) ?? undefined) : undefined;
   // Same symptom again that day: update it instead of adding a second entry.
   const existing = sameDay.find((e) => e.symptom === symptom);
   if (existing) {
-    await ctx.db.patch(existing._id, { severity: severity ?? existing.severity, note: note ?? existing.note });
+    await ctx.db.patch(existing._id, { severity: severity ?? existing.severity, note: note ?? existing.note, time: time ?? existing.time });
     return { id: existing._id, date, symptom };
   }
-  const id = await ctx.db.insert("symptomEntries", { userId, date, symptom, severity, note, source: args.source });
+  const id = await ctx.db.insert("symptomEntries", { userId, date, symptom, severity, note, time, source: args.source });
   return { id, date, symptom };
 }
 
 export const add = mutation({
-  args: { symptom: v.string(), severity: v.optional(v.number()), note: v.optional(v.string()), date: v.optional(v.string()) },
+  args: { symptom: v.string(), severity: v.optional(v.number()), note: v.optional(v.string()), date: v.optional(v.string()), time: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const res = await addEntry(ctx, userId, { ...args, source: "manual" });
     if ("error" in res) throw new Error(res.error);
+  },
+});
+
+// Changing an entry from the Journal tab. `severity: null` and an empty note or time clear them.
+export const update = mutation({
+  args: {
+    id: v.id("symptomEntries"),
+    symptom: v.optional(v.string()),
+    severity: v.optional(v.union(v.number(), v.null())),
+    note: v.optional(v.string()),
+    date: v.optional(v.string()),
+    time: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, ...a }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    const row = await ctx.db.get(id);
+    if (!row || row.userId !== userId) throw new Error("Not found");
+    const symptom = a.symptom === undefined ? row.symptom : normalizeSymptom(a.symptom);
+    if (!symptom) throw new Error("Say which symptom.");
+    const today = localToday(await ctx.db.get(userId));
+    const date = a.date === undefined ? row.date : a.date;
+    if (!isDate(date) || date > today) throw new Error("Pick a day up to today.");
+    if (date !== row.date || symptom !== row.symptom) {
+      const there = await ctx.db
+        .query("symptomEntries")
+        .withIndex("by_user_and_date", (q) => q.eq("userId", userId).eq("date", date))
+        .take(MAX_PER_DAY);
+      if (there.some((e) => e._id !== id && e.symptom === symptom)) throw new Error("That day already has this symptom. Change that entry instead.");
+      if (date !== row.date && there.length >= MAX_PER_DAY) throw new Error(`That day already has ${MAX_PER_DAY} entries.`);
+    }
+    const time = a.time === undefined ? row.time : a.time.trim() ? normalizeTime(a.time) : undefined;
+    if (time === null) throw new Error("Times must look like 08:00 or 20:30.");
+    await ctx.db.patch(id, {
+      symptom,
+      date,
+      time,
+      severity: a.severity === undefined ? row.severity : (clampSeverity(a.severity ?? undefined) ?? undefined),
+      note: a.note === undefined ? row.note : a.note.trim().slice(0, 300) || undefined,
+    });
   },
 });
 
@@ -151,7 +193,7 @@ export const view = query({
         ...dailyPatterns(daily, health),
         ...(today && isDate(today) ? await adherence(ctx, userId, since, today).then((a) => exercisePatterns(entries, a.doneDates, a.missedDates)) : []),
       ],
-      recent: recent.map(({ _id, date, symptom, severity, note, source }) => ({ _id, date, symptom, severity: severity ?? null, note: note ?? null, source })),
+      recent: recent.map(({ _id, date, symptom, severity, note, time, source }) => ({ _id, date, symptom, severity: severity ?? null, note: note ?? null, time: time ?? null, source })),
     };
   },
 });
