@@ -384,8 +384,10 @@ The **Care** tab (Health tools) lists the nearest urgent care, ERs, pharmacies o
 Pain / CRPS, asthma, seizures, and glucose, each with its own fields, in the Journal tab (`trackerEntries`; several entries a day are fine):
 - **Pain / CRPS:** 0-10 score on the same scale as symptoms (`src/SeverityScale.tsx`), body areas, what it feels like (burning, stabbing...), how long, flare, swelling, colour or temperature change, pain on light touch, triggers and what helped. Pain scores also feed the journal's charts and patterns.
 - **Asthma:** peak flow against your personal best (the chart colours 80%+, 50-80% and under 50%), reliever puffs, preventer taken, symptoms (wheeze, cough, tight chest, short of breath), night symptoms, attacks and triggers.
+- **My asthma plan:** your best peak flow sits in a small plan card with its green (80%+), yellow (50-80%), and red (under 50%) zones in L/min and what to do in each, with a note to follow your doctor's plan if it differs.
 - **Seizures:** type, length, warning signs, triggers, rescue medication, recovery time and what a witness saw, with a reminder to call emergency services first when it's over 5 minutes.
 - **Glucose:** a finger-stick or meter reading in your unit (stored in mg/dL, 20-600) with when it was taken (fasting, before or after a meal, bedtime), a daily average chart, and a note that a sensor syncing to Apple Health or Health Connect fills in on its own. "Fasting sugar was 142" or "7.9 mmol/L after lunch" in chat logs it, with urgent advice for very low or very high readings.
+- **Logging and editing:** each form has a When row (day and time, never later than now) so an entry can be backdated. Tapping an entry opens it back in the form to change it (`trackers.update`), and past 15 entries a Show all link lists the rest.
 - **Chat:** "had a seizure, about 2 minutes, took my rescue med" or "back pain's a 7, burning down my left leg" → `log_condition_event`. The journal read, visit summaries and reports include the trackers.
 
 ## Exercise and physio

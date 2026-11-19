@@ -1,6 +1,7 @@
 // Condition trackers (convex/lib/trackers.ts): pain / CRPS, asthma (with a personal-best peak flow), seizures, and
 // glucose readings (stored in mg/dL).
-// Several entries a day are fine. Logged from the Journal tab or by the model (log_condition_event), charted in the
+// Several entries a day are fine, on any day up to today, and each can be changed later. Logged from the Journal tab
+// or by the model (log_condition_event), charted in the
 // Journal tab, and included in visit summaries, reports and the model's journal reads. Pain feeds the journal's
 // patterns as the "pain" symptom.
 import { v } from "convex/values";
@@ -40,6 +41,26 @@ type AddArgs = {
   glucose?: Partial<GlucoseDetails>;
   note?: string;
 };
+
+// One tracker's details, checked, as they're stored.
+function cleaned(a: AddArgs) {
+  if (a.tracker === "pain") {
+    const pain = cleanPain(a.pain ?? {});
+    if ("error" in pain) throw new Error(pain.error);
+    return { pain };
+  }
+  if (a.tracker === "asthma") {
+    const asthma = cleanAsthma(a.asthma ?? {});
+    if ("error" in asthma) throw new Error(asthma.error);
+    return { asthma };
+  }
+  if (a.tracker === "glucose") {
+    const glucose = cleanGlucose(a.glucose ?? {});
+    if ("error" in glucose) throw new Error(glucose.error);
+    return { glucose };
+  }
+  return { seizure: cleanSeizure(a.seizure ?? {}) };
+}
 
 async function addEntry(ctx: MutationCtx, userId: Id<"users">, a: AddArgs, source: "manual" | "chat") {
   const user = await ctx.db.get(userId);
@@ -84,6 +105,30 @@ export const add = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     return (await addEntry(ctx, userId, a, "manual")).id;
+  },
+});
+
+// Changing an entry from the Journal tab: its day and time, note, and details (all replaced, as the form sends them).
+export const update = mutation({
+  args: {
+    id: v.id("trackerEntries"),
+    date: v.string(),
+    at: v.number(),
+    pain: v.optional(painDetails),
+    asthma: v.optional(asthmaDetails),
+    seizure: v.optional(seizureDetails),
+    glucose: v.optional(glucoseDetails),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, date, at, note, ...details }) => {
+    const userId = await getAuthUserId(ctx);
+    const row = await ctx.db.get(id);
+    if (!userId || !row || row.userId !== userId) throw new Error("Not found");
+    const today = localToday(await ctx.db.get(userId));
+    if (!isDate(date) || date > today || at > Date.now() + 60_000) throw new Error("Pick a day and time up to now.");
+    const fields = cleaned({ tracker: row.tracker, ...details });
+    await ctx.db.patch(id, { date, at, note: note?.trim().slice(0, 500) || undefined, pain: undefined, asthma: undefined, seizure: undefined, glucose: undefined, ...fields });
+    if (row.tracker === "glucose") await ctx.scheduler.runAfter(0, internal.agentScan.afterGlucose, { userId });
   },
 });
 
