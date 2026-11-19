@@ -286,7 +286,7 @@ function VisitQuestions({ visit, s, onOpen, demo }: { visit: Visit; s: Strings; 
             <Text style={styles.askText}>{s.visitSuggestQuestions}</Text>
           </Tap>
         )}
-        <Tap style={styles.ask} onPress={() => onOpen("guides")} accessibilityRole="button">
+        <Tap style={styles.ask} onPress={() => onOpen("prep")} accessibilityRole="button">
           <Icon name="guides" size={16} color={colors.primary} />
           <Text style={styles.askText}>{s.homeChecklist}</Text>
         </Tap>
