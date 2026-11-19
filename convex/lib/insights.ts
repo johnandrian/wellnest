@@ -3,7 +3,7 @@
 // after a medication was started or its dose changed, and the series for charts in chat.
 // Pure functions; convex/insights.ts gathers the rows. Wording is in ./insightsText.ts.
 import { v } from "convex/values";
-import type { Entry, DailyLog } from "./journal";
+import { FOOD_TAGS, type Entry, type DailyLog, type FoodTag } from "./journal";
 import type { HealthDay } from "./health";
 import type { TrackerEntry } from "./trackers";
 import type { WeatherDay } from "./weather";
@@ -20,6 +20,7 @@ export type Outcome = { key: OutcomeKey; worse: "high" | "low" | "none"; min: nu
 // Things that might go with it. `lag` 1 means the day before counts (yesterday's steps, today's pain).
 export const FACTOR_KEYS = [
   "sleepHours", "sleepQuality", "steps", "restingHeartRate", "hrv", "period", "weightGain", "glucose", "fever",
+  "caffeine", "alcohol", "dairy", "gluten", "sugar", "spicy", "fried", "lateMeal", "skippedMeal",
   "tempMax", "humidity", "pressureDrop", "rain", "aqi", "pollen",
 ] as const;
 export type FactorKey = (typeof FACTOR_KEYS)[number];
@@ -129,6 +130,14 @@ export function outcomes(input: Inputs, dates: string[]): Outcome[] {
   return out;
 }
 
+const FOOD_KEY: Record<FoodTag, FactorKey> = {
+  alcohol: "alcohol", dairy: "dairy", gluten: "gluten", sugar: "sugar", spicy: "spicy", fried: "fried", late_meal: "lateMeal", skipped_meal: "skippedMeal",
+};
+// 1 on check-in days with that food, 0 on other days the food row was filled in (an empty list is "none of these").
+function foodSeries(input: Inputs, tag: FoodTag): Series {
+  return new Map(input.daily.flatMap((d): [string, number][] => (d.foods ? [[d.date, d.foods.includes(tag) ? 1 : 0]] : [])));
+}
+
 // 1 on days with a temperature of 38 °C or more in the tracker, 0 on other days with a temperature logged.
 function feverSeries(input: Inputs): Series {
   return maxBy(input.trackers.flatMap((e): [string, number][] => (e.temperature ? [[e.date, e.temperature.c >= FEVER_C ? 1 : 0]] : [])));
@@ -198,6 +207,8 @@ function factors(input: Inputs): Factor[] {
     { key: "weightGain", values: weightGain(weightSeries(input)), lag: 0, binary: true, step: 1 },
     { key: "glucose", values: glucoseSeries(input), lag: 0, step: 10 },
     { key: "fever", values: feverSeries(input), lag: 0, binary: true, step: 1 },
+    { key: "caffeine", values: new Map(input.daily.flatMap((d): [string, number][] => (d.caffeine === undefined ? [] : [[d.date, d.caffeine]]))), lag: 0, step: 1 },
+    ...FOOD_TAGS.map((tag): Factor => ({ key: FOOD_KEY[tag], values: foodSeries(input, tag), lag: tag === "alcohol" ? 1 : 0, binary: true, step: 1 })),
     { key: "tempMax", values: weather((w) => w.tempMax), lag: 0, step: 1 },
     { key: "humidity", values: weather((w) => w.humidity), lag: 0, step: 5 },
     { key: "pressureDrop", values: pressureDrop, lag: 0, binary: true, step: 1 },

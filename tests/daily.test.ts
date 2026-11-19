@@ -26,7 +26,7 @@ describe("daily check-in", () => {
     const { as } = await createAppUser(t);
     await as.mutation(api.daily.log, { mood: 4 });
     await as.mutation(api.daily.log, { energy: 2, sleepQuality: 9 });
-    expect(await as.query(api.daily.today, { date: "2026-11-02" })).toEqual({ mood: 4, energy: 2, sleepQuality: null, skipped: false });
+    expect(await as.query(api.daily.today, { date: "2026-11-02" })).toEqual({ mood: 4, energy: 2, sleepQuality: null, skipped: false, foods: null, caffeine: null });
     expect(await rows(t)).toHaveLength(1);
 
     vi.setSystemTime(NOW + 24 * 3_600_000);

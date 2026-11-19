@@ -266,6 +266,8 @@ export const respond = internalAction({
               energy: typeof args.energy === "number" ? args.energy : undefined,
               sleepQuality: typeof args.sleep_quality === "number" ? args.sleep_quality : undefined,
               note: typeof args.note === "string" ? args.note : undefined,
+              caffeine: typeof args.caffeine_drinks === "number" ? args.caffeine_drinks : undefined,
+              foods: Array.isArray(args.foods) ? args.foods.filter((f: unknown): f is string => typeof f === "string") : undefined,
             });
           }
           if (name === "log_symptom") {

@@ -1,19 +1,21 @@
-// The daily check-in: mood, energy and sleep quality on a 1-5 scale, once per local day. Logged from the card in the
-// chat and Journal tab, or by the model (log_how_i_feel) when the user says how they feel. Charted in the Journal tab
-// and used in patterns, reports and visit summaries (convex/lib/journal.ts).
+// The daily check-in: mood, energy and sleep quality on a 1-5 scale, once per local day, and optionally food and
+// drinks (FOOD_TAGS) and caffeine drinks. Logged from the card in the chat and Journal tab, or by the model
+// (log_how_i_feel) when the user says how they feel. Charted in the Journal tab and used in patterns, reports and visit
+// summaries (convex/lib/journal.ts).
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, mutation, MutationCtx, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { isDate } from "./lib/health";
 import { localToday } from "./journal";
+import { cleanCaffeine, cleanFoods } from "./lib/journal";
 
 const score = (n: unknown) => {
   const x = Math.round(Number(n));
   return Number.isFinite(x) && x >= 1 && x <= 5 ? x : undefined;
 };
 
-type DailyArgs = { mood?: number; energy?: number; sleepQuality?: number; note?: string; date?: string; skipped?: boolean };
+type DailyArgs = { mood?: number; energy?: number; sleepQuality?: number; note?: string; date?: string; skipped?: boolean; foods?: string[]; caffeine?: number };
 
 // Merges into today's row: a later answer fills in or replaces just the parts it gives.
 async function save(ctx: MutationCtx, userId: Id<"users">, args: DailyArgs, source: "card" | "chat") {
@@ -25,6 +27,8 @@ async function save(ctx: MutationCtx, userId: Id<"users">, args: DailyArgs, sour
     ...(score(args.energy) && { energy: score(args.energy) }),
     ...(score(args.sleepQuality) && { sleepQuality: score(args.sleepQuality) }),
     ...(args.note?.trim() && { note: args.note.trim().slice(0, 300) }),
+    ...(cleanFoods(args.foods) && { foods: cleanFoods(args.foods) }),
+    ...(cleanCaffeine(args.caffeine) !== undefined && { caffeine: cleanCaffeine(args.caffeine) }),
   };
   const existing = await ctx.db.query("dailyLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId).eq("date", date)).unique();
   if (!Object.keys(fields).length && !args.skipped) return { date, saved: false };
@@ -39,6 +43,8 @@ const args = {
   sleepQuality: v.optional(v.number()),
   note: v.optional(v.string()),
   date: v.optional(v.string()),
+  foods: v.optional(v.array(v.string())),
+  caffeine: v.optional(v.number()),
 };
 
 export const log = mutation({
@@ -68,8 +74,8 @@ export const today = query({
     if (!userId) return null;
     const row = await ctx.db.query("dailyLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId).eq("date", date)).unique();
     return row
-      ? { mood: row.mood ?? null, energy: row.energy ?? null, sleepQuality: row.sleepQuality ?? null, skipped: !!row.skipped }
-      : { mood: null, energy: null, sleepQuality: null, skipped: false };
+      ? { mood: row.mood ?? null, energy: row.energy ?? null, sleepQuality: row.sleepQuality ?? null, skipped: !!row.skipped, foods: row.foods ?? null, caffeine: row.caffeine ?? null }
+      : { mood: null, energy: null, sleepQuality: null, skipped: false, foods: null, caffeine: null };
   },
 });
 
@@ -77,7 +83,7 @@ export const fromChat = internalMutation({
   args: { userId: v.id("users"), ...args },
   handler: async (ctx, { userId, ...a }) => {
     const res = await save(ctx, userId, a, "chat");
-    if (!res.saved) return "Tool error: give at least one of mood, energy or sleep_quality (1-5).";
+    if (!res.saved) return "Tool error: give at least one of mood, energy or sleep_quality (1-5), caffeine_drinks, or foods.";
     return `Logged today's check-in (${res.date}). The user sees it in the Journal tab.`;
   },
 });

@@ -144,7 +144,7 @@ export async function dailySince(ctx: QueryCtx, userId: Id<"users">, since: stri
     .query("dailyLogs")
     .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
     .take(400);
-  return rows.filter((r) => !r.skipped).map(({ date, mood, energy, sleepQuality, note }) => ({ date, mood, energy, sleepQuality, note }));
+  return rows.filter((r) => !r.skipped).map(({ date, mood, energy, sleepQuality, note, foods, caffeine }) => ({ date, mood, energy, sleepQuality, note, foods, caffeine }));
 }
 
 export const dailyFrom = internalQuery({
