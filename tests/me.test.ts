@@ -138,6 +138,13 @@ describe("overview, export and deletion", () => {
       records: { n: 0, more: false },
       visits: { n: 0, more: false },
       careTeam: { n: 0, more: false },
+      trackers: { n: 0, more: false },
+      exercises: { n: 0, more: false },
+      checkins: { n: 0, more: false },
+      shareLinks: { n: 0, more: false },
+      circleMembers: { n: 0, more: false },
+      caringFor: { n: 0, more: false },
+      actions: { n: 0, more: false },
     });
     expect((await other.as.query(api.me.overview))!.counts.messages.n).toBe(0);
     expect(await t.query(api.me.overview)).toBeNull();
@@ -206,6 +213,52 @@ describe("overview, export and deletion", () => {
     });
     expect(Object.values(left).every((n) => n === 0)).toBe(true);
     expect((await other.as.query(api.me.overview))!.facts.map((f) => f.text)).toEqual(["Other's fact"]);
+  });
+
+  test("trackers, check-ins, exercises, the emergency plan, share links, the circle, and actions each have their own row", async () => {
+    const t = setup();
+    mockApis();
+    const { userId, as } = await createAppUser(t);
+    const sam = await createAppUser(t, "sam@example.com");
+    await as.mutation(api.journal.add, { symptom: "headache", severity: 4 });
+    await as.mutation(api.daily.log, { mood: 3 });
+    await as.mutation(api.exercises.add, { name: "Walk" });
+    const day = "2026-11-02";
+    await t.run(async (ctx) => {
+      await ctx.db.insert("trackerEntries", { userId, tracker: "pain", date: day, at: Date.now(), pain: { severity: 5, locations: [], types: [] }, source: "manual" });
+      await ctx.db.insert("emergencyPlans", { userId, sections: [], contacts: [] });
+      await ctx.db.insert("shareLinks", { userId, token: "t".repeat(32), sections: ["emergency"], rangeDays: 1, opens: 0 });
+      await ctx.db.insert("circleMembers", { ownerId: userId, memberId: sam.userId, alerts: { missedDoses: true, forecast: true } });
+      await ctx.db.insert("agentActions", { userId, status: "proposed", title: "x", reason: "y", evidence: [], urgent: false, details: { kind: "set_reminder", text: "z", at: 1 } });
+    });
+    const o = (await as.query(api.me.overview))!;
+    expect([o.counts.trackers.n, o.counts.checkins.n, o.counts.exercises.n, o.counts.shareLinks.n, o.counts.circleMembers.n, o.counts.actions.n, o.emergencyPlan]).toEqual([1, 1, 1, 1, 1, 1, true]);
+    const exported = JSON.parse(await as.action(api.me.exportData, {}));
+    expect(exported.shareLinks[0].token).toBeUndefined();
+    expect(exported.actions).toHaveLength(1);
+
+    // Deleting the trackers leaves the symptom journal and check-ins.
+    await as.mutation(api.me.deleteData, { category: "trackers" });
+    await settle(t);
+    let after = (await as.query(api.me.overview))!;
+    expect([after.counts.trackers.n, after.counts.journal.n, after.counts.checkins.n]).toEqual([0, 1, 1]);
+    for (const category of ["checkins", "exercises", "emergency", "shareLinks", "circle", "actions"] as const) {
+      await as.mutation(api.me.deleteData, { category });
+      await settle(t);
+    }
+    after = (await as.query(api.me.overview))!;
+    expect([after.counts.checkins.n, after.counts.exercises.n, after.counts.shareLinks.n, after.counts.circleMembers.n, after.counts.actions.n, after.emergencyPlan, after.counts.journal.n]).toEqual([0, 0, 0, 0, 0, false, 1]);
+    expect((await sam.as.query(api.circle.caringFor, {}))).toEqual([]);
+  });
+
+  test("delete everything also removes Action Inbox rows", async () => {
+    const t = setup();
+    mockApis();
+    const { userId, as } = await createAppUser(t);
+    await t.run((ctx) => ctx.db.insert("agentActions", { userId, status: "done", title: "x", reason: "y", evidence: [], urgent: false, details: { kind: "set_reminder", text: "z", at: 1 } }));
+    await as.mutation(api.me.deleteData, { category: "everything" });
+    await settle(t);
+    expect(await t.run((ctx) => ctx.db.query("agentActions").collect())).toEqual([]);
   });
 
   test("deletion needs sign-in", async () => {

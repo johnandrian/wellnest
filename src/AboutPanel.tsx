@@ -1,7 +1,7 @@
 // "What Wellnest knows about me" (convex/me.ts): saved facts (editable), everything stored, who sees what,
 // export, and deletion by category or of the whole account.
 import { useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,8 +11,25 @@ import { colors, themed, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { confirmAsk, errorText, removeWithUndo, useHidden } from "./feedback";
 import { formatDate } from "./format";
+import { saveTextFile } from "./saveFile";
 
-type Category = "chat" | "health" | "reminders" | "summaries" | "facts" | "journal" | "appointments" | "records" | "everything";
+type Category =
+  | "chat"
+  | "health"
+  | "reminders"
+  | "summaries"
+  | "facts"
+  | "journal"
+  | "appointments"
+  | "records"
+  | "trackers"
+  | "exercises"
+  | "checkins"
+  | "emergency"
+  | "shareLinks"
+  | "circle"
+  | "actions"
+  | "everything";
 
 
 const SHARING = ["shareCortex", "shareJina", "shareCartesia", "shareJev", "shareCreao", "shareTelehealth", "shareMaps", "shareTelegram"] as const;
@@ -57,17 +74,8 @@ export function AboutPanel({ s }: { s: Strings }) {
   });
 
   const download = () => run("export", async () => {
-    const json = await exportData();
-    if (Platform.OS === "web") {
-      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `wellnest-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } else {
-      await Share.share({ message: json, title: "Wellnest export" });
-    }
+    // A .json file: downloaded on the web, handed to the share sheet on phones (save to Files, AirDrop, email).
+    await saveTextFile(`wellnest-export-${new Date().toISOString().slice(0, 10)}.json`, await exportData(), "application/json", "public.json");
   });
 
   const remove = async (category: Category, what: string) => {
@@ -96,6 +104,9 @@ export function AboutPanel({ s }: { s: Strings }) {
     },
     { label: s.rowPhotos, value: count(counts.photos) },
     { label: s.rowJournal, value: count(counts.journal), category: counts.journal.n ? "journal" : undefined, what: s.whatJournal },
+    { label: s.rowTrackers, value: count(counts.trackers), category: counts.trackers.n ? "trackers" : undefined, what: s.whatTrackers },
+    { label: s.rowCheckins, value: count(counts.checkins), category: counts.checkins.n ? "checkins" : undefined, what: s.whatCheckins },
+    { label: s.rowExercises, value: count(counts.exercises), category: counts.exercises.n ? "exercises" : undefined, what: s.whatExercises },
     { label: s.rowAnalyses, value: count(counts.analyses) },
     {
       label: s.rowHealth,
@@ -117,6 +128,15 @@ export function AboutPanel({ s }: { s: Strings }) {
     },
     { label: s.rowSummaries, value: count(counts.summaries), category: counts.summaries.n ? "summaries" : undefined, what: s.whatSummaries },
     { label: s.rowRecords, value: count(counts.records), category: counts.records.n ? "records" : undefined, what: s.whatRecords },
+    { label: s.rowEmergency, value: data.emergencyPlan ? s.emergencySaved : s.none, category: data.emergencyPlan ? "emergency" : undefined, what: s.whatEmergency },
+    { label: s.rowShareLinks, value: count(counts.shareLinks), category: counts.shareLinks.n ? "shareLinks" : undefined, what: s.whatShareLinks },
+    {
+      label: s.rowCircle,
+      value: s.circleValue.replace("{m}", count(counts.circleMembers)).replace("{c}", count(counts.caringFor)),
+      category: counts.circleMembers.n || counts.caringFor.n ? "circle" : undefined,
+      what: s.whatCircle,
+    },
+    { label: s.rowActions, value: count(counts.actions), category: counts.actions.n ? "actions" : undefined, what: s.whatActions },
   ];
 
   return (
