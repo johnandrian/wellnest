@@ -129,6 +129,7 @@ describe("app chat", () => {
       airAlerts: true,
       units: { glucose: "mg/dL", weight: "lb" },
       location: "",
+      country: null,
       telegramLinked: false,
     });
   });

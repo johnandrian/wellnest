@@ -149,6 +149,8 @@ export const me = query({
       airAlerts: user.airAlerts ?? true,
       units: unitsOf(user),
       location: user.location ?? "",
+      // Where the saved location is, when the map knew: picks the emergency number (src/emergency.ts).
+      country: user.locationPoint?.for === user.location ? (user.locationPoint?.country ?? null) : null,
       telegramLinked: !!user.telegramChatId,
     };
   },

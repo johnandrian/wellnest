@@ -76,6 +76,19 @@ describe("care search", () => {
     expect(geocodeCalls(calls)).toHaveLength(2);
   });
 
+  test("the saved location's country comes from the map, for the emergency number", async () => {
+    const t = setup();
+    mockApis({ overpass: ELEMENTS, geocode: [{ lat: "37.98", lon: "23.72", display_name: "Athens, Greece", address: { city: "Athens", country: "Greece", country_code: "gr" } }] });
+    const { as } = await createAppUser(t);
+    await as.mutation(api.chat.setLocation, { location: "Athens" });
+    expect((await as.query(api.chat.me))!.country).toBeNull();
+    await as.action(api.care.search, { kind: "er" });
+    expect((await as.query(api.chat.me))!.country).toBe("GR");
+    // A new location that hasn't been looked up yet has no country.
+    await as.mutation(api.chat.setLocation, { location: "Boston" });
+    expect((await as.query(api.chat.me))!.country).toBeNull();
+  });
+
   test("the phone's location is used as is; map errors are friendly", async () => {
     const t = setup();
     const { calls } = mockApis({ overpass: new Error("timeout") });
