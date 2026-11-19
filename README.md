@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://talktothebeak.health"><img src="docs/button-try.svg" alt="Try it at talktothebeak.health" height="52"></a>
   &nbsp;
-  <a href="https://talktothebeak.health/demo"><img src="docs/button-demo.svg" alt="See an example dashboard" height="52"></a>
+  <a href="https://helpful-rat-671.convex.site/demo"><img src="docs/button-demo.svg" alt="See an example dashboard" height="52"></a>
   <br>
   <sub>The example dashboard needs no account.</sub>
   <br><br>
