@@ -1,8 +1,8 @@
 // Care circle (convex/circle.ts). Two sides on one screen: the people who invited you, each opening a read-only
-// view of how they're doing; and your own circle, where you invite family or carers with a one-time link, pick
+// view of how they're doing (with their trend charts and your own alert switches); and your own circle, where you invite family or carers with a one-time link, pick
 // which alerts each gets (missed doses, the flare forecast) and remove them.
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Linking, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, ScrollView, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import * as Print from "expo-print";
@@ -16,6 +16,7 @@ import { shareUrl } from "./ShareParts";
 import { colors, radius, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { errorText, showToast } from "./feedback";
+import { TrendCard } from "./HomePanel";
 
 type Alerts = { missedDoses: boolean; forecast: boolean };
 type Person = { ownerId: Id<"users">; name: string };
@@ -83,6 +84,8 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
   const view = useQuery(api.circle.person, { ownerId: person.ownerId, now });
   const caringFor = useQuery(api.circle.caringFor);
   const leave = useMutation(api.circle.remove);
+  const mute = useMutation(api.circle.mute);
+  const wide = useWindowDimensions().width >= 640;
   const convex = useConvex();
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -204,6 +207,19 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
             {view.lastLogged && <Text style={styles.small}>{s.circleLastLogged.replace("{date}", shortDate(view.lastLogged, s.locale))}</Text>}
           </View>
 
+          {!!view.charts.length && (
+            <>
+              <Text style={styles.cardTitle} accessibilityRole="header">
+                {s.circleCharts}
+              </Text>
+              <View style={styles.grid}>
+                {view.charts.map((c) => (
+                  <TrendCard key={c.metric} chart={c} s={s} wide={wide} wider={false} />
+                ))}
+              </View>
+            </>
+          )}
+
           {!!view.contacts.length && (
             <View style={styles.card}>
               <View style={styles.inline}>
@@ -230,7 +246,34 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
             <Text style={styles.link}>{s.circleReport}</Text>
           </Tap>
           {error && <Text style={styles.error}>{error}</Text>}
-          <Text style={styles.small}>{s.circleAlertsYou.replace("{list}", alertList(view.alerts, s))}</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{s.circleYourAlerts}</Text>
+            {view.alerts.missedDoses || view.alerts.forecast ? (
+              <>
+                {(
+                  [
+                    ["missedDoses", s.circleAlertMissed],
+                    ["forecast", s.circleAlertForecast],
+                  ] as const
+                )
+                  .filter(([key]) => view.alerts[key])
+                  .map(([key, label]) => (
+                    <View key={key} style={styles.switchRow}>
+                      <Text style={[styles.body, styles.flex]}>{label}</Text>
+                      <Switch
+                        value={!view.muted[key]}
+                        disabled={!row}
+                        onValueChange={(on) => row && void mute({ id: row._id, alert: key, muted: !on }).catch((e) => setError(errorText(e)))}
+                        accessibilityLabel={label}
+                      />
+                    </View>
+                  ))}
+                <Text style={styles.small}>{s.circleMuteNote.replace("{name}", person.name)}</Text>
+              </>
+            ) : (
+              <Text style={styles.muted}>{s.circleAlertsNone}</Text>
+            )}
+          </View>
 
           {row && (
             <>
@@ -344,6 +387,9 @@ function MyCircle({ s }: { s: Strings }) {
                 </Tap>
               </View>
               <AlertSwitches value={m.alerts} onChange={(a) => void setAlerts({ id: m._id, alerts: a }).catch((e) => setError(errorText(e)))} s={s} />
+              {m.muted && (m.muted.missedDoses || m.muted.forecast) && (
+                <Text style={styles.small}>{s.circleMutedByThem.replace("{list}", alertList(m.muted, s))}</Text>
+              )}
               <Reveal open={removing === m._id} style={styles.confirm}>
                 <Text style={styles.body}>{s.circleRemoveAsk.replace("{name}", m.label ?? m.name)}</Text>
                 <View style={styles.inline}>
@@ -432,6 +478,7 @@ const styles = themed(() => ({
   flex: { flex: 1, minWidth: 0 },
   scroll: { flex: 1 },
   panel: { padding: 16, gap: 16, width: "100%", maxWidth: 792, alignSelf: "center", paddingBottom: 40 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   section: { gap: 10 },
   heading: { ...ui.section },
   title: { fontSize: 22, fontWeight: "700", color: colors.text },

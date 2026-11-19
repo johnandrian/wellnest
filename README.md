@@ -343,8 +343,8 @@ At 7 PM local time (`convex/forecast.ts`, hourly cron), Wellnest compares **tomo
 
 ## Care Circle
 **Health tools → Care Circle** (`convex/circle.ts`, `src/CirclePanel.tsx`). The person invites family or carers: a one-time link (`APP_URL/?join=<token>`, 7 days, up to 10 people counting open invites) with a label ("Mom") and the alerts that person gets: **missed doses** (with the person's own missed-dose nudge in `reminders.ts`) and the **flare forecast**. Opening the link before signing in shows whose circle it is on the welcome page; after sign-in and account setup a prompt explains what joining means (`src/JoinPrompt.tsx`). The person sees each member, can change their alerts or remove them, and gets a chat message when someone joins.
-- **What members see (read only):** today's doses (taken, skipped, missed after 2 hours, due), active medications, this week against last week for each measure, when something was last logged, tomorrow's flare forecast, emergency contacts with Call buttons, and a full 30-day report (the same page as PDF reports). Members can leave at any time.
-- **Alerts** go to the member's own chat (and Telegram when linked) with a push, in the member's language.
+- **What members see (read only):** today's doses (taken, skipped, missed after 2 hours, due), active medications, this week against last week for each measure, the same four-week trend charts as the person's dashboard (in the member's language, the person's units; `dashboard.trendCharts`), when something was last logged, tomorrow's flare forecast, emergency contacts with Call buttons, and a full 30-day report (the same page as PDF reports). Members can leave at any time.
+- **Alerts** go to the member's own chat (and Telegram when linked) with a push, in the member's language. A member can turn off any alert the person picked for them (`circle.mute`, kept on `circleMembers.muted`) and back on; the person still sees what they picked, plus "They turned off" under that member.
 - **Deleting** the account removes both sides: the person's members and invites, and the circles they were in. Export includes the circle.
 
 ## Action Inbox

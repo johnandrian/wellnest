@@ -156,6 +156,44 @@ describe("care circle: alerts", () => {
     expect((await messagesOf(t, lee.userId)).filter((m) => m.kind === "circle")).toEqual([]);
   });
 
+  test("a member can mute an alert for themselves; the person still sees what they picked, and nobody else can", async () => {
+    const t = setup();
+    const { ana, sam } = await circle(t);
+    const lee = await createAppUser(t, "lee@example.com");
+    const [row] = (await ana.as.query(api.circle.mine, { now: NOW }))!.members;
+    await expect(ana.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: true })).rejects.toThrow("Not found");
+    await expect(lee.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: true })).rejects.toThrow("Not found");
+    await sam.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: true });
+    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual({ missedDoses: false, forecast: true });
+    expect(await sam.as.query(api.circle.person, { ownerId: ana.userId, now: NOW })).toMatchObject({ alerts: ALL, muted: { missedDoses: true, forecast: false } });
+    const [mine] = (await ana.as.query(api.circle.mine, { now: NOW }))!.members;
+    expect(mine).toMatchObject({ alerts: ALL, muted: { missedDoses: true, forecast: false } });
+
+    const { calls } = mockApis();
+    await ana.as.mutation(api.reminders.add, { name: "Metformin", schedule: { kind: "interval", everyHours: 12, firstAt: NOW + 12 * H } });
+    for (let i = 0; i < 4; i++) {
+      vi.advanceTimersByTime(12 * H);
+      await settle(t);
+    }
+    expect((await messagesOf(t, sam.userId)).filter((m) => m.kind === "circle")).toEqual([]);
+    expect(pushSends(calls).filter((p) => p.channelId === "circle")).toEqual([]);
+    await sam.as.mutation(api.circle.mute, { id: row._id, alert: "missedDoses", muted: false });
+    expect((await sam.as.query(api.circle.caringFor, {}))[0].alerts).toEqual(ALL);
+  });
+
+  test("members see the person's trend charts in the person's units", async () => {
+    const t = setup();
+    const { ana, sam } = await circle(t);
+    await t.run(async (ctx) => {
+      for (const [date, level] of [["2026-10-30", 6], ["2026-10-31", 7], ["2026-11-01", 5], ["2026-11-02", 4]] as const) {
+        await ctx.db.insert("trackerEntries", { userId: ana.userId, tracker: "pain", date, at: Date.parse(`${date}T12:00:00Z`), pain: { severity: level, locations: [], types: [] }, source: "manual" });
+      }
+    });
+    const view = (await sam.as.query(api.circle.person, { ownerId: ana.userId, now: NOW }))!;
+    expect(view.charts.map((c) => c.metric)).toContain("pain");
+    expect(view.charts.find((c) => c.metric === "pain")).toMatchObject({ to: "2026-11-02", latest: { date: "2026-11-02", value: 4 } });
+  });
+
   test("deleting an account removes it from every care circle", async () => {
     const t = setup();
     const { ana, sam } = await circle(t);
