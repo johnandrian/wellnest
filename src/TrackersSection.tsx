@@ -16,6 +16,7 @@ import { DEFAULT_UNITS, fmtGlucose, glucoseToMgdl, showGlucose, type Units } fro
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 import { formatDateTime } from "./format";
 import { SeverityScale } from "./SeverityScale";
+import { useOfflineSend } from "./offline";
 import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 
 type Tracker = "pain" | "asthma" | "seizure" | "glucose";
@@ -73,7 +74,8 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
   const data = useQuery(api.trackers.view, { since });
   const me = useQuery(api.chat.me);
   const [showAll, setShowAll] = useState(false);
-  const add = useMutation(api.trackers.add);
+  // A new entry still saves offline (./offline.tsx); changing one needs a connection.
+  const offlineSend = useOfflineSend();
   const update = useMutation(api.trackers.update);
   const remove = useMutation(api.trackers.remove);
   const [editing, setEditing] = useState<string | null>(null);
@@ -150,8 +152,11 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
     // The chosen day and time, never later than now.
     const at = Math.min(Date.now(), new Date(`${day}T${clock}:00`).getTime() || Date.now());
     const when = { date: day, at };
-    const send = (details: Record<string, unknown>) =>
-      editing ? update({ id: editing as Id<"trackerEntries">, ...when, note: note || undefined, ...details }) : add({ tracker, ...when, note: note || undefined, ...details });
+    let queued = false;
+    const send = async (details: Record<string, unknown>) => {
+      if (editing) return void (await update({ id: editing as Id<"trackerEntries">, ...when, note: note || undefined, ...details }));
+      queued = (await offlineSend({ fn: "trackers.add", args: { tracker, ...when, note: note || undefined, ...details } })) === "queued";
+    };
     try {
       if (tracker === "pain") {
         if (severity === null) return setError(s.trkPainNeedScore);
@@ -180,7 +185,7 @@ export function TrackersSection({ s, days, since }: { s: Strings; days: string[]
         });
       }
       reset();
-      showToast(editing ? s.saved : s.trkSaved);
+      if (!queued) showToast(editing ? s.saved : s.trkSaved);
     } catch (e) {
       setError(errorText(e));
     }

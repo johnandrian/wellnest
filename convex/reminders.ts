@@ -155,13 +155,20 @@ async function ownMed(ctx: MutationCtx, id: Id<"medications">) {
 
 // One answer for one due dose, from the chat, a notification, or the Today list. Can be changed later. The dose log
 // is the record; the reminder messages for that dose show the same answer; the supply follows taken doses.
-async function recordDose(ctx: MutationCtx, userId: Id<"users">, medicationId: Id<"medications">, dueAt: number, status: "taken" | "skipped") {
+// When a dose was tapped: now, or the time an answer made offline was tapped (src/offline.tsx), never later than now
+// and at most two days back.
+const tappedAt = (at: number | undefined) => {
+  const now = Date.now();
+  return at === undefined ? now : Math.min(now, Math.max(now - ANSWER_WINDOW_MS, at));
+};
+
+async function recordDose(ctx: MutationCtx, userId: Id<"users">, medicationId: Id<"medications">, dueAt: number, status: "taken" | "skipped", at?: number) {
   const existing = await ctx.db
     .query("doseLogs")
     .withIndex("by_medication_and_due", (q) => q.eq("medicationId", medicationId).eq("dueAt", dueAt))
     .unique();
   const wasTaken = existing?.status === "taken";
-  const takenAt = status === "taken" ? (wasTaken ? existing.takenAt : Date.now()) : undefined;
+  const takenAt = status === "taken" ? (wasTaken ? existing.takenAt : tappedAt(at)) : undefined;
   if (existing) await ctx.db.patch(existing._id, { status, takenAt });
   else await ctx.db.insert("doseLogs", { userId, medicationId, dueAt, status, takenAt });
   if (status === "taken" && !wasTaken) await useSupply(ctx, medicationId);
@@ -190,23 +197,24 @@ export const log = mutation({
   },
 });
 
-// Taken / Skip from the Today list, for a dose due within two days of now.
+// Taken / Skip from the Today list, for a dose due within two days of now. `at` is when it was tapped, for an
+// answer made offline.
 export const mark = mutation({
-  args: { medicationId: v.id("medications"), dueAt: v.number(), status: doseStatus },
-  handler: async (ctx, { medicationId, dueAt, status }) => {
+  args: { medicationId: v.id("medications"), dueAt: v.number(), status: doseStatus, at: v.optional(v.number()) },
+  handler: async (ctx, { medicationId, dueAt, status, at }) => {
     const med = await ownMed(ctx, medicationId);
     if (Math.abs(dueAt - Date.now()) > ANSWER_WINDOW_MS) throw new Error("That dose is too far from today to change here.");
-    await recordDose(ctx, med.userId, med._id, dueAt, status);
+    await recordDose(ctx, med.userId, med._id, dueAt, status, at);
   },
 });
 
-// An as-needed dose, taken now.
+// An as-needed dose, taken now (or at `at`, when it was tapped offline).
 export const takeNow = mutation({
-  args: { medicationId: v.id("medications") },
-  handler: async (ctx, { medicationId }) => {
+  args: { medicationId: v.id("medications"), at: v.optional(v.number()) },
+  handler: async (ctx, { medicationId, at }) => {
     const med = await ownMed(ctx, medicationId);
     if (statusOf(med) !== "active") throw new Error("Resume this medication first.");
-    const now = Date.now();
+    const now = tappedAt(at);
     await ctx.db.insert("doseLogs", { userId: med.userId, medicationId, dueAt: now, status: "taken", takenAt: now });
     await useSupply(ctx, medicationId);
     return now;

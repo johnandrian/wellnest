@@ -15,6 +15,7 @@ import type { Strings } from "./i18n";
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 import { formatTime } from "./format";
 import { dayBounds } from "./medSchedule";
+import { useOfflineSend } from "./offline";
 
 const LATE_MS = 60 * 60_000;
 
@@ -22,9 +23,9 @@ export function TodayDoses({ s, compact }: { s: Strings; compact?: boolean }) {
   // The day is fixed when the card mounts; reopening the tab tomorrow shows tomorrow.
   const [{ from, to }] = useState(() => dayBounds());
   const today = useQuery(api.reminders.today, { from, to });
-  const mark = useMutation(api.reminders.mark);
+  // Taken, Skip, and Took one still work offline (./offline.tsx).
+  const send = useOfflineSend();
   const snooze = useMutation(api.reminders.snooze);
-  const takeNow = useMutation(api.reminders.takeNow);
   const unmark = useMutation(api.reminders.unmark);
   const isHidden = useHidden();
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export function TodayDoses({ s, compact }: { s: Strings; compact?: boolean }) {
   const run = (fn: () => Promise<unknown>, done?: string) => {
     setError(null);
     fn().then(
-      () => done && showToast(done),
+      (r) => done && r !== "queued" && showToast(done),
       (e) => setError(errorText(e)),
     );
   };
@@ -78,7 +79,7 @@ export function TodayDoses({ s, compact }: { s: Strings; compact?: boolean }) {
             <View style={styles.buttons}>
               <Tap
                 style={[styles.button, d.status === "taken" && styles.buttonOn]}
-                onPress={() => run(() => mark({ medicationId: d.medicationId, dueAt: d.dueAt, status: "taken" }))}
+                onPress={() => run(() => send({ fn: "reminders.mark", args: { medicationId: d.medicationId, dueAt: d.dueAt, status: "taken" } }))}
                 accessibilityRole="button"
                 accessibilityState={{ selected: d.status === "taken" }}
                 accessibilityLabel={`${late ? s.takenLate : s.taken}: ${d.name}`}
@@ -88,7 +89,7 @@ export function TodayDoses({ s, compact }: { s: Strings; compact?: boolean }) {
               </Tap>
               <Tap
                 style={[styles.button, d.status === "skipped" && styles.buttonOn]}
-                onPress={() => run(() => mark({ medicationId: d.medicationId, dueAt: d.dueAt, status: "skipped" }))}
+                onPress={() => run(() => send({ fn: "reminders.mark", args: { medicationId: d.medicationId, dueAt: d.dueAt, status: "skipped" } }))}
                 accessibilityRole="button"
                 accessibilityState={{ selected: d.status === "skipped" }}
                 accessibilityLabel={`${s.skip}: ${d.name}`}
@@ -132,7 +133,7 @@ export function TodayDoses({ s, compact }: { s: Strings; compact?: boolean }) {
                 </View>
               )}
             </View>
-            <Tap style={styles.button} onPress={() => run(() => takeNow({ medicationId: m.medicationId }), `${s.saved}: ${m.name}`)} accessibilityRole="button" accessibilityLabel={`${s.tookOne}: ${m.name}`}>
+            <Tap style={styles.button} onPress={() => run(() => send({ fn: "reminders.takeNow", args: { medicationId: m.medicationId } }), `${s.saved}: ${m.name}`)} accessibilityRole="button" accessibilityLabel={`${s.tookOne}: ${m.name}`}>
               <Ionicons name="add" size={15} color={colors.primary} />
               <Text style={styles.buttonText}>{s.tookOne}</Text>
             </Tap>
