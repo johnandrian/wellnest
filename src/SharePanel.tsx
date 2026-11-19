@@ -1,12 +1,16 @@
 // "Share with my doctor": one flow for everything a doctor or carer might get. Pick the time span and the sections
 // once (./ShareParts.tsx), then how to send it: a one-page visit summary written from recent chats, the journal,
 // analyses, medications, and health data (convex/visit.ts), a PDF report (convex/reports.ts), or a private link
-// (convex/share.ts). The links made so far are listed underneath.
+// (convex/share.ts). The links made so far are listed underneath. A summary goes out as a PDF from the share sheet on
+// phones (the print dialog on the web) and can be copied as text everywhere.
 import { useState } from "react";
 import { ActivityIndicator, Platform, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { api } from "../convex/_generated/api";
 import { colors, themed, TOUCH, ui, radius } from "./theme";
 import { confirmAsk, errorText, showToast } from "./feedback";
@@ -103,9 +107,12 @@ function SummaryAction({ s, days, forVisit }: { s: Strings; days: number; forVis
     }
   };
 
+  // Phones: the summary as a PDF in the share sheet (the same page the web prints). Web: the print dialog.
   const share = async (text: string) => {
     if (Platform.OS !== "web") {
-      await Share.share({ message: text, title: s.visitSummaryTitle });
+      const { uri } = await Print.printToFileAsync({ html: printablePage(s.visitSummaryTitle, text) });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf", dialogTitle: s.visitSummaryTitle });
+      else await Share.share({ message: text, title: s.visitSummaryTitle });
       return;
     }
     const win = window.open("", "_blank");
@@ -117,7 +124,7 @@ function SummaryAction({ s, days, forVisit }: { s: Strings; days: number; forVis
   };
 
   const copy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+    await Clipboard.setStringAsync(text);
     showToast(s.copied);
   };
 
@@ -151,16 +158,14 @@ function SummaryAction({ s, days, forVisit }: { s: Strings; days: number; forVis
             <Markdown text={latest.text} style={styles.docText} />
           </View>
           <View style={styles.actions}>
-            <Tap style={styles.action} onPress={() => void share(latest.text!)} accessibilityRole="button">
+            <Tap style={styles.action} onPress={() => void share(latest.text!).catch((e) => setError(errorText(e)))} accessibilityRole="button">
               <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color={colors.primary} />
-              <Text style={styles.link}>{Platform.OS === "web" ? s.printPdf : s.share}</Text>
+              <Text style={styles.link}>{Platform.OS === "web" ? s.printPdf : s.sharePdf}</Text>
             </Tap>
-            {Platform.OS === "web" && (
-              <Tap style={styles.action} onPress={() => void copy(latest.text!)} accessibilityRole="button">
-                <Ionicons name="copy-outline" size={18} color={colors.primary} />
-                <Text style={styles.link}>{s.copy}</Text>
-              </Tap>
-            )}
+            <Tap style={styles.action} onPress={() => void copy(latest.text!).catch((e) => setError(errorText(e)))} accessibilityRole="button">
+              <Ionicons name="copy-outline" size={18} color={colors.primary} />
+              <Text style={styles.link}>{s.copy}</Text>
+            </Tap>
             <Tap style={styles.action} onPress={() => setComposing(true)} accessibilityRole="button">
               <Ionicons name="refresh" size={18} color={colors.primary} />
               <Text style={styles.link}>{s.newSummary}</Text>
