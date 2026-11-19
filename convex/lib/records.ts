@@ -10,6 +10,12 @@ export type Flag = (typeof FLAGS)[number];
 export const recordKind = v.union(...RECORD_KINDS.map((k) => v.literal(k)));
 export const labFlag = v.union(...FLAGS.map((f) => v.literal(f)));
 
+// The flag for a value against the range printed on the report, or undefined when there's no range to check.
+export function flagFor(value: number, low?: number, high?: number): Flag | undefined {
+  if (low === undefined && high === undefined) return undefined;
+  return low !== undefined && value < low ? "low" : high !== undefined && value > high ? "high" : "normal";
+}
+
 export type LabResult = {
   test: string; // a standard English name, so the same test lines up across reports ("Hemoglobin A1c")
   value?: number;
