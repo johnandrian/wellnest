@@ -316,6 +316,8 @@ When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps
 ## The chat
 - **Message box:** grows with the message up to about five lines, then scrolls. On a computer Enter sends and Shift+Enter starts a new line; on a phone the return key adds a line and the arrow sends.
 - **Scrolling:** new messages scroll into view only when you are already at the bottom. Scrolled up, a **New messages** button appears instead, and sending a message always returns to the bottom.
+- **Days and times:** a divider names each day (Today, Yesterday, or the date), and the time shows under the last message of each run (one side, within 5 minutes).
+- **Photos:** tap a sent photo to open it full size on a dark backdrop.
 
 ## Chat history
 The menu button at the top left opens every chat, newest first, named after its first message. **New chat** (the pencil) starts an empty one; tapping an old chat continues it, and the model only sees that chat's messages (long-term memory still searches all of them). Reminders, check-ins and Telegram messages go into whichever chat is open. Deleting a chat deletes its messages (`convex/chats.ts`). Messages from before chats existed have no `chatId` and form the user's first chat. The search box above **New chat** matches titles as you type and anything said in a chat through the `search_text` index on messages (`chats.search`), showing the matching line.
