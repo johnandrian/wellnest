@@ -64,6 +64,12 @@ describe("appointments", () => {
     const list = (await as.query(api.visits.list, { now: Date.now() }))!;
     expect(list.upcoming).toMatchObject([{ title: "Rheumatology", clinician: "Dr. Lee", phone: "+15550100", prep: "Ask about methotrexate", status: "upcoming" }]);
 
+    // Changing the title, kind, and place keeps the rest; a blank title keeps the old one.
+    await as.mutation(api.visits.update, { id, title: "Rheumatology follow-up", kind: "video", location: "" });
+    await as.mutation(api.visits.update, { id, title: "  " });
+    expect((await as.query(api.visits.list, { now: Date.now() }))!.upcoming[0]).toMatchObject({ title: "Rheumatology follow-up", kind: "video", prep: "Ask about methotrexate" });
+    expect((await as.query(api.visits.list, { now: Date.now() }))!.upcoming[0].location ?? null).toBeNull();
+    await as.mutation(api.visits.update, { id, title: "Rheumatology" });
     const second = (await as.mutation(api.visits.add, { title: "Physio", startsAt: Date.now() + 4 * H })) as Id<"visits">;
     await as.mutation(api.visits.setStatus, { id: second, status: "cancelled" });
     await advance(t, 3 * H);
