@@ -1,6 +1,7 @@
 // Appointments and care team (convex/visits.ts): upcoming and past visits with questions to ask beforehand and
-// notes afterwards, a shortcut to a visit summary for each, and the people in your care with tap-to-call.
-import { useMemo, useState } from "react";
+// notes afterwards (both saved as you type), their title, time, kind, and place editable, a shortcut to a visit summary
+// for each, and the people in your care with tap-to-call.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -11,9 +12,9 @@ import { colors, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { Enter, SwapIcon } from "./Motion";
-import { confirmAsk, errorText } from "./feedback";
+import { confirmAsk, errorText, showToast } from "./feedback";
 import { formatDateTime } from "./format";
-import { DateField, TimeField } from "./DateTimeField";
+import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
 import { VisitPrep } from "./VisitPrep";
 
 type Kind = "in_person" | "video" | "phone";
@@ -30,6 +31,26 @@ function toMs(date: string, time: string) {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(t[1]), Number(t[2])).getTime();
 }
 
+// Saves a text field a moment after typing stops (and when it loses focus), and says when it's saved.
+function useAutosave(value: string, saved: string, save: (v: string) => Promise<unknown>, onError: (e: unknown) => void) {
+  const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
+  const latest = useRef(saved);
+  latest.current = saved;
+  const flush = () => {
+    if (value === latest.current) return;
+    setState("saving");
+    save(value).then(
+      () => setState("saved"),
+      (e) => (setState("idle"), onError(e)),
+    );
+  };
+  useEffect(() => {
+    if (value === saved) return;
+    const t = setTimeout(flush, 900);
+    return () => clearTimeout(t);
+  }, [value]);
+  return { state, flush };
+}
 
 function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: (reason: string) => void }) {
   const update = useMutation(api.visits.update);
@@ -45,6 +66,31 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
   const id = item._id as Id<"visits">;
   const isVisit = item.source === "visit";
   const run = (fn: () => Promise<unknown>) => fn().catch((e) => setError(errorText(e)));
+  const fail = (e: unknown) => setError(errorText(e));
+  const prepSave = useAutosave(prep, item.prep ?? "", (v) => update({ id, prep: v }), fail);
+  const notesSave = useAutosave(notes, item.notes ?? "", (v) => update({ id, notes: v }), fail);
+  // Changing the title, time, kind, or place.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ title: "", date: "", time: "", kind: "in_person" as Kind, location: "" });
+  const startEdit = () => {
+    const at = new Date(item.startsAt);
+    setDraft({ title: item.title, date: dayString(at), time: timeString(at), kind: item.kind, location: item.location ?? "" });
+    setEditing(true);
+  };
+  const saveEdit = async () => {
+    setError(null);
+    const startsAt = toMs(draft.date, draft.time);
+    if (Number.isNaN(startsAt)) return setError(s.visitsBadDate);
+    if (!draft.title.trim()) return setError(s.visitsNeedTitle);
+    try {
+      await update({ id, title: draft.title, startsAt, kind: draft.kind, location: draft.location });
+      setEditing(false);
+      showToast(s.saved);
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const savedNote = (st: "idle" | "saving" | "saved") => (st === "saving" ? s.visitsSaving : st === "saved" ? s.saved : "");
 
   return (
     <View style={[styles.card, item.status === "cancelled" && styles.faded]}>
@@ -109,13 +155,51 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
               </Tap>
             </View>
           )}
+          {isVisit && editing && (
+            <View style={styles.form}>
+              <TextInput style={styles.input} value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder={s.visitsTitlePlaceholder} placeholderTextColor={colors.muted} accessibilityLabel={s.visitsTitlePlaceholder} />
+              <View style={styles.row}>
+                <DateField value={draft.date} onChange={(date) => setDraft({ ...draft, date })} label={s.visitsDate} s={s} />
+                <TimeField value={draft.time} onChange={(time) => setDraft({ ...draft, time })} label={s.visitsTime} s={s} />
+              </View>
+              <View style={styles.chips}>
+                {(["in_person", "video", "phone"] as const).map((k) => (
+                  <Tap key={k} style={[styles.chip, draft.kind === k && styles.chipOn]} onPress={() => setDraft({ ...draft, kind: k })} accessibilityRole="radio" accessibilityState={{ selected: draft.kind === k }}>
+                    <Ionicons name={KIND_ICON[k]} size={14} color={draft.kind === k ? colors.primary : colors.text} />
+                    <Text style={[styles.chipText, draft.kind === k && styles.chipTextOn]}>{s[`visitKind_${k}`]}</Text>
+                  </Tap>
+                ))}
+              </View>
+              <TextInput style={styles.input} value={draft.location} onChangeText={(location) => setDraft({ ...draft, location })} placeholder={s.visitsLocationPlaceholder} placeholderTextColor={colors.muted} accessibilityLabel={s.visitsLocationPlaceholder} />
+              <View style={styles.row}>
+                <Tap style={styles.button} onPress={() => void saveEdit()} accessibilityRole="button">
+                  <Text style={styles.buttonText}>{s.logSaveChanges}</Text>
+                </Tap>
+                <Tap style={styles.action} onPress={() => setEditing(false)} accessibilityRole="button">
+                  <Text style={styles.link}>{s.cancel}</Text>
+                </Tap>
+              </View>
+            </View>
+          )}
           {isVisit && (
             <>
-              <Text style={styles.label}>{s.visitsPrep}</Text>
-              <TextInput style={[styles.input, styles.multi]} value={prep} onChangeText={setPrep} onBlur={() => prep !== (item.prep ?? "") && void run(() => update({ id, prep }))} placeholder={s.visitsPrepPlaceholder} placeholderTextColor={colors.muted} multiline />
-              <Text style={styles.label}>{s.visitsNotes}</Text>
-              <TextInput style={[styles.input, styles.multi]} value={notes} onChangeText={setNotes} onBlur={() => notes !== (item.notes ?? "") && void run(() => update({ id, notes }))} placeholder={s.visitsNotesPlaceholder} placeholderTextColor={colors.muted} multiline />
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>{s.visitsPrep}</Text>
+                <Text style={styles.savedNote} accessibilityLiveRegion="polite">{savedNote(prepSave.state)}</Text>
+              </View>
+              <TextInput style={[styles.input, styles.multi]} value={prep} onChangeText={setPrep} onBlur={prepSave.flush} placeholder={s.visitsPrepPlaceholder} placeholderTextColor={colors.muted} accessibilityLabel={s.visitsPrep} multiline />
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>{s.visitsNotes}</Text>
+                <Text style={styles.savedNote} accessibilityLiveRegion="polite">{savedNote(notesSave.state)}</Text>
+              </View>
+              <TextInput style={[styles.input, styles.multi]} value={notes} onChangeText={setNotes} onBlur={notesSave.flush} placeholder={s.visitsNotesPlaceholder} placeholderTextColor={colors.muted} accessibilityLabel={s.visitsNotes} multiline />
               <View style={styles.row}>
+                {!editing && (
+                  <Tap style={styles.action} onPress={startEdit} accessibilityRole="button">
+                    <Ionicons name="create-outline" size={16} color={colors.primary} />
+                    <Text style={styles.link}>{s.visitsEdit}</Text>
+                  </Tap>
+                )}
                 {item.status === "upcoming" ? (
                   <>
                     <Tap onPress={() => void run(() => setStatus({ id, status: "done" }))} accessibilityRole="button">
@@ -344,6 +428,8 @@ const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   list: { gap: 10 },
+  labelRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 8 },
+  savedNote: { color: colors.muted, fontSize: 12 },
   views: { flexDirection: "row", gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline },
   view: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
   viewOn: { backgroundColor: colors.primary },
