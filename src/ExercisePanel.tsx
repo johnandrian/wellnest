@@ -1,5 +1,6 @@
 // Exercises and physio (convex/exercises.ts): today's routine to tick off, the last two weeks at a glance, and
-// adding or stopping an exercise. "Did my stretches" in chat ticks it off too.
+// adding, changing (tap its name), or stopping an exercise, with Undo for a few seconds after stopping. "Did my
+// stretches" in chat ticks it off too.
 import { useState } from "react";
 import { ScrollView, Text, TextInput, View } from "react-native";
 import { Tap } from "./Tap";
@@ -10,7 +11,8 @@ import { colors, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
-import { errorText } from "./feedback";
+import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
+import type { Id } from "../convex/_generated/dataModel";
 
 const num = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : undefined);
 
@@ -19,8 +21,11 @@ export function ExercisePanel({ s }: { s: Strings }) {
   const list = useQuery(api.exercises.list, { date: today });
   const add = useMutation(api.exercises.add);
   const toggle = useMutation(api.exercises.toggle);
+  const update = useMutation(api.exercises.update);
   const stop = useMutation(api.exercises.stop);
+  const isHidden = useHidden();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Id<"exercises"> | null>(null);
   const [name, setName] = useState("");
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
@@ -30,15 +35,34 @@ export function ExercisePanel({ s }: { s: Strings }) {
   const [error, setError] = useState<string | null>(null);
   const weekdays = s.weekdaysShort.split(",");
 
+  const close = () => {
+    setAdding(false); setEditing(null); setError(null);
+    setName(""); setSets(""); setReps(""); setMinutes(""); setDays([]); setNotes("");
+  };
+
   const save = async () => {
     setError(null);
     try {
-      await add({ name, sets: num(sets), reps: num(reps), minutes: num(minutes), days, notes: notes || undefined });
-      setAdding(false);
-      setName(""); setSets(""); setReps(""); setMinutes(""); setDays([]); setNotes("");
+      const fields = { name, sets: num(sets), reps: num(reps), minutes: num(minutes), days, notes: notes || undefined };
+      if (editing) await update({ id: editing, ...fields });
+      else await add(fields);
+      if (editing) showToast(s.saved);
+      close();
     } catch (e) {
       setError(errorText(e));
     }
+  };
+
+  // An exercise opens in the same form to be changed.
+  const startEdit = (e: { _id: Id<"exercises">; name: string; sets: number | null; reps: number | null; minutes: number | null; days: number[]; notes?: string | null }) => {
+    setEditing(e._id); setAdding(true); setError(null);
+    setName(e.name); setSets(e.sets ? String(e.sets) : ""); setReps(e.reps ? String(e.reps) : ""); setMinutes(e.minutes ? String(e.minutes) : "");
+    setDays(e.days); setNotes(e.notes ?? "");
+  };
+
+  const stopWithUndo = (id: Id<"exercises">) => {
+    if (editing === id) close();
+    removeWithUndo({ key: id, text: s.exStopped, run: () => stop({ id }), onError: (e) => setError(errorText(e)) });
   };
 
   const plan = (e: { sets: number | null; reps: number | null; minutes: number | null; days: number[] }) =>
@@ -48,13 +72,14 @@ export function ExercisePanel({ s }: { s: Strings }) {
       e.days.length ? e.days.map((d) => weekdays[d]).join(" ") : s.exEveryDay,
     ].filter(Boolean).join(" · ");
 
-  const due = list?.filter((e) => e.dueToday) ?? [];
-  const notDue = list?.filter((e) => !e.dueToday) ?? [];
+  const shown = list?.filter((e) => !isHidden(e._id));
+  const due = shown?.filter((e) => e.dueToday) ?? [];
+  const notDue = shown?.filter((e) => !e.dueToday) ?? [];
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <Text style={styles.note}>{s.exIntro}</Text>
-      {list?.length === 0 && !adding && <Text style={styles.empty}>{s.exEmpty}</Text>}
+      {shown?.length === 0 && !adding && <Text style={styles.empty}>{s.exEmpty}</Text>}
       {!!due.length && <Text style={styles.section}>{s.exToday}</Text>}
       {[...due, ...notDue].map((e, i) => (
         <View key={e._id}>
@@ -68,12 +93,12 @@ export function ExercisePanel({ s }: { s: Strings }) {
                   </SwapIcon>
                 </Tap>
               )}
-              <View style={styles.flex}>
+              <Tap style={styles.flex} onPress={() => startEdit(e)} accessibilityRole="button" accessibilityLabel={`${s.edit}: ${e.name}, ${plan(e)}`}>
                 <Text style={[styles.title, e.doneToday && styles.done]}>{e.name}</Text>
                 <Text style={styles.small}>{plan(e)}</Text>
                 {e.notes && <Text style={styles.small}>{e.notes}</Text>}
-              </View>
-              <Tap onPress={() => void stop({ id: e._id })} accessibilityRole="button" accessibilityLabel={`${s.exStop} ${e.name}`}>
+              </Tap>
+              <Tap style={styles.iconButton} onPress={() => stopWithUndo(e._id)} accessibilityRole="button" accessibilityLabel={`${s.exStop} ${e.name}`}>
                 <Ionicons name="close" size={18} color={colors.muted} />
               </Tap>
             </View>
@@ -88,6 +113,7 @@ export function ExercisePanel({ s }: { s: Strings }) {
 
       {adding ? (
         <View style={styles.form}>
+          {editing && <Text style={styles.section}>{s.exEditTitle}</Text>}
           <TextInput style={styles.input} placeholder={s.exNamePlaceholder} placeholderTextColor={colors.muted} value={name} onChangeText={setName} />
           <View style={styles.inline}>
             <TextInput style={[styles.input, styles.short]} value={sets} onChangeText={setSets} keyboardType="numeric" accessibilityLabel={s.exSets} />
@@ -108,9 +134,9 @@ export function ExercisePanel({ s }: { s: Strings }) {
           <TextInput style={styles.input} placeholder={s.exNotesPlaceholder} placeholderTextColor={colors.muted} value={notes} onChangeText={setNotes} />
           <View style={styles.inline}>
             <Tap style={styles.button} onPress={() => void save()} accessibilityRole="button">
-              <Text style={styles.buttonText}>{s.save}</Text>
+              <Text style={styles.buttonText}>{editing ? s.logSaveChanges : s.save}</Text>
             </Tap>
-            <Tap onPress={() => setAdding(false)} accessibilityRole="button">
+            <Tap style={styles.cancel} onPress={close} accessibilityRole="button">
               <Text style={styles.link}>{s.cancel}</Text>
             </Tap>
           </View>
@@ -136,6 +162,8 @@ const styles = themed(() => ({
   card: { ...ui.card, padding: 10, gap: 8 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
   flex: { flex: 1, minWidth: 0 },
+  iconButton: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
+  cancel: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: 8 },
   title: { fontSize: 15, fontWeight: "600", color: colors.text },
   done: { color: colors.muted, textDecorationLine: "line-through" },
   strip: { flexDirection: "row", gap: 3 },
