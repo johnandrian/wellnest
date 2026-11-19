@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../convex/_generated/api";
 import { cleanBp, cleanPeriod, cleanTemperature, cleanWeight, entryLine, trackersText, withLoggedPeriods } from "../convex/lib/trackers";
-import { dateList, findPatterns, outcomes, shiftDate } from "../convex/lib/insights";
-import { patternText } from "../convex/lib/insightsText";
+import { chartSeries, dateList, findPatterns, outcomes, shiftDate } from "../convex/lib/insights";
+import { chartName, conditionText, patternText, weatherLine } from "../convex/lib/insightsText";
 import { fmtTemp, tempToC, unitsOf, weightToKg } from "../convex/lib/units";
 import { cortexCalls, createAppUser, drain, mockApis, setEnv, setup } from "./helpers";
 
@@ -169,5 +169,37 @@ describe("period log", () => {
     const view = (await as.query(api.trackers.view, { since: "2026-10-01" }))!;
     expect(view.period.map((p) => p.flow)).toEqual(["heavy", "light"]);
     expect((await as.query(api.journal.view, { since: "2026-10-01" }))!.periodDays).toEqual(["2026-11-01", "2026-11-02"]);
+  });
+});
+
+describe("temperature units and vitals charts", () => {
+  test("weather follows the temperature setting", () => {
+    const w = { date: "2026-11-02", tempMin: 18, tempMax: 25 };
+    expect(weatherLine(w, "en")).toBe("64–77°F");
+    expect(weatherLine(w, "es", unitsOf({ units: METRIC }))).toBe("18–25 °C");
+    expect(conditionText({ factor: "tempMax", side: "atLeast", threshold: 30 }, "en")).toBe("highs of 86°F or more");
+    expect(chartName("tempMax", "en", undefined, unitsOf({ units: METRIC }))).toEqual({ title: "Daily high", unit: "°C" });
+  });
+
+  test("blood pressure, weight, and temperature chart from the trackers", () => {
+    const dates = ["2026-11-01", "2026-11-02"];
+    const at = NOW;
+    const input = {
+      entries: [],
+      daily: [],
+      weather: [{ date: "2026-11-01", tempMax: 20 }],
+      health: [{ date: "2026-11-01", metrics: { weightKg: 80 } }, { date: "2026-11-02", metrics: { weightKg: 80 } }],
+      trackers: [
+        { date: "2026-11-02", at, tracker: "bp" as const, bp: { systolic: 128, diastolic: 82 } },
+        { date: "2026-11-02", at, tracker: "bp" as const, bp: { systolic: 141, diastolic: 90 } },
+        { date: "2026-11-02", at, tracker: "weight" as const, weight: { kg: 81 } },
+        { date: "2026-11-02", at, tracker: "temperature" as const, temperature: { c: 38 } },
+      ],
+    };
+    const values = (m: Parameters<typeof chartSeries>[1], units = unitsOf({})) => chartSeries(input, m, dates, undefined, units).points.map((p) => p.value);
+    expect(values("bp")).toEqual([141]);
+    expect(values("weightKg", unitsOf({ units: METRIC }))).toEqual([80, 81]);
+    expect(values("bodyTemp")).toEqual([100.4]);
+    expect(values("tempMax")).toEqual([68]);
   });
 });
