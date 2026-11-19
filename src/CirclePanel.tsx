@@ -1,6 +1,6 @@
 // Care circle (convex/circle.ts). Two sides on one screen: the people who invited you, each opening a read-only
 // view of how they're doing (with their trend charts and your own alert switches); and your own circle, where you invite family or carers with a one-time link, pick
-// which alerts each gets (missed doses, the flare forecast) and remove them.
+// which alerts each gets (missed doses, the flare forecast, urgent messages, and quiet spells) and remove them.
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, ScrollView, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,13 +18,23 @@ import type { Strings } from "./i18n";
 import { errorText, showToast } from "./feedback";
 import { TrendCard } from "./HomePanel";
 
-type Alerts = { missedDoses: boolean; forecast: boolean };
+type Alerts = { missedDoses: boolean; forecast: boolean; urgent?: boolean; quiet?: boolean };
+type AlertKind = keyof Alerts;
+const ALERTS = (s: Strings): [AlertKind, string][] => [
+  ["missedDoses", s.circleAlertMissed],
+  ["forecast", s.circleAlertForecast],
+  ["urgent", s.circleAlertUrgent],
+  ["quiet", s.circleAlertQuiet],
+];
 type Person = { ownerId: Id<"users">; name: string };
 
 const shortDate = (at: number | string, locale: string) =>
   new Date(typeof at === "string" ? `${at}T12:00:00` : at).toLocaleDateString(locale, { month: "short", day: "numeric" });
 const alertList = (a: Alerts, s: Strings) =>
-  [a.missedDoses && s.circleAlertMissed, a.forecast && s.circleAlertForecast].filter(Boolean).join(", ") || s.circleAlertsNone;
+  ALERTS(s)
+    .filter(([key]) => a[key])
+    .map(([, label]) => label)
+    .join(", ") || s.circleAlertsNone;
 
 export function CirclePanel({ s }: { s: Strings }) {
   const [person, setPerson] = useState<Person | null>(null);
@@ -248,20 +258,15 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
           {error && <Text style={styles.error}>{error}</Text>}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{s.circleYourAlerts}</Text>
-            {view.alerts.missedDoses || view.alerts.forecast ? (
+            {ALERTS(s).some(([key]) => view.alerts[key]) ? (
               <>
-                {(
-                  [
-                    ["missedDoses", s.circleAlertMissed],
-                    ["forecast", s.circleAlertForecast],
-                  ] as const
-                )
+                {ALERTS(s)
                   .filter(([key]) => view.alerts[key])
                   .map(([key, label]) => (
                     <View key={key} style={styles.switchRow}>
                       <Text style={[styles.body, styles.flex]}>{label}</Text>
                       <Switch
-                        value={!view.muted[key]}
+                        value={!view.muted?.[key]}
                         disabled={!row}
                         onValueChange={(on) => row && void mute({ id: row._id, alert: key, muted: !on }).catch((e) => setError(errorText(e)))}
                         accessibilityLabel={label}
@@ -308,17 +313,13 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
 function AlertSwitches({ value, onChange, s }: { value: Alerts; onChange: (a: Alerts) => void; s: Strings }) {
   return (
     <View style={styles.switches}>
-      {(
-        [
-          ["missedDoses", s.circleAlertMissed],
-          ["forecast", s.circleAlertForecast],
-        ] as const
-      ).map(([key, label]) => (
+      {ALERTS(s).map(([key, label]) => (
         <View key={key} style={styles.switchRow}>
           <Text style={[styles.body, styles.flex]}>{label}</Text>
-          <Switch value={value[key]} onValueChange={(on) => onChange({ ...value, [key]: on })} accessibilityLabel={label} />
+          <Switch value={!!value[key]} onValueChange={(on) => onChange({ ...value, [key]: on })} accessibilityLabel={label} />
         </View>
       ))}
+      <Text style={styles.small}>{s.circleAlertNote}</Text>
     </View>
   );
 }
@@ -332,7 +333,7 @@ function MyCircle({ s }: { s: Strings }) {
   const remove = useMutation(api.circle.remove);
   const [making, setMaking] = useState(false);
   const [label, setLabel] = useState("");
-  const [alerts, setNewAlerts] = useState<Alerts>({ missedDoses: true, forecast: true });
+  const [alerts, setNewAlerts] = useState<Alerts>({ missedDoses: true, forecast: true, urgent: true, quiet: true });
   const [made, setMade] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -387,7 +388,7 @@ function MyCircle({ s }: { s: Strings }) {
                 </Tap>
               </View>
               <AlertSwitches value={m.alerts} onChange={(a) => void setAlerts({ id: m._id, alerts: a }).catch((e) => setError(errorText(e)))} s={s} />
-              {m.muted && (m.muted.missedDoses || m.muted.forecast) && (
+              {m.muted && ALERTS(s).some(([key]) => m.muted?.[key]) && (
                 <Text style={styles.small}>{s.circleMutedByThem.replace("{list}", alertList(m.muted, s))}</Text>
               )}
               <Reveal open={removing === m._id} style={styles.confirm}>

@@ -1,14 +1,15 @@
 // Care circle: someone invites family or carers with a one-time link. Members see the person's health at a glance,
 // read only (today's doses, medications, this week's trends, tomorrow's flare forecast, emergency contacts and a
-// full report), and get the alerts the person picked for each of them: missed doses and the evening flare forecast.
+// full report), and get the alerts the person picked for each of them: missed doses, the evening flare forecast, a
+// message that sounded urgent (never what it said), and a few days with nothing logged.
 // The person can change a member's alerts or remove them; a member can mute their own alerts or leave. Members also
 // see the same four-week trend charts as the person's dashboard. Invites expire after a week.
 import { v } from "convex/values";
 import { unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
-import { alertsFor, CircleAlert, circleAlerts, personName } from "./lib/circle";
+import { internalMutation, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
+import { alertsFor, CircleAlert, circleAlert, circleAlerts, personName } from "./lib/circle";
 import { trendCharts } from "./dashboard";
 import { dateList, shiftDate, weekStats } from "./lib/insights";
 import { forecastLine, weekStatLine } from "./lib/insightsText";
@@ -31,6 +32,8 @@ export const MAX_MEMBERS = 10; // members plus open invites
 const REPORT_DAYS = 30;
 const REPORT_SECTIONS: Section[] = ["facts", "medications", "journal", "trackers", "health", "appointments", "emergency"];
 const MISSED_AFTER_MS = 2 * 60 * 60 * 1000; // a reminder unanswered this long counts as missed (as in reminders.ts)
+const URGENT_GAP_MS = 6 * 60 * 60 * 1000; // at most one urgent alert about someone this often
+export const QUIET_DAYS = 3; // days with nothing logged before members who chose it hear about it
 
 const inviteUrl = (token: string) => `${appUrl()}/?join=${token}`;
 const isToken = (s: string) => /^[A-Za-z0-9_-]{20,64}$/.test(s);
@@ -104,7 +107,7 @@ export const setAlerts = mutation({
 
 // A member turns one of their own alerts from this person off or back on. The person still sees what they picked.
 export const mute = mutation({
-  args: { id: v.id("circleMembers"), alert: v.union(v.literal("missedDoses"), v.literal("forecast")), muted: v.boolean() },
+  args: { id: v.id("circleMembers"), alert: circleAlert, muted: v.boolean() },
   handler: async (ctx, { id, alert, muted }) => {
     const userId = await requireUser(ctx);
     const row = await ctx.db.get(id);
@@ -238,7 +241,7 @@ export const person = query({
       name: personName(owner),
       // What the person picked for this member, and what the member muted for themselves.
       alerts: row.alerts,
-      muted: row.muted ?? { missedDoses: false, forecast: false },
+      muted: row.muted ?? { missedDoses: false, forecast: false, urgent: false, quiet: false },
       charts: (await trendCharts(ctx, owner, today, lang)).charts,
       doses: doses.sort((a, b) => a.at - b.at),
       meds,
@@ -263,7 +266,7 @@ export const report = query({
 // ---------- Alerts ----------
 
 // Sends `alert` to every member of the person's circle who gets it: in their chat (and Telegram when linked) with a
-// push. `message` words it in the member's language; `who` is the person's name.
+// push. `message` words it in the member's language; `who` is the person's name. Returns how many got it.
 export async function alertCircle(
   ctx: MutationCtx,
   ownerId: Id<"users">,
@@ -271,14 +274,46 @@ export async function alertCircle(
   message: (lang: Lang, who: string) => { text: string; title: string; body?: string },
 ) {
   const owner = await ctx.db.get(ownerId);
-  if (!owner || owner.deleting) return;
-  const rows = await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", ownerId)).take(MAX_MEMBERS * 2);
-  for (const row of rows) {
-    if (!alertsFor(row)[alert]) continue;
+  if (!owner || owner.deleting) return 0;
+  let sent = 0;
+  for (const row of await membersFor(ctx, ownerId, alert)) {
     const member = await ctx.db.get(row.memberId);
     if (!member || member.deleting) continue;
     const { text, title, body } = message(langOf(member), personName(owner));
     await saveAssistantReply(ctx, { userId: member._id, text, channel: member.telegramChatId ? "telegram" : "app", urgent: false, kind: "circle" });
     await notify(ctx, member._id, "circle", { title, body: body ?? plain(text), data: { ownerId } });
+    sent++;
   }
+  return sent;
+}
+
+const membersFor = async (ctx: QueryCtx, ownerId: Id<"users">, alert: CircleAlert) =>
+  (await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", ownerId)).take(MAX_MEMBERS * 2)).filter((r) => alertsFor(r)[alert]);
+
+// After Wellnest answers a message that triage flagged as urgent (pipeline.saveReply). Members hear only that a
+// message sounded urgent, never what it said, and at most once every 6 hours.
+export const urgentAlert = internalMutation({
+  args: { ownerId: v.id("users") },
+  handler: async (ctx, { ownerId }) => {
+    const owner = await ctx.db.get(ownerId);
+    const now = Date.now();
+    if (!owner || (owner.circleAlertedAt?.urgent ?? 0) > now - URGENT_GAP_MS) return 0;
+    const sent = await alertCircle(ctx, ownerId, "urgent", (lang, who) => ({ text: t(lang, "circleUrgent", who), title: t(lang, "circleUrgentTitle", who) }));
+    if (sent) await ctx.db.patch(ownerId, { circleAlertedAt: { ...owner.circleAlertedAt, urgent: now } });
+    return sent;
+  },
+});
+
+// From the morning check (agentScan.check): when nothing has been logged for QUIET_DAYS days, members who chose it
+// hear once for that gap. Only the person's journal, trackers, and check-ins count, as in "last logged" above.
+export async function quietAlert(ctx: MutationCtx, owner: Doc<"users">, today: string) {
+  if (!(await membersFor(ctx, owner._id, "quiet")).length) return 0;
+  const input = await gatherInputs(ctx, owner._id, shiftDate(today, -13), today);
+  const logged = [...input.entries, ...input.trackers, ...input.daily].map((x) => x.date).sort();
+  const last = logged[logged.length - 1];
+  if (!last || last > shiftDate(today, -QUIET_DAYS) || owner.circleAlertedAt?.quietSince === last) return 0;
+  const days = dateList(last, today).length - 1;
+  const sent = await alertCircle(ctx, owner._id, "quiet", (lang, who) => ({ text: t(lang, "circleQuiet", who, days), title: t(lang, "circleQuietTitle", who) }));
+  if (sent) await ctx.db.patch(owner._id, { circleAlertedAt: { ...owner.circleAlertedAt, quietSince: last } });
+  return sent;
 }

@@ -660,6 +660,8 @@ export const saveReply = internalMutation({
     }
     // Two messages in the app; one Telegram message so they can't arrive out of order.
     await saveAssistantReply(ctx, { ...args, charts }, false);
+    // Care Circle members who chose it hear that a message sounded urgent (convex/circle.ts).
+    if (args.urgent) await ctx.scheduler.runAfter(0, internal.circle.urgentAlert, { ownerId: args.userId });
     if (extra) await saveAssistantReply(ctx, { ...args, text: extra, urgent: false, kind: "links" }, false);
     if (args.channel === "telegram") {
       await ctx.scheduler.runAfter(0, internal.pipeline.deliverTelegram, {

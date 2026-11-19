@@ -16,6 +16,7 @@ import { localToday } from "./journal";
 import { trackersSince } from "./trackers";
 import { gatherInputs, medChanges } from "./insights";
 import { insertProposal } from "./agent";
+import { quietAlert } from "./circle";
 import { notify } from "./push";
 
 const SCAN_HOUR = 9;
@@ -97,6 +98,8 @@ export const check = internalMutation({
       // Suggests a video visit, so only when video visits are set up.
       telehealthOn() ? worseningRule(stats, await hasUpcomingVisit(ctx, userId, now), lang) : null,
     ].filter((p): p is Proposal => p !== null);
+    // Care Circle members who chose it hear about a few days with nothing logged.
+    await quietAlert(ctx, user, today);
     return await proposeAll(ctx, user, proposals);
   },
 });
