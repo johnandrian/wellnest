@@ -235,6 +235,16 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_token", ["token"]),
 
+  // Browsers that turned notifications on (src/push.web.ts): one Web Push subscription each (convex/webPush.ts).
+  webPushSubs: defineTable({
+    userId: v.id("users"),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
+
   // Telehealth video visits (convex/telehealth.ts): offered times, then a booking once the user confirms.
   appointments: defineTable({
     userId: v.id("users"),

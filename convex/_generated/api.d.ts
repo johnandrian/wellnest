@@ -94,6 +94,7 @@ import type * as visit from "../visit.js";
 import type * as visits from "../visits.js";
 import type * as voice from "../voice.js";
 import type * as weather from "../weather.js";
+import type * as webPush from "../webPush.js";
 import type * as weekly from "../weekly.js";
 
 import type {
@@ -189,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   visits: typeof visits;
   voice: typeof voice;
   weather: typeof weather;
+  webPush: typeof webPush;
   weekly: typeof weekly;
 }>;
 
