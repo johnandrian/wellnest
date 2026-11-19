@@ -150,7 +150,7 @@ export function JournalPanel({ s }: { s: Strings }) {
           {charts.map((sym) => (
             <View key={sym.name} style={styles.card}>
               <Text style={styles.cardTitle}>
-                {sym.name.charAt(0).toUpperCase() + sym.name.slice(1)} <Text style={styles.small}>· {s.timesLogged.replace("{n}", String(sym.count))}</Text>
+                {sym.name.charAt(0).toUpperCase() + sym.name.slice(1)} <Text style={styles.small}>· {sym.count === 1 ? s.timesLoggedOne : s.timesLogged.replace("{n}", String(sym.count))}</Text>
               </Text>
               <Chart days={days} points={sym.points} sleep={sleep} periodDays={periodDays} s={s} />
             </View>
