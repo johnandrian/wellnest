@@ -10,10 +10,11 @@ import type { Id } from "../convex/_generated/dataModel";
 import { colors, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
-import { SwapIcon } from "./Motion";
+import { Enter, SwapIcon } from "./Motion";
 import { confirmAsk, errorText } from "./feedback";
 import { formatDateTime } from "./format";
 import { DateField, TimeField } from "./DateTimeField";
+import { VisitPrep } from "./VisitPrep";
 
 type Kind = "in_person" | "video" | "phone";
 type Item = NonNullable<(typeof api.visits.list)["_returnType"]>["upcoming"][number];
@@ -227,7 +228,9 @@ function TeamSection({ s }: { s: Strings }) {
   );
 }
 
-export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: string) => void }) {
+// `openPrep`: open on the Prep view (the dashboard's checklist button).
+export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; onPrepare: (reason: string) => void; openPrep?: boolean }) {
+  const [view, setView] = useState<"list" | "prep">(openPrep ? "prep" : "list");
   // Re-read "now" each time the tab opens; good enough for sorting upcoming vs past.
   const now = useMemo(() => Math.floor(Date.now() / 60_000) * 60_000, []);
   const data = useQuery(api.visits.list, { now });
@@ -262,6 +265,19 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
+      <View style={styles.views} accessibilityRole="tablist">
+        {(["list", "prep"] as const).map((v) => (
+          <Tap key={v} style={[styles.view, view === v && styles.viewOn]} onPress={() => setView(v)} accessibilityRole="tab" accessibilityState={{ selected: view === v }}>
+            <Text style={[styles.viewText, view === v && styles.viewTextOn]}>{v === "list" ? s.visitsTabList : s.visitsTabPrep}</Text>
+          </Tap>
+        ))}
+      </View>
+      {view === "prep" ? (
+        <Enter key="prep" from={6}>
+          <VisitPrep s={s} onAdd={() => (setView("list"), setAdding(true))} />
+        </Enter>
+      ) : (
+      <Enter key="list" from={6} style={styles.list}>
       <Text style={styles.note}>{s.visitsIntro}</Text>
       <Text style={styles.sectionTitle}>{s.visitsUpcoming}</Text>
       {data?.upcoming.length === 0 && !adding && <Text style={styles.empty}>{s.visitsNone}</Text>}
@@ -318,6 +334,8 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
       {showPast && data?.past.map((item) => <VisitCard key={item._id} item={item} s={s} onPrepare={onPrepare} />)}
 
       <TeamSection s={s} />
+      </Enter>
+      )}
     </ScrollView>
   );
 }
@@ -325,6 +343,12 @@ export function VisitsPanel({ s, onPrepare }: { s: Strings; onPrepare: (reason: 
 const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
+  list: { gap: 10 },
+  views: { flexDirection: "row", gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline },
+  view: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
+  viewOn: { backgroundColor: colors.primary },
+  viewText: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  viewTextOn: { color: colors.onPrimary },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   empty: { ...ui.empty },
   small: { color: colors.muted, fontSize: 13 },

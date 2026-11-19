@@ -13,7 +13,7 @@ import { Enter, Reveal } from "./Motion";
 import { colors, radius, themed, tint, TOUCH, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { MedRow, medListHtml, printHtml } from "./medList";
-import { Checklist } from "./GuidesPanel";
+import { Checklist } from "./VisitPrep";
 import { Bezel, Eyebrow, font, Pill } from "./soft";
 import { confirmAsk } from "./feedback";
 

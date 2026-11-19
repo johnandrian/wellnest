@@ -209,7 +209,7 @@ export const remind = internalMutation({
 });
 
 // Upcoming and recent appointments (telehealth bookings included), for the Visits tab. `now` comes from the app.
-// Ticks one item of the appointment prep checklist on or off (src/GuidesPanel.tsx).
+// Ticks one item of the appointment prep checklist on or off (src/VisitPrep.tsx).
 export const setChecked = mutation({
   args: { id: v.id("visits"), item: v.string(), on: v.boolean() },
   handler: async (ctx, { id, item, on }) => {

@@ -1,9 +1,9 @@
-// Guides: the appointment prep checklist (a week before, the day before, at the appointment, afterwards, plus extras
-// for pain, asthma and seizures when those are what the user tracks). Ticks are saved on the appointment it's for
+// Visits → Prep: the appointment prep checklist (a week before, the day before, at the appointment, afterwards, plus
+// extras for pain, asthma and seizures when those are what the user tracks), shown inside ./VisitsPanel.tsx. Ticks are saved on the appointment it's for
 // (convex/visits.ts setChecked), next to the questions to ask written from the user's logs (convex/questions.ts).
 // The same checklist, without an account, is the public /appointment-checklist page (./PublicPages.tsx).
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -13,7 +13,6 @@ import { Icon } from "./Icon";
 import { Enter, SwapIcon } from "./Motion";
 import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
-import type { HubTab } from "./HubPanel";
 import { errorText } from "./feedback";
 
 // Which condition extras go with which focus picked in account setup (src/Onboarding.tsx).
@@ -61,7 +60,8 @@ export function Checklist({ s, extras, checked, onToggle }: { s: Strings; extras
   );
 }
 
-export function GuidesPanel({ s, onOpen }: { s: Strings; onOpen: (t: HubTab) => void }) {
+// `onAdd`: no appointment yet, so the button goes to the form to add one.
+export function VisitPrep({ s, onAdd }: { s: Strings; onAdd: () => void }) {
   const [now] = useState(() => Date.now());
   const visits = useQuery(api.visits.list, { now });
   const me = useQuery(api.chat.me);
@@ -95,7 +95,7 @@ export function GuidesPanel({ s, onOpen }: { s: Strings; onOpen: (t: HubTab) => 
   };
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
+    <View style={styles.panel}>
       <View style={styles.head}>
         <View style={[styles.headIcon, { backgroundColor: tint.guides.bg }]}>
           <Icon name="guides" size={22} color={tint.guides.fg} />
@@ -160,7 +160,7 @@ export function GuidesPanel({ s, onOpen }: { s: Strings; onOpen: (t: HubTab) => 
         <>
           <View style={styles.card}>
             <Text style={styles.itemText}>{s.guideNoVisit}</Text>
-            <Tap style={ui.addButton} onPress={() => onOpen("visits")} accessibilityRole="button">
+            <Tap style={ui.addButton} onPress={onAdd} accessibilityRole="button">
               <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.link}>{s.guideAddVisit}</Text>
             </Tap>
@@ -169,14 +169,13 @@ export function GuidesPanel({ s, onOpen }: { s: Strings; onOpen: (t: HubTab) => 
         </>
       )}
       {error && <Text style={styles.error}>{error}</Text>}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = themed(() => ({
-  loading: { flex: 1 },
-  scroll: { flex: 1, backgroundColor: colors.bg },
-  panel: { padding: 16, gap: 12, maxWidth: 760, width: "100%", alignSelf: "center", paddingBottom: 40 },
+  loading: { marginTop: 24 },
+  panel: { gap: 12, paddingBottom: 24 },
   head: { flexDirection: "row", alignItems: "center", gap: 12 },
   headIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, fontSize: 20, fontWeight: "700", color: colors.text },
