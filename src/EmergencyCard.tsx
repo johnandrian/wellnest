@@ -11,6 +11,7 @@ import type { Strings } from "./i18n";
 import { shareUrl } from "./ShareParts";
 import { errorText, showToast } from "./feedback";
 import { useInsets } from "./safeArea";
+import { useEmergencyNumber } from "./emergency";
 
 type Section = { title: string; steps: string[] };
 type Contact = { name: string; relation?: string; phone: string };
@@ -58,6 +59,7 @@ function PlanView({ sections, contacts, asthma, notes, s, big = false }: { secti
 
 export function EmergencyCard({ s }: { s: Strings }) {
   const insets = useInsets();
+  const sos = useEmergencyNumber(s);
   const plan = useQuery(api.emergency.get);
   const save = useMutation(api.emergency.save);
   const createLink = useMutation(api.share.create);
@@ -233,9 +235,9 @@ export function EmergencyCard({ s }: { s: Strings }) {
                 <Ionicons name="close" size={30} color={colors.text} />
               </Tap>
             </View>
-            <Tap style={styles.call911} onPress={() => void Linking.openURL(`tel:${s.emergencyNumber}`)} accessibilityRole="button">
+            <Tap style={styles.call911} onPress={() => void Linking.openURL(`tel:${sos}`)} accessibilityRole="button">
               <Ionicons name="call" size={24} color={colors.onPrimary} />
-              <Text style={styles.call911Text}>{s.careCall911}</Text>
+              <Text style={styles.call911Text}>{s.careCallEmergency.replace("{n}", sos)}</Text>
             </Tap>
             <PlanView sections={plan.sections} contacts={plan.contacts} asthma={plan.asthma} notes={plan.notes} s={s} big />
           </ScrollView>

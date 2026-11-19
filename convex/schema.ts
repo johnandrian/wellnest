@@ -90,7 +90,8 @@ export default defineSchema({
     peakFlowBest: v.optional(v.number()),
     // Coordinates of `location`, geocoded once for finding care nearby (convex/care.ts).
     // `place`: a short name for it ("Berkeley, California") shown with the weather; "" when the map has none.
-    locationPoint: v.optional(v.object({ lat: v.number(), lon: v.number(), for: v.string(), place: v.optional(v.string()) })),
+    // `country`: the ISO code of where the saved location is, for the emergency number (src/emergency.ts).
+    locationPoint: v.optional(v.object({ lat: v.number(), lon: v.number(), for: v.string(), place: v.optional(v.string()), country: v.optional(v.string()) })),
     // Routing state (convex/pipeline.ts): an analysis offer waiting for a yes.
     analysisOfferedAt: v.optional(v.number()),
     // "Clear chat": messages before this time are hidden and left out of the model's context and memory.

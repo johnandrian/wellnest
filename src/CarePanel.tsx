@@ -10,6 +10,7 @@ import { api } from "../convex/_generated/api";
 import { colors, themed, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
+import { useEmergencyNumber } from "./emergency";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
 import { Icon, IconName } from "./Icon";
@@ -37,6 +38,7 @@ async function here(): Promise<{ lat: number; lon: number } | null> {
 
 export function CarePanel({ s }: { s: Strings }) {
   const search = useAction(api.care.search);
+  const sos = useEmergencyNumber(s);
   // Miles for people who chose pounds in Settings.
   const imperial = useQuery(api.chat.me)?.units.weight === "lb";
   const [kind, setKind] = useState<Kind | null>(null);
@@ -68,9 +70,9 @@ export function CarePanel({ s }: { s: Strings }) {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
-      <Tap style={styles.emergency} onPress={() => void Linking.openURL(`tel:${s.emergencyNumber}`)} accessibilityRole="button">
+      <Tap style={styles.emergency} onPress={() => void Linking.openURL(`tel:${sos}`)} accessibilityRole="button">
         <Ionicons name="call" size={18} color={colors.onPrimary} />
-        <Text style={styles.emergencyText}>{s.careCall911}</Text>
+        <Text style={styles.emergencyText}>{s.careCallEmergency.replace("{n}", sos)}</Text>
       </Tap>
 
       <EmergencyCard s={s} />
