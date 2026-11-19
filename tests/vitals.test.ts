@@ -1,7 +1,7 @@
-// Blood pressure, weight, and temperature trackers (convex/lib/trackers.ts, convex/trackers.ts).
+// Blood pressure, weight, temperature, and period trackers (convex/lib/trackers.ts, convex/trackers.ts).
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../convex/_generated/api";
-import { cleanBp, cleanTemperature, cleanWeight, entryLine, trackersText } from "../convex/lib/trackers";
+import { cleanBp, cleanPeriod, cleanTemperature, cleanWeight, entryLine, trackersText, withLoggedPeriods } from "../convex/lib/trackers";
 import { dateList, findPatterns, outcomes, shiftDate } from "../convex/lib/insights";
 import { patternText } from "../convex/lib/insightsText";
 import { fmtTemp, tempToC, unitsOf, weightToKg } from "../convex/lib/units";
@@ -134,5 +134,40 @@ describe("vitals", () => {
     expect(byType.bp).toMatchObject({ source: "chat", bp: { systolic: 142, diastolic: 91, pulse: 77 } });
     expect(byType.weight.weight).toEqual({ kg: 80 });
     expect(byType.temperature.temperature!.c).toBeCloseTo(38.44, 2);
+  });
+});
+
+describe("period log", () => {
+  const day = (date: string, flow: "light" | "medium" | "heavy" | "unspecified") => ({ date, at: Date.parse(`${date}T15:00:00Z`), tracker: "period" as const, period: { flow } });
+
+  test("logged days merge with the phone's, counting first", () => {
+    expect(cleanPeriod({ flow: "gushing" as any })).toEqual({ flow: "unspecified" });
+    const health = [
+      { date: "2026-10-01", metrics: { menstrualFlow: "light" as const, steps: 4000 } },
+      { date: "2026-10-03", metrics: { menstrualFlow: "none" as const } },
+    ];
+    const merged = withLoggedPeriods(health, [day("2026-10-02", "medium"), day("2026-10-01", "heavy"), day("2026-10-01", "light"), day("2026-10-28", "unspecified")]);
+    expect(merged).toEqual([
+      { date: "2026-10-01", metrics: { menstrualFlow: "heavy", steps: 4000 } },
+      { date: "2026-10-02", metrics: { menstrualFlow: "medium" } },
+      { date: "2026-10-03", metrics: { menstrualFlow: "none" } },
+      { date: "2026-10-28", metrics: { menstrualFlow: "unspecified" } },
+    ]);
+    expect(withLoggedPeriods(health, [])).toBe(health);
+    expect(entryLine(day("2026-10-02", "medium"))).toBe("period (medium flow)");
+    expect(trackersText([day("2026-10-01", "heavy"), day("2026-10-02", "medium"), day("2026-10-29", "light")])).toContain("Period: 3 days logged, starting 2026-10-01, 2026-10-29.");
+  });
+
+  test("logged in the app or from chat, and shown in the Journal's period days", async () => {
+    const t = setup();
+    const call = { content: null, tool_calls: [{ id: "p", type: "function", function: { name: "log_condition_event", arguments: JSON.stringify({ tracker: "period", flow: "heavy" }) } }] };
+    mockApis({ core: [call, { content: "Logged." }] });
+    const { as } = await createAppUser(t);
+    await as.mutation(api.trackers.add, { tracker: "period", date: "2026-11-01", period: { flow: "light" } });
+    await as.mutation(api.chat.send, { text: "got my period today, it's heavy" });
+    await drain(t);
+    const view = (await as.query(api.trackers.view, { since: "2026-10-01" }))!;
+    expect(view.period.map((p) => p.flow)).toEqual(["heavy", "light"]);
+    expect((await as.query(api.journal.view, { since: "2026-10-01" }))!.periodDays).toEqual(["2026-11-01", "2026-11-02"]);
   });
 });

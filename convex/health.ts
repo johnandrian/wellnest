@@ -6,6 +6,8 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { cleanMetrics, healthMetrics, healthSource, isDate, MAX_SYNC_DAYS } from "./lib/health";
+import { withLoggedPeriods } from "./lib/trackers";
+import { trackersSince } from "./trackers";
 
 const DELETE_BATCH = 200;
 
@@ -100,7 +102,7 @@ export const deleteDays = internalMutation({
   },
 });
 
-// Days on or after `since` (YYYY-MM-DD), oldest first.
+// Days on or after `since` (YYYY-MM-DD), oldest first, with the period days logged in the app.
 export const daysSince = internalQuery({
   args: { userId: v.id("users"), since: v.string() },
   handler: async (ctx, { userId, since }) => {
@@ -108,6 +110,6 @@ export const daysSince = internalQuery({
       .query("healthDays")
       .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
       .take(MAX_SYNC_DAYS + 2);
-    return rows.map(({ date, metrics }) => ({ date, metrics }));
+    return withLoggedPeriods(rows.map(({ date, metrics }) => ({ date, metrics })), await trackersSince(ctx, userId, since));
   },
 });

@@ -219,8 +219,8 @@ export const journalTools: ToolDef[] = [
     function: {
       name: "log_condition_event",
       description:
-        "Log a pain / CRPS episode, an asthma reading or attack, a seizure, a blood glucose reading, or a blood pressure, weight, or " +
-        "temperature reading in the user's condition " +
+        "Log a pain / CRPS episode, an asthma reading or attack, a seizure, a blood glucose reading, a blood pressure, weight, or " +
+        "temperature reading, or a period day in the user's condition " +
         "trackers when they describe one. Fill in only what they said. Several entries a day are fine. Mention briefly that you logged it. " +
         "For a seizure that's happening now or lasted over 5 minutes, tell them to call emergency services first. For a glucose " +
         "reading under 70 mg/dL (3.9 mmol/L) with symptoms, or one they say is very high with vomiting or confusion, give the urgent advice first. " +
@@ -228,7 +228,7 @@ export const journalTools: ToolDef[] = [
       parameters: {
         type: "object",
         properties: {
-          tracker: { type: "string", enum: ["pain", "asthma", "seizure", "glucose", "bp", "weight", "temperature"] },
+          tracker: { type: "string", enum: ["pain", "asthma", "seizure", "glucose", "bp", "weight", "temperature", "period"] },
           date: { type: "string", description: "YYYY-MM-DD if not today" },
           note: { type: "string" },
           severity: { type: "integer", description: "pain: 0-10" },
@@ -267,6 +267,7 @@ export const journalTools: ToolDef[] = [
           weight_unit: { type: "string", enum: ["lb", "kg"] },
           temperature_value: { type: "number", description: "temperature: as they said it" },
           temperature_unit: { type: "string", enum: ["F", "C"], description: "temperature: values over 45 are °F" },
+          flow: { type: "string", enum: ["light", "medium", "heavy", "unspecified"], description: "period: the flow if they said" },
         },
         required: ["tracker"],
       },
