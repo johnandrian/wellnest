@@ -19,7 +19,8 @@ import { TodayDoses } from "./TodayDoses";
 import { CountBadge, GROUPS, TOOLS, type HubTab } from "./HubPanel";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
-import { axisDay } from "./format";
+import { axisDay, formatDate } from "./format";
+import { TapBars } from "./TapBars";
 import { useNow } from "./useNow";
 
 // Questions show on the dashboard in the week before an appointment.
@@ -98,6 +99,7 @@ export function DashboardView(p: {
   const wide = width >= 640;
   const wider = width >= 1100;
   const m = data.meds;
+  const [allPatterns, setAllPatterns] = useState(false);
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -211,7 +213,17 @@ export function DashboardView(p: {
               </View>
               <View style={styles.flex}>
                 <Text style={styles.insightLabel}>{s.homePattern}</Text>
-                <Text style={styles.insightText}>{insights.patterns[0]}</Text>
+                {(allPatterns ? insights.patterns : insights.patterns.slice(0, 1)).map((line) => (
+                  <Text key={line} style={styles.insightText}>
+                    {line}
+                  </Text>
+                ))}
+                {insights.patterns.length > 1 && (
+                  <Tap style={styles.morePatterns} onPress={() => setAllPatterns(!allPatterns)} accessibilityRole="button" accessibilityState={{ expanded: allPatterns }}>
+                    <Text style={styles.askText}>{allPatterns ? s.journalShowFewer : s.homeAllPatterns.replace("{n}", String(insights.patterns.length))}</Text>
+                  </Tap>
+                )}
+                {allPatterns && <Text style={styles.small}>{s.journalNotCause}</Text>}
               </View>
             </View>
           )}
@@ -387,6 +399,9 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
     return scaleColor(chart.worse === "high" ? 1 - f : chart.worse === "low" ? f : 0.75 + 0.25 * f);
   };
   const label = t && { better: s.homeBetter, worse: s.homeWorse, same: s.homeSame }[t];
+  // Tap a day's bar to read its value; the line takes the axis's place.
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickedValue = picked ? byDate.get(picked) : undefined;
   return (
     <Tap style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]} onPress={onPress} accessibilityRole="button"
       accessibilityLabel={`${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`}>
@@ -421,12 +436,12 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
         )}
       </View>
       {chart.meds.length > 0 && <MedPins dates={dates} meds={chart.meds} gap={2} />}
-      <View style={styles.bars}>
+      <TapBars count={dates.length} onPick={(i) => setPicked(dates[i] === picked ? null : dates[i])} style={styles.bars} label={`${chart.title}. ${s.chartTapHint}`}>
         {dates.map((d) => {
           const v = byDate.get(d);
           const t = trendBy.get(d);
           return (
-            <View key={d} style={styles.slot}>
+            <View key={d} style={[styles.slot, d === picked && styles.slotOn]}>
               {marked.has(d) && <MedBand />}
               {v !== undefined && (
                 <View style={[styles.bar, { height: `${Math.max(6, ((v - floor) / (top - floor || 1)) * 100)}%`, backgroundColor: barColor(v) }]} />
@@ -435,11 +450,19 @@ function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s: String
             </View>
           );
         })}
-      </View>
-      <View style={styles.axis}>
-        <Text style={styles.axisText}>{axisDay(chart.from, s)}</Text>
-        <Text style={styles.axisText}>{axisDay(chart.to, s)}</Text>
-      </View>
+      </TapBars>
+      {picked ? (
+        <Enter from={4}>
+          <Text style={styles.picked}>
+            {formatDate(picked, s, { weekday: "short", month: "short", day: "numeric" })}: {pickedValue !== undefined ? withUnit(pickedValue, chart.unit) : s.chartNothing}
+          </Text>
+        </Enter>
+      ) : (
+        <View style={styles.axis}>
+          <Text style={styles.axisText}>{axisDay(chart.from, s)}</Text>
+          <Text style={styles.axisText}>{axisDay(chart.to, s)}</Text>
+        </View>
+      )}
       {trendBy.size > 0 && <Text style={styles.axisText}>● {s.chartTrend}</Text>}
       <MedLegend meds={chart.meds} s={s} />
     </Tap>
@@ -456,6 +479,9 @@ const styles = themed(() => ({
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   group: { gap: 8 },
+  morePatterns: { minHeight: 36, justifyContent: "center", alignSelf: "flex-start" },
+  slotOn: { backgroundColor: colors.primarySoft },
+  picked: { color: colors.text, fontSize: 13, fontWeight: "600" },
   toolHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   waiting: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderColor: colors.primary },
   waitingUrgent: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
