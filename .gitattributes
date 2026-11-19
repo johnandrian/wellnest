@@ -1,0 +1,2 @@
+# Store text files with LF and check them out with LF everywhere, so no file mixes line endings.
+* text=auto eol=lf
