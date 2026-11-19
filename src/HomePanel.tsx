@@ -421,42 +421,54 @@ export function TrendCard({ chart, s, wide, wider, onPress }: { chart: Chart; s:
   // Tap a day's bar to read its value; the line takes the axis's place.
   const [picked, setPicked] = useState<string | null>(null);
   const pickedValue = picked ? byDate.get(picked) : undefined;
+  const a11y = `${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`;
+  const head = (
+    <>
+      <View style={styles.trendHead}>
+        <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
+          <Icon name={METRIC_ICON[chart.metric] ?? "insights"} size={18} color={colors.primary} />
+        </View>
+        <Text style={styles.trendTitle} numberOfLines={1}>
+          {chart.title}
+        </Text>
+        {t && (
+          <View style={[styles.pill, { borderColor: bad()[t] }]}>
+            <Ionicons
+              name={
+                t === "same" || !moved(chart) ? "remove"
+                : moved(chart) > 0 ? "trending-up"
+                : "trending-down"
+              }
+              size={14}
+              color={bad()[t]}
+            />
+            <Text style={[styles.pillText, { color: bad()[t] }]}>{label}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.valueRow}>
+        <Text style={styles.big}>{withUnit(chart.latest.value, chart.unit)}</Text>
+        {chart.prevWeek !== null && chart.week !== null && (
+          <Text style={styles.small} numberOfLines={1}>
+            {s.homeThisWeek} {withUnit(chart.week, chart.unit)} · {s.homeLastWeek.replace("{v}", withUnit(chart.prevWeek, chart.unit))}
+          </Text>
+        )}
+      </View>
+    </>
+  );
   return (
     <View style={[styles.trend, wider ? styles.third : wide ? styles.half2 : styles.full]}>
       {/* The head opens the tool. The bars are a button of their own, so they sit beside it, not inside it. */}
-      <Tap style={styles.trendTop} onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : "summary"}
-        accessibilityLabel={`${chart.title}: ${s.homeLatest} ${withUnit(chart.latest.value, chart.unit)}${label ? `, ${label}` : ""}`}>
-        <View style={styles.trendHead}>
-          <View style={[styles.iconDot, { backgroundColor: colors.primarySoft }]}>
-            <Icon name={METRIC_ICON[chart.metric] ?? "insights"} size={18} color={colors.primary} />
-          </View>
-          <Text style={styles.trendTitle} numberOfLines={1}>
-            {chart.title}
-          </Text>
-          {t && (
-            <View style={[styles.pill, { borderColor: bad()[t] }]}>
-              <Ionicons
-                name={
-                  t === "same" || !moved(chart) ? "remove"
-                  : moved(chart) > 0 ? "trending-up"
-                  : "trending-down"
-                }
-                size={14}
-                color={bad()[t]}
-              />
-              <Text style={[styles.pillText, { color: bad()[t] }]}>{label}</Text>
-            </View>
-          )}
+      {onPress ? (
+        <Tap style={styles.trendTop} onPress={onPress} accessibilityRole="button" accessibilityLabel={a11y}>
+          {head}
+        </Tap>
+      ) : (
+        // Read only for Care Circle members: a plain block, not a dimmed button.
+        <View style={styles.trendTop} accessibilityLabel={a11y}>
+          {head}
         </View>
-        <View style={styles.valueRow}>
-          <Text style={styles.big}>{withUnit(chart.latest.value, chart.unit)}</Text>
-          {chart.prevWeek !== null && chart.week !== null && (
-            <Text style={styles.small} numberOfLines={1}>
-              {s.homeThisWeek} {withUnit(chart.week, chart.unit)} · {s.homeLastWeek.replace("{v}", withUnit(chart.prevWeek, chart.unit))}
-            </Text>
-          )}
-        </View>
-      </Tap>
+      )}
       {chart.meds.length > 0 && <MedPins dates={dates} meds={chart.meds} gap={2} />}
       <TapBars count={dates.length} onPick={(i) => setPicked(dates[i] === picked ? null : dates[i])} style={styles.bars} label={`${chart.title}. ${s.chartTapHint}`}>
         {dates.map((d) => {
