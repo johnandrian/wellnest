@@ -114,6 +114,14 @@ export const overview = query({
     const visits = await ctx.db.query("visits").withIndex("by_user_and_start", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const team = await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const records = await ctx.db.query("records").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const trackers = await ctx.db.query("trackerEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const exercises = await ctx.db.query("exercises").withIndex("by_user_and_active", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const checkins = await ctx.db.query("dailyLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const plan = await ctx.db.query("emergencyPlans").withIndex("by_user", (q) => q.eq("userId", userId)).first();
+    const links = await ctx.db.query("shareLinks").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const members = await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(COUNT_CAP + 1);
+    const caringFor = await ctx.db.query("circleMembers").withIndex("by_member", (q) => q.eq("memberId", userId)).take(COUNT_CAP + 1);
+    const actions = await ctx.db.query("agentActions").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     return {
       profile: {
         email: user.email ?? null,
@@ -137,7 +145,15 @@ export const overview = query({
         records: count(records),
         visits: count(visits),
         careTeam: count(team),
+        trackers: count(trackers),
+        exercises: count(exercises),
+        checkins: count(checkins),
+        shareLinks: count(links.filter((l) => !l.revokedAt)),
+        circleMembers: count(members),
+        caringFor: count(caringFor),
+        actions: count(actions),
       },
+      emergencyPlan: !!plan,
       since: first?._creationTime ?? null,
       chatClearedAt: user.chatClearedAt ?? null,
     };
@@ -196,6 +212,9 @@ export const exportRest = internalQuery({
       emergencyPlan: await ctx.db.query("emergencyPlans").withIndex("by_user", (q) => q.eq("userId", userId)).take(1),
       healthRecords: (await ctx.db.query("records").withIndex("by_user", (q) => q.eq("userId", userId)).take(take)).map(({ file, ...r }) => ({ ...r, hasFile: !!file })),
       labResults: await ctx.db.query("labResults").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
+      // Share links without their secret token.
+      shareLinks: (await ctx.db.query("shareLinks").withIndex("by_user", (q) => q.eq("userId", userId)).take(take)).map(({ token, ...l }) => l),
+      actions: await ctx.db.query("agentActions").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       careCircle: {
         members: (await ctx.db.query("circleMembers").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(take)).map(({ label, alerts, _creationTime }) => ({ label, alerts, since: _creationTime })),
         caringFor: (await ctx.db.query("circleMembers").withIndex("by_member", (q) => q.eq("memberId", userId)).take(take)).map(({ ownerId, alerts, _creationTime }) => ({ ownerId, alerts, since: _creationTime })),
@@ -234,6 +253,13 @@ const category = v.union(
   v.literal("journal"),
   v.literal("appointments"),
   v.literal("records"),
+  v.literal("trackers"),
+  v.literal("exercises"),
+  v.literal("checkins"),
+  v.literal("emergency"),
+  v.literal("shareLinks"),
+  v.literal("circle"),
+  v.literal("actions"),
   v.literal("everything"),
 );
 
@@ -243,12 +269,19 @@ const STEPS = {
   records: ["labResults", "records"],
   reminders: ["medications", "doseLogs", "medicationEvents", "sideEffects"],
   summaries: ["visitSummaries"],
-  appointments: ["visits", "careTeam", "emergencyPlans"],
+  appointments: ["visits", "careTeam"],
   facts: ["memoryFacts"],
-  journal: ["symptomEntries", "dailyLogs", "trackerEntries", "exerciseLogs", "exercises"],
+  journal: ["symptomEntries"],
+  trackers: ["trackerEntries"],
+  exercises: ["exerciseLogs", "exercises"],
+  checkins: ["dailyLogs"],
+  emergency: ["emergencyPlans"],
+  shareLinks: ["shareLinks"],
+  circle: ["circle"],
+  actions: ["agentActions"],
 } as const;
 // Only "everything" also removes the account's devices and sign-in records.
-const ACCOUNT_STEPS = ["pushTokens", "shareLinks", "circle", "auth"] as const;
+const ACCOUNT_STEPS = ["pushTokens", "auth"] as const;
 type Step = (typeof STEPS)[keyof typeof STEPS][number] | (typeof ACCOUNT_STEPS)[number];
 
 export const deleteData = mutation({
@@ -349,6 +382,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
     case "creaoRuns":
     case "doseLogs":
     case "visitSummaries":
+    case "agentActions":
     case "memoryFacts": {
       const rows = await ctx.db.query(step).withIndex("by_user", (q) => q.eq("userId", userId)).take(BATCH);
       for (const r of rows) await ctx.db.delete(r._id);

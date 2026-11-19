@@ -66,14 +66,14 @@ describe("trackers", () => {
     expect(await rows(t)).toHaveLength(3);
   });
 
-  test("pain feeds the journal's charts; deleting the journal removes tracker entries", async () => {
+  test("pain feeds the journal's charts; deleting trackers removes tracker entries", async () => {
     const t = setup();
     mockApis();
     const { as } = await createAppUser(t);
     await as.mutation(api.trackers.add, { tracker: "pain", pain: { severity: 7, locations: [], types: [] } });
     const journal = (await as.query(api.journal.view, { since: "2026-10-01" }))!;
     expect(journal.symptoms).toMatchObject([{ name: "pain", count: 1, points: [{ date: "2026-11-02", severity: 7 }] }]);
-    await as.mutation(api.me.deleteData, { category: "journal" });
+    await as.mutation(api.me.deleteData, { category: "trackers" });
     await drain(t);
     expect(await rows(t)).toHaveLength(0);
   });
