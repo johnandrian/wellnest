@@ -7,7 +7,7 @@ import { FOOD_TAGS, type Entry, type DailyLog, type FoodTag } from "./journal";
 import type { HealthDay } from "./health";
 import type { TrackerEntry } from "./trackers";
 import type { WeatherDay } from "./weather";
-import { DEFAULT_UNITS, FEVER_C, showGlucose, showWeight, type Units } from "./units";
+import { DEFAULT_UNITS, FEVER_C, showGlucose, showTemp, showWeight, type Units } from "./units";
 
 export type Series = Map<string, number>; // date -> value
 
@@ -333,7 +333,7 @@ export function medEffects(input: Inputs, changes: MedChange[], dates: string[],
 
 export const CHART_METRICS = [
   "pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv",
-  "weightKg", "glucose", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen",
+  "weightKg", "glucose", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen", "bp", "bodyTemp",
 ] as const;
 export type ChartMetric = (typeof CHART_METRICS)[number];
 
@@ -377,7 +377,7 @@ export function chartMarks(changes: MedChange[], from: string, to: string): Char
 const SCALE: Partial<Record<ChartMetric, number>> = { pain: 10, symptom: 10, mood: 5, energy: 5, sleepQuality: 5 };
 const WORSE: Partial<Record<ChartMetric, "high" | "low">> = {
   pain: "high", symptom: "high", mood: "low", energy: "low", sleepQuality: "low", peakFlow: "low", reliever: "high", seizures: "high", aqi: "high", pollen: "high",
-  glucose: "high",
+  glucose: "high", bp: "high", bodyTemp: "high",
 };
 
 // One value per day for a chart, oldest first, in the user's units. `symptom` picks a journal symptom by name.
@@ -393,15 +393,25 @@ export function chartSeries(
     values = maxBy(input.entries.flatMap((e): [string, number][] => (e.symptom === symptom && e.severity !== undefined ? [[e.date, e.severity]] : [])));
   } else if (metric === "glucose") {
     values = glucoseSeries(input);
-  } else if (["pain", "mood", "energy", "sleepQuality", "peakFlow", "reliever", "seizures"].includes(metric)) {
+  } else if (metric === "weightKg") {
+    // The tracker's weight first, then the phone's.
+    values = weightSeries(input);
+  } else if (metric === "bodyTemp") {
+    values = maxBy(input.trackers.flatMap((e): [string, number][] => (e.temperature ? [[e.date, e.temperature.c]] : [])));
+  } else if (["pain", "mood", "energy", "sleepQuality", "peakFlow", "reliever", "seizures", "bp"].includes(metric)) {
     values = outcomes(input, dates).find((o) => o.key === metric)?.values ?? new Map();
   } else if (metric === "tempMax" || metric === "aqi" || metric === "pollen") {
     values = new Map(input.weather.flatMap((w): [string, number][] => (w[metric] === undefined ? [] : [[w.date, w[metric]!]])));
   } else {
-    const key = metric === "hrv" ? "hrvMs" : (metric as "sleepHours" | "steps" | "restingHeartRate" | "weightKg");
+    const key = metric === "hrv" ? "hrvMs" : (metric as "sleepHours" | "steps" | "restingHeartRate");
     values = new Map(input.health.flatMap((d): [string, number][] => (d.metrics[key] === undefined ? [] : [[d.date, d.metrics[key]!]])));
   }
-  const show = (x: number) => (metric === "weightKg" ? showWeight(x, units) : metric === "glucose" ? showGlucose(x, units) : x);
+  const show = (x: number) => {
+    if (metric === "weightKg") return showWeight(x, units);
+    if (metric === "glucose") return showGlucose(x, units);
+    if (metric === "tempMax" || metric === "bodyTemp") return showTemp(x, units);
+    return x;
+  };
   const points = dates.flatMap((date) => (values.has(date) ? [{ date, value: r1(show(values.get(date)!)) }] : []));
   const top = Math.max(0, ...points.map((p) => p.value));
   const out = { points, max: SCALE[metric] ?? (top || 1), worse: WORSE[metric] ?? ("none" as const) };

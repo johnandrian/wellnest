@@ -420,7 +420,7 @@ export const insightTools: ToolDef[] = [
         properties: {
           metric: {
             type: "string",
-            enum: ["pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv", "weightKg", "glucose", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen"],
+            enum: ["pain", "symptom", "mood", "energy", "sleepQuality", "sleepHours", "steps", "restingHeartRate", "hrv", "weightKg", "glucose", "peakFlow", "reliever", "seizures", "tempMax", "aqi", "pollen", "bp", "bodyTemp"],
           },
           symptom: { type: "string", description: "For metric symptom: which one, e.g. 'headache'" },
           days: { type: "integer", description: "7-180, default 30" },

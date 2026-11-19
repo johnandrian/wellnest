@@ -123,7 +123,7 @@ export const view = query({
       medEffects: effects.map((e) => medEffectText(e, lang, units)),
       // Lab results that moved after a medication change.
       labEffects: labs.map((e) => labEffectText(e, lang, units)),
-      weather: weatherToday ? weatherLine(weatherToday, lang) : null,
+      weather: weatherToday ? weatherLine(weatherToday, lang, units) : null,
       // Where that weather is for: the looked-up place name, else the location as they typed it.
       weatherPlace: weatherToday ? placeOf(user) : null,
       // The flare forecast: tomorrow's weather on the worse side of one of their weather patterns.
@@ -153,8 +153,8 @@ export const forModel = internalQuery({
       labs.length
         ? `Lab results before and after medication changes (from their uploaded reports; a few results, so a hint, not proof):\n${labs.map((e) => `- ${labEffectText(e, "en", units)}`).join("\n")}`
         : "",
-      weatherToday ? `Today's local weather: ${weatherLine(weatherToday, "en")}` : "No local weather (no saved location).",
-      tomorrow ? `Tomorrow's forecast: ${weatherLine(tomorrow, "en")}` : "",
+      weatherToday ? `Today's local weather: ${weatherLine(weatherToday, "en", units)}` : "No local weather (no saved location).",
+      tomorrow ? `Tomorrow's forecast: ${weatherLine(tomorrow, "en", units)}` : "",
       flare.length
         ? `Flare forecast (tomorrow's weather matches their own patterns; a heads-up, not a prediction):\n${flare.map((m) => `- ${forecastLine(m, "en", units)}`).join("\n")}`
         : "",

@@ -102,7 +102,7 @@ describe("weather", () => {
       { date: "2026-10-31", tempMax: 18, tempMin: 10, humidity: 70, pressure: 1011, precip: 0.4, aqi: 55 },
       { date: "2026-11-01", tempMax: 20, tempMin: 12, humidity: 70, pressure: 1005, precip: 3.5, aqi: 25, pollen: 60 },
     ]);
-    expect(weatherLine(days[1], "en")).toBe("12–20°C · humidity 70% · rain 3.5 mm · air quality 25 (good) · pollen moderate");
+    expect(weatherLine(days[1], "en")).toBe("54–68°F · humidity 70% · rain 3.5 mm · air quality 25 (good) · pollen moderate");
   });
 
   test("saving a location geocodes it once and stores the days; a refresh replaces them", async () => {
@@ -156,7 +156,7 @@ describe("insights in the app and for the model", () => {
     await t.run((ctx) => ctx.db.patch(userId, { language: "es", location: "Berkeley" }));
     const view = (await as.query(api.insights.view, { today: TODAY }))!;
     expect(view.patterns).toEqual(["Dolor: media de 6/10 los días con humedad del 65 % o más (10 días), frente a 2/10 el resto (10)."]);
-    expect(view.weather).toBe("11–20°C · humedad 40% · calidad del aire 30 (buena)");
+    expect(view.weather).toBe("52–68 °F · humedad 40% · calidad del aire 30 (buena)");
     expect(view.hasLocation).toBe(true);
     // Not looked up yet: the location as typed.
     expect(view.weatherPlace).toBe("Berkeley");
