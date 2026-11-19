@@ -2,8 +2,10 @@
 import { v } from "convex/values";
 import { units, unitsOf } from "./lib/units";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation, query } from "./_generated/server";
+import { mutation, MutationCtx, query } from "./_generated/server";
 import { DAILY_LIMIT, enqueueUserMessage } from "./pipeline";
+import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { language } from "./lib/language";
 import { refreshSoon } from "./weather";
 import { chatMessages, currentChatKey } from "./lib/chats";
@@ -35,6 +37,48 @@ export const send = mutation({
     const messageId = await enqueueUserMessage(ctx, userId, trimmed.slice(0, 4000), "app", !!voice, imageId);
     if (upload && messageId) await ctx.db.patch(upload._id, { messageId });
     return { limited: messageId === null, limit: DAILY_LIMIT };
+  },
+});
+
+// The open chat's two newest messages, newest first, for Stop and Try again, which only ever apply to the last.
+async function lastTwo(ctx: MutationCtx, user: Doc<"users">) {
+  return await chatMessages(ctx, user, await currentChatKey(ctx, user)).order("desc").take(2);
+}
+
+// Stop: the reply still being written to the user's last message is dropped when it arrives. Anything the model
+// already did on the way (a logged symptom, a reminder) stays.
+export const stop = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    const user = userId ? await ctx.db.get(userId) : null;
+    if (!user) throw new Error("Not signed in");
+    const [last] = await lastTwo(ctx, user);
+    if (last?.role === "user" && last.channel === "app" && !last.stopped) await ctx.db.patch(last._id, { stopped: true });
+  },
+});
+
+// Try again: for a reply that failed (it's removed) or a message whose reply was stopped. Doesn't count toward the
+// daily limit again.
+export const retry = mutation({
+  args: { id: v.id("messages") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    const user = userId ? await ctx.db.get(userId) : null;
+    if (!user) throw new Error("Not signed in");
+    const [last, before] = await lastTwo(ctx, user);
+    if (!last || last._id !== id) throw new Error("Only the last message can be tried again.");
+    let asked = last;
+    if (last.role === "assistant" && last.failed) {
+      if (!before || before.role !== "user") throw new Error("Nothing to try again.");
+      await ctx.db.delete(last._id);
+      asked = before;
+    } else if (!(last.role === "user" && last.stopped)) {
+      throw new Error("Nothing to try again.");
+    }
+    const run = (asked.run ?? 0) + 1;
+    await ctx.db.patch(asked._id, { stopped: undefined, run });
+    await ctx.scheduler.runAfter(0, internal.pipeline.respond, { messageId: asked._id, run });
   },
 });
 

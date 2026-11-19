@@ -306,6 +306,46 @@ describe("tools", () => {
     await drain(t);
     expect((await messagesOf(t, userId))[1].text).toMatch(/something went wrong/);
   });
+
+  test("a failed reply can be tried again, and only the last message", async () => {
+    const t = setup();
+    mockApis({ core: [new Error("503"), { content: "Better now." }] });
+    const { userId, as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    await as.mutation(api.chat.send, { text: "x" });
+    await drain(t);
+    let msgs = await messagesOf(t, userId);
+    expect(msgs[1]).toMatchObject({ role: "assistant", failed: true });
+    await expect(as.mutation(api.chat.retry, { id: msgs[0]._id })).rejects.toThrow(/last message/);
+    await expect(other.as.mutation(api.chat.retry, { id: msgs[1]._id })).rejects.toThrow(/last message/);
+    await as.mutation(api.chat.retry, { id: msgs[1]._id });
+    await drain(t);
+    msgs = await messagesOf(t, userId);
+    expect(msgs.map((m) => [m.role, m.text, m.failed ?? false])).toEqual([
+      ["user", "x", false],
+      ["assistant", "Better now.", false],
+    ]);
+    await expect(as.mutation(api.chat.retry, { id: msgs[1]._id })).rejects.toThrow(/Nothing to try again/);
+  });
+
+  test("Stop drops the reply still being written, and Try again asks for a new one", async () => {
+    const t = setup();
+    mockApis({ core: [{ content: "First answer." }, { content: "Second answer." }] });
+    const { userId, as } = await createAppUser(t);
+    await as.mutation(api.chat.send, { text: "How do I sleep better?" });
+    await as.mutation(api.chat.stop, {});
+    await drain(t);
+    let msgs = await messagesOf(t, userId);
+    expect(msgs.map((m) => [m.role, m.stopped ?? false])).toEqual([["user", true]]);
+    await as.mutation(api.chat.retry, { id: msgs[0]._id });
+    await drain(t);
+    msgs = await messagesOf(t, userId);
+    expect(msgs.map((m) => [m.role, m.text])).toEqual([
+      ["user", "How do I sleep better?"],
+      ["assistant", "Second answer."],
+    ]);
+    expect(msgs[0].stopped).toBeUndefined();
+  });
 });
 
 describe("daily limit", () => {

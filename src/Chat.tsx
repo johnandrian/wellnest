@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import { colors, floatingBar, softShadow, radius, TEXT_SIZES, themed, themeVersion } from "./theme";
@@ -85,6 +86,8 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const me = useQuery(api.chat.me);
   const send = useMutation(api.chat.send);
   const newChat = useMutation(api.chats.start);
+  const stopReply = useMutation(api.chat.stop);
+  const retryReply = useMutation(api.chat.retry);
 
   const logDose = useMutation(api.reminders.log);
   const snoozeDose = useMutation(api.reminders.snooze);
@@ -152,7 +155,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   };
 
   const last = messages?.[messages.length - 1];
-  const waiting = last?.role === "user";
+  // A reply is being written: the last message is the user's and they haven't stopped it.
+  const waiting = last?.role === "user" && !last.stopped;
+  const copy = (text: string) =>
+    void Clipboard.setStringAsync(text).then(
+      () => showToast(s.copied),
+      (e) => showToast(errorText(e)),
+    );
+  const retry = (id: Id<"messages">) => void retryReply({ id }).catch((e) => setNotice(errorText(e)));
 
   // `spoken`: it came from the mic, so the reply is read aloud.
   const submit = async (value = text, attached: Picked | null = photo, spoken = false) => {
@@ -362,7 +372,12 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
                 <View style={styles.dayLine} />
               </View>
             )}
-            <View
+            {/* Long press (or the screen reader's Copy action) copies the message's text. */}
+            <Pressable
+              onLongPress={item.text ? () => copy(item.text) : undefined}
+              delayLongPress={350}
+              accessibilityActions={item.text ? [{ name: "copy", label: s.copy }] : undefined}
+              onAccessibilityAction={(e) => e.nativeEvent.actionName === "copy" && copy(item.text)}
               style={[
                 styles.bubble,
                 item.role === "user" ? styles.userBubble : styles.botBubble,
@@ -437,7 +452,16 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
                   <Text style={styles.speakingText}>{s.speaking}</Text>
                 </Pressable>
               )}
-            </View>
+            </Pressable>
+            {index === messages.length - 1 && (item.failed || (item.role === "user" && item.stopped)) && (
+              <View style={[styles.retryRow, item.role === "user" && styles.retryRowUser]}>
+                {item.stopped && <Text style={styles.retryNote}>{s.replyStopped}</Text>}
+                <Pressable style={({ pressed }) => [styles.retry, pressed && styles.pressed]} onPress={() => retry(item._id)} accessibilityRole="button">
+                  <Ionicons name="refresh" size={15} color={colors.primary} />
+                  <Text style={styles.doseText}>{s.tryAgain}</Text>
+                </Pressable>
+              </View>
+            )}
             {/* The time once per run: under the last message a side sends within a few minutes. */}
             {(index === messages.length - 1 ||
               messages[index + 1].role !== item.role ||
@@ -448,8 +472,24 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
           )}
           ListFooterComponent={
             waiting ? (
-              <View style={[styles.bubble, styles.botBubble, styles.thinking]}>
-                <ThinkingDots />
+              <View style={styles.thinkingRow}>
+                <View style={[styles.bubble, styles.botBubble, styles.thinking]}>
+                  <ThinkingDots />
+                </View>
+                {last?.channel === "app" && (
+                  <Pressable
+                    style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
+                    onPress={() => {
+                      voice.stopSpeaking();
+                      void stopReply().catch((e) => setNotice(errorText(e)));
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.stopReply}
+                  >
+                    <Ionicons name="stop-circle-outline" size={16} color={colors.primary} />
+                    <Text style={styles.doseText}>{s.stop}</Text>
+                  </Pressable>
+                )}
               </View>
             ) : undefined
           }
@@ -892,7 +932,12 @@ const styles = themed(() => ({
   viewerImage: { width: "100%", height: "100%" },
   viewerClose: { position: "absolute", right: 12, width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.scrimButton },
   speakingText: { fontSize: 12, color: colors.primary, fontWeight: "600" },
-  thinking: { paddingVertical: 10, marginTop: 8 },
+  thinking: { paddingVertical: 10 },
+  thinkingRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  retryRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  retryRowUser: { alignSelf: "flex-end" },
+  retryNote: { color: colors.muted, fontSize: 13 },
+  retry: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 36, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 12 },
   ring: { borderRadius: 33 },
   bubble: { padding: 12, borderRadius: 21, maxWidth: "85%" },
   userBubble: { backgroundColor: colors.bubbleUser, alignSelf: "flex-end", borderBottomRightRadius: 4 },

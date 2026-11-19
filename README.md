@@ -318,6 +318,8 @@ When someone tells Wellnest how a symptom is ("my headache's a 6 today", "cramps
 - **Scrolling:** new messages scroll into view only when you are already at the bottom. Scrolled up, a **New messages** button appears instead, and sending a message always returns to the bottom.
 - **Days and times:** a divider names each day (Today, Yesterday, or the date), and the time shows under the last message of each run (one side, within 5 minutes).
 - **Photos:** tap a sent photo to open it full size on a dark backdrop.
+- **Copy:** long press a message (or use the screen reader's Copy action) to copy its text (`expo-clipboard`).
+- **Stop and Try again:** while a reply is being written, **Stop** drops it when it arrives (`chat.stop`; anything the model already did on the way, like logging a symptom, stays). A stopped message or a reply that failed because the model was down (`messages.failed`) gets **Try again** (`chat.retry`), which asks for a new reply without counting toward the daily limit again. Each try is numbered (`messages.run`), so a late reply from an earlier try is dropped.
 
 ## Chat history
 The menu button at the top left opens every chat, newest first, named after its first message. **New chat** (the pencil) starts an empty one; tapping an old chat continues it, and the model only sees that chat's messages (long-term memory still searches all of them). Reminders, check-ins and Telegram messages go into whichever chat is open. Deleting a chat deletes its messages (`convex/chats.ts`). Messages from before chats existed have no `chatId` and form the user's first chat. The search box above **New chat** matches titles as you type and anything said in a chat through the `search_text` index on messages (`chats.search`), showing the matching line.
