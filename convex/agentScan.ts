@@ -8,6 +8,7 @@ import { internalMutation, MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { dateList, shiftDate, weekStats } from "./lib/insights";
 import { GlucoseReading, highFastingRule, Proposal, urgentGlucoseRule, worseningRule } from "./lib/agentRules";
+import { telehealthOn } from "./lib/telehealth";
 import { langOf } from "./lib/language";
 import { zoneOffsetMin } from "./lib/reminders";
 import { unitsOf } from "./lib/units";
@@ -93,7 +94,8 @@ export const check = internalMutation({
     const proposals = [
       urgentGlucoseRule(readings, today, lang, units),
       highFastingRule(readings, today, await medChanges(ctx, userId, shiftDate(today, -45)), lang, units),
-      worseningRule(stats, await hasUpcomingVisit(ctx, userId, now), lang),
+      // Suggests a video visit, so only when video visits are set up.
+      telehealthOn() ? worseningRule(stats, await hasUpcomingVisit(ctx, userId, now), lang) : null,
     ].filter((p): p is Proposal => p !== null);
     return await proposeAll(ctx, user, proposals);
   },

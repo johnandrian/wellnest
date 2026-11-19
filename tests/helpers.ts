@@ -223,6 +223,7 @@ export function setEnv() {
   vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "s3cret");
   vi.stubEnv("CARTESIA_API_KEY", "cartesia_test");
   vi.stubEnv("JEV_API_KEY", "apikey_test");
+  vi.stubEnv("TELEHEALTH_PROVIDER", "test");
 }
 
 export async function createAppUser(t: ReturnType<typeof setup>, email = "a@example.com") {

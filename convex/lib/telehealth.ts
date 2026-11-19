@@ -95,6 +95,10 @@ function httpProvider(): Provider {
   };
 }
 
+// Video visits show only when a provider is set up: "http" for a real one, or "test" on purpose for a demo. With
+// nothing set, the Care tab card, the chat tool, and video visit suggestions are all hidden.
+export const telehealthOn = () => process.env.TELEHEALTH_PROVIDER === "http" || process.env.TELEHEALTH_PROVIDER === "test";
+
 export function provider(): Provider {
   return process.env.TELEHEALTH_PROVIDER === "http" ? httpProvider() : testProvider;
 }
