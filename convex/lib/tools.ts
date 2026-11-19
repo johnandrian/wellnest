@@ -202,7 +202,8 @@ export const journalTools: ToolDef[] = [
       description:
         "Log today's check-in when the user says how they feel overall: mood, energy and/or how well they slept, each " +
         "1-5 (1 awful, 3 okay, 5 great), e.g. \"I'm wiped out\" is energy 1, \"slept great\" is sleep_quality 5. " +
-        "Only the parts they mentioned. Mention briefly that you logged it.",
+        "Only the parts they mentioned. Also what they ate or drank today when they say (\"had 3 coffees\" is caffeine_drinks 3, " +
+        "\"pizza and a couple of beers\" is foods fried and alcohol); foods replaces the day's list. Mention briefly that you logged it.",
       parameters: {
         type: "object",
         properties: {
@@ -210,6 +211,8 @@ export const journalTools: ToolDef[] = [
           energy: { type: "integer" },
           sleep_quality: { type: "integer" },
           note: { type: "string" },
+          caffeine_drinks: { type: "integer", description: "coffee, tea, cola, or energy drinks today" },
+          foods: { type: "array", items: { type: "string", enum: ["alcohol", "dairy", "gluten", "sugar", "spicy", "fried", "late_meal", "skipped_meal"] } },
         },
       },
     },

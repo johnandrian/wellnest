@@ -91,7 +91,18 @@ export function summaries(entries: Entry[]): string[] {
 }
 
 // The daily check-in (convex/daily.ts): 1-5 for mood, energy and sleep quality.
-export type DailyLog = { date: string; mood?: number; energy?: number; sleepQuality?: number; note?: string };
+export type DailyLog = { date: string; mood?: number; energy?: number; sleepQuality?: number; note?: string; foods?: string[]; caffeine?: number };
+
+// What the check-in asks about food and drinks, for patterns (convex/lib/insights.ts). Alcohol counts for the day
+// after.
+export const FOOD_TAGS = ["alcohol", "dairy", "gluten", "sugar", "spicy", "fried", "late_meal", "skipped_meal"] as const;
+export type FoodTag = (typeof FOOD_TAGS)[number];
+export const cleanFoods = (xs: unknown): FoodTag[] | undefined =>
+  Array.isArray(xs) ? FOOD_TAGS.filter((t) => xs.includes(t)) : undefined;
+export const cleanCaffeine = (n: unknown): number | undefined => {
+  const x = Math.round(Number(n));
+  return n !== undefined && n !== null && Number.isFinite(x) && x >= 0 && x <= 20 ? x : undefined;
+};
 const DAILY_KEYS = [
   ["mood", "Mood"],
   ["energy", "Energy"],
@@ -99,12 +110,21 @@ const DAILY_KEYS = [
 ] as const;
 
 export function dailySummary(daily: DailyLog[]): string[] {
-  return DAILY_KEYS.flatMap(([key, label]) => {
+  const scores = DAILY_KEYS.flatMap(([key, label]) => {
     const vals = daily.flatMap((d) => (d[key] === undefined ? [] : [d[key]!]));
     if (!vals.length) return [];
     const recent = mean(vals.slice(-3))!;
     return [`${label}: average ${fmt(mean(vals)!)}/5 over ${vals.length} days, last 3 days ${fmt(recent)}/5.`];
   });
+  const cups = daily.flatMap((d) => (d.caffeine === undefined ? [] : [d.caffeine]));
+  const foodDays = daily.filter((d) => d.foods);
+  const counts = FOOD_TAGS.map((t) => [t, foodDays.filter((d) => d.foods!.includes(t)).length] as const).filter(([, n]) => n);
+  const foodCounts = counts.length ? `: ${counts.map(([t, n]) => `${t.replace(/_/g, " ")} ${n}`).join(", ")}` : ", none of the listed foods";
+  return [
+    ...scores,
+    ...(cups.length ? [`Caffeine: average ${fmt(mean(cups)!)} drinks a day over ${cups.length} days.`] : []),
+    ...(foodDays.length ? [`Food noted on ${foodDays.length} days${foodCounts}.`] : []),
+  ];
 }
 
 // Mood and energy on days with a health factor vs without (3+ days each side, a gap of at least 1 point).
