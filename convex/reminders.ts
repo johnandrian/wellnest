@@ -5,10 +5,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { checkSchedule, describeSchedule, localTimeText, MAX_ACTIVE, nextDue, schedule, Schedule, zoneOffsetMin } from "./lib/reminders";
+import { checkSchedule, describeSchedule, dueTimes, isTimed, localParts, localTimeText, MAX_ACTIVE, nextDue, ruleOf, schedule, Schedule } from "./lib/reminders";
 import { langOf, t, timeText } from "./lib/language";
 import { notify } from "./push";
-import { daysLeft, doseAt, medForm, timeDose } from "./lib/meds";
+import { daysLeft, doseAt, medForm, statusOf, timeDose } from "./lib/meds";
 import { logEvent } from "./medications";
 import { insertMessage } from "./lib/chats";
 import { interactionsText, lookupSoon } from "./drugs";
@@ -72,6 +72,7 @@ async function addMedication(ctx: MutationCtx, userId: Id<"users">, args: AddArg
   const med = (await ctx.db.get(id))!;
   await logEvent(ctx, med, "started");
   await lookupSoon(ctx, med, true);
+  if (!isTimed(checked.schedule)) return { id, nextAt: null, timeZone, schedule: checked.schedule };
   const at = nextDue(checked.schedule, now, timeZone, utcOffsetMin);
   await schedule_(ctx, id, at);
   return { id, nextAt: at, timeZone, schedule: checked.schedule };
@@ -119,7 +120,7 @@ export const list = query({
       dose: m.dose ?? null,
       schedule: describeSchedule(m.schedule),
       // The app words it in the user's language.
-      rule: m.schedule.kind === "daily" ? m.schedule : { kind: "interval" as const, everyHours: m.schedule.everyHours },
+      rule: ruleOf(m.schedule),
       nextAt: m.nextAt ?? null,
       endsAt: m.endsAt ?? null,
     }));
@@ -174,6 +175,35 @@ async function useSupply(ctx: MutationCtx, medicationId: Id<"medications">) {
   await notify(ctx, med.userId, "reminders", { title: `💊 ${med.name}`, body: text, data: {} });
 }
 
+// A Taken answer taken back: the dose goes back in the bottle.
+async function giveBack(ctx: MutationCtx, medicationId: Id<"medications">) {
+  const med = await ctx.db.get(medicationId);
+  if (!med?.supply) return;
+  await ctx.db.patch(med._id, { supply: { ...med.supply, left: med.supply.left + med.supply.perDose } });
+}
+
+// The reminder message in the chat, and the push notification with Taken / Skip / Snooze on it.
+async function postReminder(ctx: MutationCtx, med: Doc<"medications">, user: Doc<"users">, dueAt: number) {
+  const dose = doseAt(localParts(dueAt, med.timeZone, med.utcOffsetMin).time, med.dose, med.timeDoses) ?? "";
+  const text = t(langOf(user), "reminder", med.name, dose, timeText(dueAt, med.timeZone, langOf(user)));
+  const messageId = await insertMessage(ctx, {
+    userId: med.userId,
+    role: "assistant",
+    channel: "app",
+    kind: "reminder",
+    text,
+    urgent: false,
+    reminder: { medicationId: med._id, dueAt },
+  });
+  // The phone shows Taken / Skip / Snooze on it (the "reminder" category, src/push.ts).
+  await notify(ctx, med.userId, "reminders", {
+    title: `💊 ${med.name}`,
+    body: text.replace(/^💊\s*/, ""),
+    data: { messageId, medicationId: med._id, dueAt: String(dueAt) },
+    categoryId: "reminder",
+  });
+}
+
 // Doses skipped or never answered (2 hours on) this past week. Three or more: a kind nudge in chat, at most weekly,
 // and an alert to the care circle members who get missed-dose alerts.
 const NUDGE_AFTER = 3;
@@ -196,29 +226,11 @@ export const fire = internalMutation({
   args: { id: v.id("medications"), dueAt: v.number() },
   handler: async (ctx, { id, dueAt }) => {
     const med = await ctx.db.get(id);
-    if (!med?.active || med.nextAt !== dueAt) return;
+    if (!med?.active || med.nextAt !== dueAt || !isTimed(med.schedule)) return;
     const user = await ctx.db.get(med.userId);
     if (user) {
       await nudgeIfMissing(ctx, med, user, Date.now());
-      const local = new Date(dueAt + zoneOffsetMin(dueAt, med.timeZone, med.utcOffsetMin) * 60_000).toISOString().slice(11, 16);
-      const dose = doseAt(local, med.dose, med.timeDoses) ?? "";
-      const text = t(langOf(user), "reminder", med.name, dose, timeText(dueAt, med.timeZone, langOf(user)));
-      const messageId = await insertMessage(ctx, {
-        userId: med.userId,
-        role: "assistant",
-        channel: "app",
-        kind: "reminder",
-        text,
-        urgent: false,
-        reminder: { medicationId: id, dueAt },
-      });
-      // The phone shows Taken / Skip buttons on it (the "reminder" category, src/push.ts).
-      await notify(ctx, med.userId, "reminders", {
-        title: `💊 ${med.name}`,
-        body: text.replace(/^💊\s*/, ""),
-        data: { messageId },
-        categoryId: "reminder",
-      });
+      await postReminder(ctx, med, user, dueAt);
     }
     const next = nextDue(med.schedule, Math.max(dueAt, Date.now()), med.timeZone, med.utcOffsetMin);
     if (!user || (med.endsAt !== undefined && next > med.endsAt - END_SLACK_MS)) {
@@ -239,8 +251,10 @@ export const addFromChat = internalMutation({
     const zoneNote = user?.timeZone ? "" : " (The user's time zone isn't known yet, so times are UTC until they open the app.)";
     return (
       `Reminder set: ${args.name}${args.dose ? ` ${args.dose}` : ""}, ${describeSchedule(res.schedule)}` +
-      `${args.days ? ` for ${args.days} days` : ""}. First reminder at ${localTimeText(res.nextAt, res.timeZone)}. ` +
-      `Reminders appear in the app chat with Taken / Skip buttons; they can be managed in the Reminders panel (pill button).${zoneNote}`
+      `${args.days ? ` for ${args.days} days` : ""}. ` +
+      (res.nextAt === null
+        ? "As needed: no reminders; the user logs each dose with Took one in the Medications tab."
+        : `First reminder at ${localTimeText(res.nextAt, res.timeZone)}. Reminders appear in the app chat with Taken / Skip / Snooze buttons; they can be managed in the Medications tab.${zoneNote}`)
     );
   },
 });
