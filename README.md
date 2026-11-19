@@ -293,7 +293,7 @@ Ask about a photo: a pill bottle, a prescription label, lab results, a rash or a
 - **Model:** the photo goes to Cortex as an image content part (a base64 data URL) with that turn only, using `CORTEX_VISION_MODEL` (default: the core model). The system prompt asks it to read labels exactly and say when text is unreadable, to describe skin/wound photos without diagnosing and list what would make them urgent, and never to identify people. Later turns see "[sent a photo]" in the history, not the image.
 
 ## Signing in
-Email and password (Convex Auth's Password provider). The password field has a show / hide button, and sign-up says it needs at least 8 characters. Errors say what happened (`src/authErrors.ts`): an address that isn't an email, a password that's too short, an email that already has an account, a wrong email or password, or no connection. There's no email service, so there's no password reset by email.
+Email and password (Convex Auth's Password provider). The password field has a show / hide button, and sign-up says it needs at least 8 characters. Errors say what happened (`src/authErrors.ts`): an address that isn't an email, a password that's too short, an email that already has an account, a wrong email or password, or no connection. There's no email service, so there's no password reset by email; **Change password** in Settings → Account (`account.changePassword`) asks for the current password, needs 8 characters for the new one, and signs out every other device.
 
 ## What Wellnest knows about me
 Settings → **What Wellnest knows about me** shows, in one place:

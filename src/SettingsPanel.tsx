@@ -2,13 +2,13 @@
 // and Privacy. Everything is saved on the account the moment it changes.
 import { ReactNode, useState } from "react";
 import { Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import { colors, radius, TEXT_SIZES, themed, ui } from "./theme";
-import { errorText } from "./feedback";
-import { SwapIcon } from "./Motion";
+import { errorText, showToast } from "./feedback";
+import { Reveal, SwapIcon } from "./Motion";
 import { HealthSync } from "./useHealthSync";
 import { HealthSettings } from "./HealthSettings";
 import { Lang, LANGUAGE_NAMES, Strings } from "./i18n";
@@ -57,6 +57,69 @@ function Button({ label, onPress }: { label: string; onPress: () => void }) {
     <Pressable style={styles.settingButton} onPress={onPress} accessibilityRole="button">
       <Text style={styles.settingButtonText}>{label}</Text>
     </Pressable>
+  );
+}
+
+// Change password: the current one, then the new one. Other devices are signed out after.
+function ChangePassword({ s }: { s: Strings }) {
+  const change = useAction(api.account.changePassword);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    setError(null);
+    if (next.length < 8) return setError(s.authShortPassword);
+    setBusy(true);
+    try {
+      await change({ current, next });
+      setOpen(false);
+      setCurrent("");
+      setNext("");
+      showToast(s.passwordChanged);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Button label={s.changePassword} onPress={() => setOpen(!open)} />
+      <Reveal open={open}>
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder={s.currentPassword}
+            placeholderTextColor={colors.muted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="current-password"
+            value={current}
+            onChangeText={setCurrent}
+            accessibilityLabel={s.currentPassword}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={s.newPassword}
+            placeholderTextColor={colors.muted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="new-password"
+            value={next}
+            onChangeText={setNext}
+            onSubmitEditing={() => void save()}
+            accessibilityLabel={s.newPassword}
+          />
+          <Text style={styles.settingHint}>{s.changePasswordHint}</Text>
+          {error && <Text style={styles.error}>{error}</Text>}
+          <Pressable style={styles.primaryButton} onPress={() => void save()} disabled={busy || !current || !next} accessibilityRole="button">
+            <Text style={styles.primaryButtonText}>{busy ? s.visitsSaving : s.save}</Text>
+          </Pressable>
+        </View>
+      </Reveal>
+    </>
   );
 }
 
@@ -143,6 +206,7 @@ export function SettingsPanel({
     <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.settings}>
       <Group title={s.settingsAccount}>
         <Text style={styles.muted}>{me.email}</Text>
+        <ChangePassword s={s} />
         <Button label={s.redoSetup} onPress={onRedoSetup} />
         <Button label={s.tourReplay} onPress={onTour} />
         <Pressable
@@ -260,4 +324,8 @@ const styles = themed(() => ({
   link: { color: colors.primary, fontSize: 16 },
   signOut: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   error: { color: colors.danger, fontSize: 14 },
+  form: { gap: 8, paddingTop: 4 },
+  input: { color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  primaryButton: { ...ui.button },
+  primaryButtonText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
 }));
