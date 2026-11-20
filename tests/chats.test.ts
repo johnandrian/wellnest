@@ -113,4 +113,16 @@ describe("health tools home", () => {
     expect(view.charts[0]).toMatchObject({ week: 4, prevWeek: null });
     expect(view).toMatchObject({ logged: 7, meds: { count: 0, next: null }, visit: null });
   });
+
+  test("the movement card counts the days an exercise was done in the last 4 weeks and today's exercises", async () => {
+    const t = setup();
+    const { as } = await createAppUser(t);
+    const today = new Date().toISOString().slice(0, 10);
+    const ago = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+    const id = await as.mutation(api.exercises.add, { name: "Wall push-ups" });
+    await as.mutation(api.exercises.add, { name: "Stretch" });
+    for (const date of [today, ago(2), ago(40)]) await as.mutation(api.exercises.toggle, { id, date, done: true });
+    const view = (await as.query(api.dashboard.view, { today, now: Date.now() }))!;
+    expect(view.move).toEqual({ from: ago(27), days: [ago(2), today], exercises: 2, dueToday: 2, doneToday: 1 });
+  });
 });

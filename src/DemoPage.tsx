@@ -48,9 +48,6 @@ export function DemoPage({ s, lang, onBack, onCreate }: { s: Strings; lang: Lang
           <Text style={styles.stripTitle} numberOfLines={1}>
             {s.demoTitle}
           </Text>
-          <Text style={styles.stripText} numberOfLines={narrow ? 2 : 1}>
-            {s.demoBanner}
-          </Text>
         </View>
         <Tap style={[styles.create, narrow && styles.createNarrow]} onPress={onCreate} accessibilityRole="button" accessibilityLabel={s.landCreate}>
           <Ionicons name="person-add-outline" size={18} color={colors.onPrimary} />

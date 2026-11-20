@@ -1,9 +1,10 @@
 // The Health tools home (src/HomePanel.tsx): four weeks of charts for what the user tracks, picked by their setup
-// focus and what they've logged, plus what's next (a dose, an appointment) and this week's logging and doses.
+// focus and what they've logged, plus what's next (a dose, an appointment), this week's logging and doses, and the
+// days moved in the last four weeks.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, QueryCtx } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { ChartMetric, chartMarks, chartSeries, dateList, shiftDate } from "./lib/insights";
 import { chartName } from "./lib/insightsText";
 import { isDate } from "./lib/health";
@@ -12,6 +13,7 @@ import { daysLeft } from "./lib/meds";
 import { dueTimes, isTimed } from "./lib/reminders";
 import { unitsOf } from "./lib/units";
 import { gatherInputs, medChanges } from "./insights";
+import { scheduledOn } from "./exercises";
 import { profileMissing } from "./onboarding";
 
 const DAYS = 28;
@@ -78,6 +80,54 @@ export async function trendCharts(ctx: QueryCtx, user: Doc<"users">, today: stri
   return { charts, input, weekStart };
 }
 
+// Active medications, the ones running low on supply, and how many doses are over an hour past due and unanswered
+// (for the dashboard and the notifications bell).
+async function medAlerts(ctx: QueryCtx, userId: Id<"users">, now: number) {
+  const meds = await ctx.db
+    .query("medications")
+    .withIndex("by_user_and_active", (q) => q.eq("userId", userId).eq("active", true))
+    .take(50);
+  const lowSupply = meds.filter((m) => {
+    const left = daysLeft(m.schedule, m.supply);
+    return left !== null && left <= (m.supply?.warnDays ?? 7);
+  });
+  const recent = await ctx.db
+    .query("doseLogs")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .order("desc")
+    .take(300);
+  let overdue = 0;
+  for (const m of meds) {
+    if (m.pausedAt || !isTimed(m.schedule)) continue;
+    const from = Math.max(now - OVERDUE_WINDOW_MS, m._creationTime);
+    const due = dueTimes(m.schedule, from, now - LATE_MS, m.timeZone, m.utcOffsetMin, 24);
+    if (!due.length) continue;
+    const answered = new Set(recent.filter((d) => d.medicationId === m._id).map((d) => d.dueAt));
+    overdue += due.filter((at) => !answered.has(at)).length;
+  }
+  return { meds, lowSupply, overdue };
+}
+
+// The notifications bell (src/NotificationsButton.tsx): actions waiting for an OK, doses past due, and refills
+// running low.
+export const alerts = query({
+  args: { now: v.number() },
+  handler: async (ctx, { now }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const actions = await ctx.db
+      .query("agentActions")
+      .withIndex("by_user_and_status", (q) => q.eq("userId", userId).eq("status", "proposed"))
+      .take(20);
+    const { lowSupply, overdue } = await medAlerts(ctx, userId, now);
+    return {
+      actions: actions.map((a) => ({ _id: a._id, title: a.title, urgent: a.urgent })),
+      overdue,
+      lowSupply: lowSupply.map((m) => m.name),
+    };
+  },
+});
+
 export const view = query({
   // The phone's local date and clock (queries can't read the clock).
   args: { today: v.string(), now: v.number() },
@@ -92,30 +142,25 @@ export const view = query({
       [...input.entries, ...input.trackers, ...input.daily].map((x) => x.date).filter((d) => d >= weekStart),
     ).size;
 
-    const meds = await ctx.db
-      .query("medications")
-      .withIndex("by_user_and_active", (q) => q.eq("userId", user._id).eq("active", true))
-      .take(50);
+    const { meds, lowSupply, overdue } = await medAlerts(ctx, user._id, now);
     const next = meds
       .filter((m) => m.nextAt && !m.pausedAt)
       .sort((a, b) => a.nextAt! - b.nextAt!)[0];
-    const lowSupply = meds.filter((m) => {
-      const left = daysLeft(m.schedule, m.supply);
-      return left !== null && left <= (m.supply?.warnDays ?? 7);
-    }).length;
     const doses = (await ctx.db.query("doseLogs").withIndex("by_user", (q) => q.eq("userId", user._id)).order("desc").take(300)).filter(
       (d) => d.dueAt >= now - WEEK_MS && d.dueAt <= now,
     );
 
-    let overdue = 0;
-    for (const m of meds) {
-      if (m.pausedAt || !isTimed(m.schedule)) continue;
-      const from = Math.max(now - OVERDUE_WINDOW_MS, m._creationTime);
-      const due = dueTimes(m.schedule, from, now - LATE_MS, m.timeZone, m.utcOffsetMin, 24);
-      if (!due.length) continue;
-      const answered = new Set(doses.filter((d) => d.medicationId === m._id).map((d) => d.dueAt));
-      overdue += due.filter((at) => !answered.has(at)).length;
-    }
+    // The movement card's streak: days in the last 4 weeks with an exercise done, and today's exercises.
+    const exLogs = await ctx.db
+      .query("exerciseLogs")
+      .withIndex("by_user_and_date", (q) => q.eq("userId", user._id).gte("date", shiftDate(today, -(DAYS - 1))).lte("date", today))
+      .take(1000);
+    const exercises = await ctx.db
+      .query("exercises")
+      .withIndex("by_user_and_active", (q) => q.eq("userId", user._id).eq("active", true))
+      .take(30);
+    const dueToday = exercises.filter((e) => scheduledOn(e, today));
+    const doneToday = new Set(exLogs.filter((l) => l.date === today).map((l) => l.exerciseId));
 
     const visit = (
       await ctx.db
@@ -135,8 +180,15 @@ export const view = query({
         next: next ? { name: next.name, at: next.nextAt! } : null,
         taken: doses.filter((d) => d.status === "taken").length,
         answered: doses.length,
-        lowSupply,
+        lowSupply: lowSupply.length,
         overdue,
+      },
+      move: {
+        from: shiftDate(today, -(DAYS - 1)),
+        days: [...new Set(exLogs.map((l) => l.date))].sort(),
+        exercises: exercises.length,
+        dueToday: dueToday.length,
+        doneToday: dueToday.filter((e) => doneToday.has(e._id)).length,
       },
       // With its suggested questions (convex/questions.ts), shown on the dashboard in the week before.
       visit: visit ? { _id: visit._id, title: visit.title, startsAt: visit.startsAt, kind: visit.kind, questions: visit.questions ?? [] } : null,
