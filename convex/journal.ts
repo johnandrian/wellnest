@@ -1,9 +1,11 @@
 // Symptom journal (convex/lib/journal.ts): the model logs symptoms from chat with log_symptom, the user adds, edits,
-// or removes entries in the Journal tab (any past day, with an optional time), and `view` gives the tab its charts and
-// patterns.
+// or removes entries in the Journal tab (any past day, with an optional time), writes notes in their own words (with
+// any symptoms in them logged too, see Notes below), and `view` gives the tab its charts and patterns.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { complete, CORE_MODEL } from "./lib/cortex";
 import { Doc, Id } from "./_generated/dataModel";
 import { clampSeverity, dailyPatterns, exercisePatterns, dailySeverity, dailySummary, DailyLog, Entry, entrySource, MAX_PER_DAY, normalizeSymptom, patterns, summaries } from "./lib/journal";
 import { isDate } from "./lib/health";
@@ -23,7 +25,7 @@ export function localToday(user: Doc<"users"> | null, now = Date.now()) {
 async function addEntry(
   ctx: MutationCtx,
   userId: Id<"users">,
-  args: { symptom: string; severity?: number; note?: string; date?: string; time?: string; source: "chat" | "manual" | "checkin" },
+  args: { symptom: string; severity?: number; note?: string; date?: string; time?: string; source: "chat" | "manual" | "checkin" | "note" },
 ): Promise<{ id: Id<"symptomEntries">; date: string; symptom: string } | { error: string }> {
   const symptom = normalizeSymptom(args.symptom);
   if (!symptom) return { error: "Say which symptom." };
@@ -199,5 +201,137 @@ export const view = query({
       ],
       recent: recent.map(({ _id, date, symptom, severity, note, time, source }) => ({ _id, date, symptom, severity: severity ?? null, note: note ?? null, time: time ?? null, source })),
     };
+  },
+});
+
+// Notes: what the user writes in the Journal in their own words. Each is kept as written (and read by the model and
+// visit summaries), and the model picks out any symptoms in it to log, as the chat would (source "note").
+const MAX_NOTE = 2000;
+const NOTE_PROMPT =
+  "Read this journal entry a person wrote about their health. List every symptom they say they have or had that day, " +
+  'as a JSON array like [{"symptom": "headache", "severity": 6}]. Use a short common English name (headache, nausea, ' +
+  "cramps, fatigue). Give severity 0-10 only when they say how bad it was (a number, or words like mild = 3, bad = 7, " +
+  "worst ever = 10); leave it out otherwise. Leave out symptoms they say are gone, someone else's, or only feared. " +
+  "Answer with the JSON array only, [] if there are none.";
+
+// The model's answer -> symptoms to log. Tolerates a code fence or words around the JSON.
+export function parseNoteSymptoms(content: string | null): { symptom: string; severity?: number }[] {
+  const m = content?.match(/\[[\s\S]*\]/);
+  if (!m) return [];
+  try {
+    const arr = JSON.parse(m[0]);
+    if (!Array.isArray(arr)) return [];
+    const out: { symptom: string; severity?: number }[] = [];
+    for (const x of arr) {
+      const symptom = typeof x?.symptom === "string" ? normalizeSymptom(x.symptom) : "";
+      if (!symptom || out.some((o) => o.symptom === symptom)) continue;
+      const severity = clampSeverity(typeof x.severity === "number" ? x.severity : undefined);
+      out.push(severity === undefined ? { symptom } : { symptom, severity });
+    }
+    return out.slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+export async function notesSince(ctx: QueryCtx, userId: Id<"users">, since: string) {
+  const rows = await ctx.db
+    .query("journalNotes")
+    .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
+    .take(200);
+  return rows.map(({ date, text }) => ({ date, text }));
+}
+
+// For the model's journal read and visit summaries.
+export function notesText(notes: { date: string; text: string }[]) {
+  return notes.length ? `Notes in their own words:\n${notes.map((n) => `- ${n.date}: ${n.text}`).join("\n")}` : "";
+}
+
+export const notesFrom = internalQuery({
+  args: { userId: v.id("users"), since: v.string() },
+  handler: (ctx, { userId, since }) => notesSince(ctx, userId, since),
+});
+
+// Save a note (the Journal's Log tab). `at`: when it was written, for notes sent later from the offline queue.
+export const addNote = mutation({
+  args: { text: v.string(), at: v.optional(v.number()) },
+  handler: async (ctx, { text, at }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    const clean = text.trim().slice(0, MAX_NOTE);
+    if (!clean) throw new Error("Write something first.");
+    const when = at && at <= Date.now() ? at : Date.now();
+    const user = await ctx.db.get(userId);
+    const id = await ctx.db.insert("journalNotes", { userId, date: localToday(user, when), at: when, text: clean });
+    await ctx.scheduler.runAfter(0, internal.journal.extractNote, { id });
+    return id;
+  },
+});
+
+// The Log tab's notes from `since` on, newest first.
+export const notes = query({
+  args: { since: v.string() },
+  handler: async (ctx, { since }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId || !isDate(since)) return [];
+    const rows = await ctx.db
+      .query("journalNotes")
+      .withIndex("by_user_and_date", (q) => q.eq("userId", userId).gte("date", since))
+      .order("desc")
+      .take(50);
+    return rows.map(({ _id, date, at, text, logged }) => ({ _id, date, at, text, logged: logged ?? null }));
+  },
+});
+
+// Remove a note. What was logged from it stays in the journal (it can be changed or removed there).
+export const removeNote = mutation({
+  args: { id: v.id("journalNotes") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    const note = await ctx.db.get(id);
+    if (!userId || !note || note.userId !== userId) throw new Error("Not found");
+    await ctx.db.delete(id);
+  },
+});
+
+export const noteFor = internalQuery({
+  args: { id: v.id("journalNotes") },
+  handler: async (ctx, { id }) => ctx.db.get(id),
+});
+
+export const extractNote = internalAction({
+  args: { id: v.id("journalNotes") },
+  handler: async (ctx, { id }) => {
+    const note: Doc<"journalNotes"> | null = await ctx.runQuery(internal.journal.noteFor, { id });
+    if (!note) return;
+    try {
+      const { content } = await complete({
+        model: CORE_MODEL(),
+        messages: [
+          { role: "system", content: NOTE_PROMPT },
+          { role: "user", content: note.text },
+        ],
+        maxTokens: 400,
+      });
+      await ctx.runMutation(internal.journal.logFromNote, { id, symptoms: parseNoteSymptoms(content) });
+    } catch (e) {
+      // The note stays saved; nothing is logged from it.
+      console.error("journal note extraction failed", e);
+      await ctx.runMutation(internal.journal.logFromNote, { id, symptoms: [] });
+    }
+  },
+});
+
+export const logFromNote = internalMutation({
+  args: { id: v.id("journalNotes"), symptoms: v.array(v.object({ symptom: v.string(), severity: v.optional(v.number()) })) },
+  handler: async (ctx, { id, symptoms }) => {
+    const note = await ctx.db.get(id);
+    if (!note) return;
+    const logged: { symptom: string; severity?: number }[] = [];
+    for (const x of symptoms) {
+      const res = await addEntry(ctx, note.userId, { ...x, date: note.date, source: "note" });
+      if (!("error" in res)) logged.push(x);
+    }
+    await ctx.db.patch(id, { logged });
   },
 });

@@ -21,6 +21,8 @@ function run(convex: ConvexReactClient, call: LogCall): Promise<unknown> {
   switch (call.fn) {
     case "journal.add":
       return convex.mutation(api.journal.add, call.args);
+    case "journal.addNote":
+      return convex.mutation(api.journal.addNote, call.args);
     case "trackers.add":
       return convex.mutation(api.trackers.add, call.args);
     case "reminders.mark":
@@ -30,8 +32,10 @@ function run(convex: ConvexReactClient, call: LogCall): Promise<unknown> {
   }
 }
 
-// A dose answered offline keeps the time it was tapped (the server takes it as when it was taken).
+// A dose answered offline keeps the time it was tapped (the server takes it as when it was taken), and a journal note
+// the time it was written.
 function stamp(call: LogCall, at: number): LogCall {
+  if (call.fn === "journal.addNote") return { fn: call.fn, args: { ...call.args, at } };
   if (call.fn === "reminders.mark") return { fn: call.fn, args: { ...call.args, at } };
   if (call.fn === "reminders.takeNow") return { fn: call.fn, args: { ...call.args, at } };
   return call;

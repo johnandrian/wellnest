@@ -7,7 +7,7 @@ import { ScrollView, Text, View } from "react-native";
 import { Tap } from "./Tap";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { colors, radius, severityColor, themed, ui } from "./theme";
+import { colors, severityColor, themed, ui } from "./theme";
 import type { Strings } from "./i18n";
 import { DailyCard, DailyChart } from "./DailyCard";
 import { TrackersSection } from "./TrackersSection";
@@ -16,6 +16,9 @@ import { levelOf, SymptomLog } from "./SymptomLog";
 import { axisDay, formatDate } from "./format";
 import { TapBars } from "./TapBars";
 import { Enter } from "./Motion";
+import { SegmentTabs } from "./SegmentTabs";
+import { JournalNotes } from "./JournalNotes";
+import type { IconName } from "./Icon";
 
 const PERIODS = [14, 30, 90];
 const FIRST_CHARTS = 5;
@@ -109,21 +112,15 @@ export function JournalPanel({ s }: { s: Strings }) {
   const periodDays = new Set(data?.periodDays ?? []);
   const symptoms = data?.symptoms ?? [];
   const charts = allCharts ? symptoms : symptoms.slice(0, FIRST_CHARTS);
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "log", label: s.journalTabLog },
-    { key: "trends", label: s.journalTabTrends },
-    { key: "trackers", label: s.journalTabTrackers },
+  const tabs: { key: Tab; label: string; icon: IconName }[] = [
+    { key: "log", label: s.journalTabLog, icon: "journalLog" },
+    { key: "trends", label: s.journalTabTrends, icon: "trends" },
+    { key: "trackers", label: s.journalTabTrackers, icon: "trackers" },
   ];
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {tabs.map((t) => (
-          <Tap key={t.key} style={[styles.tab, tab === t.key && styles.tabOn]} onPress={() => setTab(t.key)} accessibilityRole="tab" accessibilityState={{ selected: tab === t.key }}>
-            <Text style={[styles.tabText, tab === t.key && styles.tabTextOn]}>{t.label}</Text>
-          </Tap>
-        ))}
-      </View>
+      <SegmentTabs items={tabs} value={tab} onChange={setTab} />
       {tab !== "log" && (
         <View style={styles.chips}>
           {PERIODS.map((p) => (
@@ -137,6 +134,7 @@ export function JournalPanel({ s }: { s: Strings }) {
       {tab === "log" && (
         <Enter key="log" from={6} style={styles.group}>
           <DailyCard s={s} />
+          <JournalNotes s={s} since={lastDays(7)[0]} today={today} />
           <SymptomLog s={s} mine={symptoms.map((x) => x.name)} recent={data?.recent ?? []} />
           <Text style={styles.note}>{s.journalIntro}</Text>
         </Enter>
@@ -204,11 +202,6 @@ const styles = themed(() => ({
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   group: { gap: 10 },
-  tabs: { flexDirection: "row", gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline },
-  tab: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
-  tabOn: { backgroundColor: colors.primary },
-  tabText: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  tabTextOn: { color: colors.onPrimary },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   empty: { ...ui.empty },
   small: { color: colors.muted, fontSize: 12, fontWeight: "400" },
