@@ -19,9 +19,9 @@ const STOPS: { stop: TourStop; icon: IconName }[] = [
   { stop: { screen: "hub", tab: "home" }, icon: "dashboard" },
   { stop: { screen: "hub", tab: "journal" }, icon: "journal" },
   { stop: { screen: "hub", tab: "reminders" }, icon: "medications" },
-  { stop: { screen: "hub", tab: "home" }, icon: "guides" },
-  { stop: { screen: "chat" }, icon: "history" },
-  { stop: { screen: "settings" }, icon: "dashboard" },
+  { stop: { screen: "hub", tab: "home" }, icon: "menu" },
+  { stop: { screen: "chat" }, icon: "chat" },
+  { stop: { screen: "settings" }, icon: "settings" },
 ];
 
 export function Tour({
@@ -58,7 +58,7 @@ export function Tour({
         <Enter key={step} style={styles.body} from={8}>
           <View style={styles.head}>
             <View style={styles.icon}>
-              {step === STOPS.length - 1 ? <Ionicons name="settings-outline" size={20} color={colors.primary} /> : <Icon name={STOPS[step].icon} size={20} color={colors.primary} />}
+              <Icon name={STOPS[step].icon} size={20} color={colors.primary} />
             </View>
             <Text style={styles.count}>{s.tourStep.replace("{n}", String(step + 1)).replace("{total}", String(STOPS.length))}</Text>
             <Tap style={styles.skip} onPress={onEnd} accessibilityRole="button">

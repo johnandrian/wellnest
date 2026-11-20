@@ -1,6 +1,7 @@
-// The Health tools dashboard (convex/dashboard.ts): what's next and this week at a glance, today's check-in, questions
-// to ask at an appointment in the coming week, four weeks of charts for what the user tracks, tomorrow's flare
-// forecast, the strongest pattern, and every tool as a tile. It fills the window: more columns on wider screens.
+// The Health tools dashboard (convex/dashboard.ts): a grid of today's tiles (doses by time of day, the check-in,
+// movement, the next appointment with its top 3 questions, and what's worth watching: tomorrow's flare forecast, the
+// strongest pattern, and the weather), four weeks of charts for what the user tracks, and the emergency plan last.
+// More columns on wider screens.
 // The example dashboard (src/DemoPage.tsx) shows this same screen on sample data.
 import { MedBand, MedLegend, MedPins, TrendDot } from "./ChartMarks";
 import { ReactNode, useState } from "react";
@@ -15,8 +16,9 @@ import { colors, kicker, radius, scaleColor, themed, tint, TOUCH, ui } from "./t
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { DailyCard, localDate } from "./DailyCard";
-import { TodayDoses } from "./TodayDoses";
-import { CountBadge, GROUPS, TOOLS, type HubTab } from "./HubPanel";
+import { DoseBlocks } from "./DoseBlocks";
+import { type HubTab } from "./HubPanel";
+import { TOP_QUESTIONS } from "./QuestionList";
 import { Enter, SwapIcon } from "./Motion";
 import type { Id } from "../convex/_generated/dataModel";
 import { axisDay, formatDate } from "./format";
@@ -26,9 +28,6 @@ import { tempToC } from "../convex/lib/units";
 import { useNow } from "./useNow";
 import { EmergencyFull } from "./EmergencyCard";
 import { useOpenSetup } from "./setup";
-
-// Questions show on the dashboard in the week before an appointment.
-const QUESTIONS_DAYS = 7;
 
 export type DashboardData = NonNullable<FunctionReturnType<typeof api.dashboard.view>>;
 export type InsightsData = NonNullable<FunctionReturnType<typeof api.insights.view>>;
@@ -63,23 +62,17 @@ function trend(c: Chart): "better" | "worse" | "same" | null {
 export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTab) => void; onChat: () => void }) {
   const data = useDashboard();
   const insights = useQuery(api.insights.view, { today: localDate() });
-  const waiting = useQuery(api.agent.waiting);
   const plan = useQuery(api.emergency.get);
   const [planOpen, setPlanOpen] = useState(false);
-  const now = useNow();
   if (data === undefined) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
   if (data === null) return null;
   return (
     <DashboardView
       data={data}
       insights={insights ?? null}
-      now={now}
       s={s}
       onOpen={onOpen}
       onChat={onChat}
-      checkin={<DailyCard s={s} inChat flush />}
-      doses={<TodayDoses s={s} compact />}
-      waiting={waiting}
       profile={data.finishProfile ? <FinishProfile missing={data.finishProfile} s={s} /> : null}
       emergency={
         plan?.exists ? (
@@ -97,100 +90,148 @@ export function HomePanel({ s, onOpen, onChat }: { s: Strings; onOpen: (t: HubTa
   );
 }
 
-// The dashboard itself. `checkin`: today's check-in card.
+// Columns for the dashboard's width (the panel's, not the window's: the rail and the chat drawer take some).
+const columnsFor = (w: number) => (w >= 1000 ? 3 : w >= 620 ? 2 : 1);
+const GAP = 12;
+
+// The dashboard: a calm "today" grid (doses by time of day, the check-in, movement, the next appointment, and what's
+// worth watching), then four weeks of trends, then the emergency plan. Every tool is in the rail (./ToolRail.tsx) and
+// what's waiting is under the bell (./NotificationsButton.tsx).
 export function DashboardView(p: {
   data: DashboardData;
   insights: InsightsData | null;
-  now: number;
   s: Strings;
   onOpen: (t: HubTab) => void;
   onChat: () => void;
-  checkin: ReactNode;
-  // Today's doses to answer (./TodayDoses.tsx).
-  doses?: ReactNode;
-  // Actions waiting for the user's OK (convex/agent.ts waiting).
-  waiting?: { count: number; urgent: boolean };
   // A button that opens the emergency plan full screen, when there is one.
   emergency?: ReactNode;
   // "Finish your profile", while parts of setup are still to do.
   profile?: ReactNode;
 }) {
-  const { data, insights, now, s, onOpen, onChat } = p;
-  const { width } = useWindowDimensions();
-  const wide = width >= 640;
-  const wider = width >= 1100;
+  const { data, insights, s, onOpen, onChat } = p;
+  const [w, setW] = useState(useWindowDimensions().width - 32);
+  const cols = columnsFor(w);
+  const wide = cols >= 2;
+  const wider = cols >= 3;
   const m = data.meds;
   const [allPatterns, setAllPatterns] = useState(false);
+  const watching = !!insights && (!!insights.patterns.length || !!insights.weather || !!insights.tomorrow.length);
+  // Each tile's width in columns, laid out so every row is full and no card runs the whole width of a wide screen.
+  const span = (n: number) => {
+    const k = Math.min(n, cols);
+    return { width: Math.floor(((w - GAP * (cols - 1)) / cols) * k + GAP * (k - 1)) };
+  };
+  // The second row: movement, the appointment, and what's worth watching side by side; without the last, the first
+  // two share the row (on three columns) or the appointment takes the row (on two).
+  const half = cols === 3 ? 1.5 : cols === 2 ? 2 : 1;
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <View style={styles.stats}>
-        <Stat
+      {p.profile}
+
+      <View style={styles.bento} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+        <Tile
+          style={span(2)}
           icon="medications"
           tint="medications"
-          label={s.homeNextDose}
-          value={m.next ? when(m.next.at, s.locale) : s.homeNoDose}
+          title={s.todayDoses}
           sub={
             m.overdue === 1 ? s.homeOverdueOne
             : m.overdue ? s.homeOverdueMany.replace("{n}", String(m.overdue))
-            : m.next?.name
+            : m.next ? `${s.homeNextDose}: ${when(m.next.at, s.locale)} · ${m.next.name}`
+            : m.count ? s.homeMedsDone
+            : s.homeNoDose
           }
           warn={m.overdue > 0}
-          onPress={() => onOpen("reminders")}
-          wide={wide}
-        />
-        <Stat
-          icon="appointments"
-          tint="appointments"
-          label={s.homeNextVisit}
-          value={data.visit ? when(data.visit.startsAt, s.locale) : s.homeNoVisit}
-          sub={data.visit?.title}
-          onPress={() => onOpen("visits")}
-          wide={wide}
-        />
-        <Stat
+          open={s.tabMeds}
+          onOpen={() => onOpen("reminders")}
+        >
+          <DoseBlocks s={s} stacked={cols === 1} />
+          {m.lowSupply > 0 && (
+            <Text style={[styles.statSub, styles.warn]}>
+              <Ionicons name="warning-outline" size={13} color={colors.warningText} /> {s.homeLowSupply.replace("{n}", String(m.lowSupply))}
+            </Text>
+          )}
+        </Tile>
+
+        <Tile
+          style={span(1)}
           icon="journal"
           tint="journal"
-          label={s.homeLogged}
-          value={s.homeLoggedOf.replace("{n}", String(data.logged))}
-          sub={s.homeDosesNone}
-          meter={data.logged / 7}
-          onPress={() => onOpen("journal")}
-          wide={wide}
-        />
-        <Stat
-          icon="doses"
-          tint="exercise"
-          label={s.homeDoses}
-          value={m.answered ? s.homeDosesOf.replace("{a}", String(m.taken)).replace("{b}", String(m.answered)) : "–"}
-          sub={m.lowSupply ? s.homeLowSupply.replace("{n}", String(m.lowSupply)) : s.homeDosesNone}
-          warn={m.lowSupply > 0}
-          meter={m.answered ? m.taken / m.answered : undefined}
-          onPress={() => onOpen("reminders")}
-          wide={wide}
-        />
+          title={s.dailyTitle}
+          sub={`${s.homeLogged}: ${s.homeLoggedOf.replace("{n}", String(data.logged))}`}
+          open={s.tabJournal}
+          onOpen={() => onOpen("journal")}
+        >
+          <DailyCard s={s} bare />
+        </Tile>
+
+        <Tile style={span(watching ? 1 : cols === 2 ? 1 : half)} icon="exercise" tint="exercise" title={s.homeMove} open={s.tabExercise} onOpen={() => onOpen("exercise")}>
+          <MoveStreak move={data.move} s={s} />
+        </Tile>
+
+        <Tile
+          style={span(watching ? 1 : cols === 2 ? 1 : half)}
+          icon="appointments"
+          tint="appointments"
+          title={data.visit ? data.visit.title : s.homeNextVisit}
+          sub={data.visit ? when(data.visit.startsAt, s.locale) : s.homeNoVisit}
+          open={s.tabVisits}
+          onOpen={() => onOpen("visits")}
+        >
+          {data.visit && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} />}
+        </Tile>
+
+        {watching && (
+          <Tile style={span(cols === 2 ? 2 : 1)} icon="insights" tint="journal" title={s.homeWatching} open={s.journalTabTrends} onOpen={() => onOpen("journal")}>
+            {!!insights.tomorrow.length && (
+              <View style={styles.insightRow}>
+                <Icon name="forecast" size={18} color={colors.warningText} />
+                <View style={styles.flex}>
+                  <Text style={styles.insightLabel}>{s.homeTomorrow}</Text>
+                  {(allPatterns ? insights.tomorrow : insights.tomorrow.slice(0, 1)).map((line) => (
+                    <Text key={line} style={styles.insightText}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            )}
+            {!!insights.patterns.length && (
+              <View style={styles.insightRow}>
+                <Icon name="insights" size={18} color={colors.primary} />
+                <View style={styles.flex}>
+                  <Text style={styles.insightLabel}>{s.homePattern}</Text>
+                  {(allPatterns ? insights.patterns : insights.patterns.slice(0, 1)).map((line) => (
+                    <Text key={line} style={styles.insightText}>
+                      {line}
+                    </Text>
+                  ))}
+                  {(insights.patterns.length > 1 || insights.tomorrow.length > 1) && (
+                    <Tap style={styles.morePatterns} onPress={() => setAllPatterns(!allPatterns)} accessibilityRole="button" accessibilityState={{ expanded: allPatterns }}>
+                      <Text style={styles.askText}>{allPatterns ? s.journalShowFewer : insights.patterns.length > 1 ? s.homeAllPatterns.replace("{n}", String(insights.patterns.length)) : s.homeSeeAll}</Text>
+                    </Tap>
+                  )}
+                  {allPatterns && <Text style={styles.small}>{s.journalNotCause}</Text>}
+                </View>
+              </View>
+            )}
+            {!!insights.weather && (
+              <View style={styles.insightRow}>
+                <Icon name="weather" size={18} color={colors.primary} />
+                <View style={styles.flex}>
+                  <Text style={styles.insightLabel}>{insights.weatherPlace ? s.weatherIn.replace("{place}", insights.weatherPlace) : s.insightsWeather}</Text>
+                  <Text style={styles.insightText}>{insights.weather}</Text>
+                </View>
+              </View>
+            )}
+            <Tap style={styles.ask} onPress={onChat} accessibilityRole="button">
+              <Icon name="chat" size={16} color={colors.primary} />
+              <Text style={styles.askText}>{s.homeTalk}</Text>
+            </Tap>
+          </Tile>
+        )}
       </View>
-
-      {!!p.waiting?.count && (
-        <Enter>
-          <Tap style={[styles.waiting, p.waiting.urgent && styles.waitingUrgent]} onPress={() => onOpen("agent")} accessibilityRole="button">
-            <Icon name="agent" size={20} color={p.waiting.urgent ? colors.danger : colors.primary} />
-            <View style={styles.flex}>
-              <Text style={styles.waitingTitle}>{(p.waiting.count === 1 ? s.homeActionsOne : s.homeActionsMany).replace("{n}", String(p.waiting.count))}</Text>
-              {p.waiting.urgent && <Text style={styles.waitingUrgentText}>{s.homeActionsUrgent}</Text>}
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-          </Tap>
-        </Enter>
-      )}
-
-      {p.profile}
-      {p.emergency}
-      {p.doses}
-
-      {p.checkin}
-
-      {data.visit && data.visit.startsAt - now < QUESTIONS_DAYS * 86_400_000 && <VisitQuestions visit={data.visit} s={s} onOpen={onOpen} />}
 
       <View style={styles.sectionRow}>
         <Text style={styles.section} accessibilityRole="header">
@@ -211,97 +252,79 @@ export function DashboardView(p: {
         <Text style={styles.empty}>{s.homeChartsEmpty}</Text>
       )}
 
-      {!!insights && (!!insights.patterns.length || !!insights.weather || !!insights.tomorrow.length) && (
-        <View style={styles.insight}>
-          {!!insights.tomorrow.length && (
-            <View style={styles.insightRow}>
-              <View style={[styles.iconDot, { backgroundColor: colors.surface }]}>
-                <Icon name="forecast" size={18} color={colors.warningText} />
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.insightLabel}>{s.homeTomorrow}</Text>
-                {insights.tomorrow.map((line) => (
-                  <Text key={line} style={styles.insightText}>
-                    {line}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
-          {!!insights.patterns.length && (
-            <View style={styles.insightRow}>
-              <View style={[styles.iconDot, { backgroundColor: colors.surface }]}>
-                <Icon name="insights" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.insightLabel}>{s.homePattern}</Text>
-                {(allPatterns ? insights.patterns : insights.patterns.slice(0, 1)).map((line) => (
-                  <Text key={line} style={styles.insightText}>
-                    {line}
-                  </Text>
-                ))}
-                {insights.patterns.length > 1 && (
-                  <Tap style={styles.morePatterns} onPress={() => setAllPatterns(!allPatterns)} accessibilityRole="button" accessibilityState={{ expanded: allPatterns }}>
-                    <Text style={styles.askText}>{allPatterns ? s.journalShowFewer : s.homeAllPatterns.replace("{n}", String(insights.patterns.length))}</Text>
-                  </Tap>
-                )}
-                {allPatterns && <Text style={styles.small}>{s.journalNotCause}</Text>}
-              </View>
-            </View>
-          )}
-          {!!insights.weather && (
-            <View style={styles.insightRow}>
-              <View style={[styles.iconDot, { backgroundColor: colors.surface }]}>
-                <Icon name="weather" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.insightLabel}>{insights.weatherPlace ? s.weatherIn.replace("{place}", insights.weatherPlace) : s.insightsWeather}</Text>
-                <Text style={styles.insightText}>{insights.weather}</Text>
-              </View>
-            </View>
-          )}
-          <Tap style={styles.ask} onPress={onChat} accessibilityRole="button">
-            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.primary} />
-            <Text style={styles.askText}>{s.homeTalk}</Text>
-          </Tap>
-        </View>
-      )}
+      {p.emergency}
+    </ScrollView>
+  );
+}
 
-      <Text style={styles.section} accessibilityRole="header">
-        {s.homeTools}
-      </Text>
-      {GROUPS.map((g) => (
-        <View key={g.key} style={styles.group}>
-          <Text style={styles.groupTitle} accessibilityRole="header">
-            {g.label(s)}
+// One tile of the dashboard grid: the tool's icon and a title, a line under it, an arrow that opens the tool, and
+// what to do today.
+function Tile(p: {
+  style: { width: number };
+  icon: IconName;
+  tint: keyof typeof tint;
+  title: string;
+  sub?: string;
+  warn?: boolean;
+  // The tool's name, for the arrow's label.
+  open: string;
+  onOpen: () => void;
+  children?: ReactNode;
+}) {
+  const c = tint[p.tint];
+  return (
+    <Enter style={[styles.tile, p.style]} from={10}>
+      <Tap style={styles.tileHead} onPress={p.onOpen} accessibilityRole="button" accessibilityLabel={`${p.open}: ${p.title}${p.sub ? `, ${p.sub}` : ""}`}>
+        <View style={[styles.tileIcon, { backgroundColor: c.bg }]}>
+          <Icon name={p.icon} size={20} color={c.fg} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={styles.tileTitle} numberOfLines={2}>
+            {p.title}
           </Text>
-          <View style={styles.grid}>
-            {g.tools.map((tab) => TOOLS.find((t) => t.tab === tab)!).map((t) => (
-              <Tap key={t.tab} style={[styles.tool, wide ? styles.third : styles.half]} onPress={() => onOpen(t.tab)} accessibilityRole="button" accessibilityLabel={`${t.label(s)}. ${t.desc(s)}`}>
-                <View style={[styles.toolIcon, { backgroundColor: tint[t.tint].bg }]}>
-                  <Icon name={t.icon} size={24} color={tint[t.tint].fg} />
-                </View>
-                <View style={styles.toolHead}>
-                  <Text style={[styles.toolTitle, styles.flex]} numberOfLines={1}>
-                    {t.label(s)}
-                  </Text>
-                  {t.tab === "agent" && !!p.waiting?.count && <CountBadge n={p.waiting.count} urgent={p.waiting.urgent} s={s} />}
-                </View>
-                <Text style={styles.toolDesc} numberOfLines={2}>
-                  {t.desc(s)}
-                </Text>
-              </Tap>
+          {!!p.sub && (
+            <Text style={[styles.statSub, p.warn && styles.warn]} numberOfLines={2}>
+              {p.sub}
+            </Text>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      </Tap>
+      {p.children}
+    </Enter>
+  );
+}
+
+// Four weeks of days as a grid of dots, one row a week: filled on days an exercise was done (convex/dashboard.ts move).
+function MoveStreak({ move, s }: { move: DashboardData["move"]; s: Strings }) {
+  if (!move.exercises && !move.days.length) return <Text style={styles.small}>{s.homeMoveNone}</Text>;
+  const done = new Set(move.days);
+  const start = Date.parse(`${move.from}T00:00:00Z`);
+  const days = Array.from({ length: 28 }, (_, i) => new Date(start + i * 86_400_000).toISOString().slice(0, 10));
+  const c = tint.exercise;
+  return (
+    <View style={styles.move}>
+      <View style={styles.dots} accessibilityLabel={s.homeMoveDays.replace("{n}", String(move.days.length))}>
+        {[0, 1, 2, 3].map((week) => (
+          <View key={week} style={styles.dotRow}>
+            {days.slice(week * 7, week * 7 + 7).map((d, i) => (
+              <View key={d} style={[styles.dot, { backgroundColor: done.has(d) ? c.fg : c.bg }, week === 3 && i === 6 && styles.dotToday]} />
             ))}
           </View>
-        </View>
-      ))}
-    </ScrollView>
+        ))}
+      </View>
+      <Text style={styles.small}>{s.homeMoveDays.replace("{n}", String(move.days.length))}</Text>
+      {move.dueToday > 0 && (
+        <Text style={[styles.small, styles.strong]}>{s.homeMoveToday.replace("{a}", String(move.doneToday)).replace("{b}", String(move.dueToday))}</Text>
+      )}
+    </View>
   );
 }
 
 type Visit = NonNullable<DashboardData["visit"]>;
 
-// The next appointment's questions to ask (convex/questions.ts), or a button to write some, and the prep checklist.
+// The next appointment's top 3 questions (convex/questions.ts, in the user's order), or a button to write some, and
+// Prepare (the prep checklist) and Share (a summary for the doctor).
 function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen: (t: HubTab) => void }) {
   const suggest = useAction(api.questions.suggest);
   const [busy, setBusy] = useState(false);
@@ -317,26 +340,20 @@ function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen
       setBusy(false);
     }
   };
-  const c = tint.appointments;
   return (
-    <Enter style={styles.questions}>
-      <View style={styles.trendHead}>
-        <View style={[styles.iconDot, { backgroundColor: c.bg }]}>
-          <Icon name="appointments" size={18} color={c.fg} />
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.trendTitle} numberOfLines={1}>
-            {s.homeQuestionsTitle.replace("{title}", visit.title)}
-          </Text>
-          <Text style={styles.small}>{when(visit.startsAt, s.locale)}</Text>
-        </View>
-      </View>
+    <View style={styles.visit}>
       {visit.questions.length ? (
-        visit.questions.slice(0, 3).map((q) => (
-          <Text key={q} style={styles.insightText}>
-            • {q}
-          </Text>
-        ))
+        <>
+          <Text style={styles.kickerText}>{s.questionsTop}</Text>
+          {visit.questions.slice(0, TOP_QUESTIONS).map((q, i) => (
+            <View key={`${i}-${q}`} style={styles.qRow}>
+              <View style={styles.qNum}>
+                <Text style={styles.qNumText}>{i + 1}</Text>
+              </View>
+              <Text style={[styles.insightText, styles.flex]}>{q}</Text>
+            </View>
+          ))}
+        </>
       ) : (
         <Text style={styles.small}>{s.homeQuestionsEmpty}</Text>
       )}
@@ -344,56 +361,22 @@ function VisitQuestions({ visit, s, onOpen }: { visit: Visit; s: Strings; onOpen
         {!visit.questions.length && (
           <Tap style={styles.ask} onPress={() => void write()} disabled={busy} accessibilityRole="button" accessibilityState={{ busy }}>
             <SwapIcon id={busy ? "busy" : "idle"}>
-              {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
+              {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Icon name="suggest" size={16} color={colors.primary} />}
             </SwapIcon>
             <Text style={styles.askText}>{s.visitSuggestQuestions}</Text>
           </Tap>
         )}
         <Tap style={styles.ask} onPress={() => onOpen("prep")} accessibilityRole="button">
           <Icon name="guides" size={16} color={colors.primary} />
-          <Text style={styles.askText}>{s.homeChecklist}</Text>
+          <Text style={styles.askText}>{s.homePrepare}</Text>
+        </Tap>
+        <Tap style={styles.ask} onPress={() => onOpen("visit")} accessibilityRole="button">
+          <Icon name="share" size={16} color={colors.primary} />
+          <Text style={styles.askText}>{s.tabVisit}</Text>
         </Tap>
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
-    </Enter>
-  );
-}
-
-function Stat(p: {
-  icon: IconName;
-  tint: keyof typeof tint;
-  label: string;
-  value: string;
-  sub?: string;
-  meter?: number;
-  warn?: boolean;
-  wide: boolean;
-  onPress: () => void;
-}) {
-  const c = tint[p.tint];
-  return (
-    <Tap style={[styles.stat, p.wide ? styles.quarter : styles.half]} onPress={p.onPress} accessibilityRole="button" accessibilityLabel={`${p.label}: ${p.value}${p.sub ? `, ${p.sub}` : ""}`}>
-      <View style={[styles.iconDot, { backgroundColor: c.bg }]}>
-        <Icon name={p.icon} size={18} color={c.fg} />
-      </View>
-      <Text style={styles.statLabel} numberOfLines={1}>
-        {p.label}
-      </Text>
-      <Text style={styles.statValue} numberOfLines={1}>
-        {p.value}
-      </Text>
-      {p.meter !== undefined && (
-        <View style={styles.meter}>
-          <View style={[styles.meterFill, { width: `${Math.round(Math.min(1, p.meter) * 100)}%`, backgroundColor: c.fg }]} />
-        </View>
-      )}
-      {!!p.sub && (
-        <Text style={[styles.statSub, p.warn && styles.warn]} numberOfLines={1}>
-          {p.warn ? "⚠ " : ""}
-          {p.sub}
-        </Text>
-      )}
-    </Tap>
+    </View>
   );
 }
 
@@ -541,36 +524,22 @@ const styles = themed(() => ({
   section: { ...ui.section },
   empty: { ...ui.empty },
   scroll: { flex: 1 },
-  content: { padding: 16, gap: 14, width: "100%", paddingBottom: 40 },
+  // Room at the bottom for the floating Chat button (src/HubPanel.tsx).
+  content: { padding: 16, gap: 14, width: "100%", paddingBottom: 96 },
   flex: { flex: 1 },
-  stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  group: { gap: 8 },
   emergency: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, minHeight: 52, borderColor: colors.dangerBorder },
   emergencyText: { flex: 1, color: colors.danger, fontSize: 15, fontWeight: "700" },
   morePatterns: { minHeight: 36, justifyContent: "center", alignSelf: "flex-start" },
   slotOn: { backgroundColor: colors.primarySoft },
   picked: { color: colors.text, fontSize: 13, fontWeight: "600" },
-  toolHead: { flexDirection: "row", alignItems: "center", gap: 6 },
-  waiting: { ...ui.card, flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderColor: colors.primary },
-  waitingUrgent: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
-  waitingTitle: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  waitingUrgentText: { color: colors.danger, fontSize: 13, fontWeight: "600", marginTop: 2 },
-  groupTitle: { color: colors.muted, fontWeight: "700", ...kicker() },
-  // Two per row on phones; four (stats) or three (tools) on wider screens. The gap is taken out of each share.
-  half: { flexBasis: "47%", flexGrow: 1 },
-  quarter: { flexBasis: "22%", flexGrow: 1 },
+  // Trend cards: one per row on phones, two or three on wider screens. The gap is taken out of each share.
   third: { flexBasis: "30%", flexGrow: 1 },
   half2: { flexBasis: "47%", flexGrow: 1 },
   full: { flexBasis: "100%" },
-  stat: { ...ui.card, padding: 12, gap: 4, minHeight: 124 },
   iconDot: { width: 34, height: 34, borderRadius: 26, alignItems: "center", justifyContent: "center" },
-  statLabel: { color: colors.muted, fontSize: 13, fontWeight: "600", marginTop: 4 },
-  statValue: { color: colors.text, fontSize: 17, fontWeight: "700" },
   statSub: { color: colors.muted, fontSize: 13 },
   warn: { color: colors.warningText, fontWeight: "600" },
-  meter: { height: 6, borderRadius: 3, backgroundColor: colors.bg, overflow: "hidden", marginVertical: 2 },
-  meterFill: { height: "100%", borderRadius: 3 },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   seeAll: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 44, paddingHorizontal: 4, marginTop: 8 },
   seeAllText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
@@ -593,17 +562,28 @@ const styles = themed(() => ({
 
   axis: { flexDirection: "row", justifyContent: "space-between" },
   axisText: { fontSize: 12, color: colors.muted },
-  insight: { ...ui.card, padding: 14, gap: 10, backgroundColor: colors.primarySoft, borderColor: colors.mint },
-  questions: { ...ui.card, padding: 14, gap: 8 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 },
   error: { color: colors.danger, fontSize: 14 },
-  insightRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   insightLabel: { fontSize: 13, fontWeight: "700", color: colors.primary },
   insightText: { fontSize: 15, color: colors.text, lineHeight: 21 },
   ask: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 40, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
   askText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
-  tool: { ...ui.card, padding: 14, gap: 6, minHeight: 132 },
-  toolIcon: { width: 46, height: 46, borderRadius: radius.md, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  toolTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
-  toolDesc: { fontSize: 13, color: colors.muted, lineHeight: 18 },
+  bento: { flexDirection: "row", flexWrap: "wrap", gap: GAP, alignItems: "stretch" },
+  // flexGrow takes up what rounding leaves at the end of a row.
+  tile: { ...ui.card, padding: 16, gap: 14, flexGrow: 1 },
+  insightRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  tileHead: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44 },
+  tileIcon: { width: 40, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  tileTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
+  strong: { color: colors.text, fontWeight: "600" },
+  move: { gap: 8 },
+  dots: { gap: 6, alignSelf: "flex-start" },
+  dotRow: { flexDirection: "row", gap: 6 },
+  dot: { width: 18, height: 18, borderRadius: 6 },
+  dotToday: { borderWidth: 2, borderColor: colors.text },
+  visit: { gap: 8 },
+  kickerText: { color: colors.muted, fontWeight: "700", ...kicker() },
+  qRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  qNum: { width: 22, height: 22, borderRadius: 11, marginTop: 0, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  qNumText: { color: colors.onPrimary, fontSize: 12, fontWeight: "700" },
 }));

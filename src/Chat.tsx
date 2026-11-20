@@ -41,6 +41,8 @@ import { JoinPrompt } from "./JoinPrompt";
 import { Icon } from "./Icon";
 import { Tour, TourStop } from "./Tour";
 import { SideSheet, SIDE_SHEET_MIN_WIDTH } from "./SideSheet";
+import { ChatDrawer, DRAWER_MIN_WIDTH, useChatShortcut } from "./ChatDrawer";
+import { readFlag, writeFlag } from "./prefs";
 import { barTop, useInsets } from "./safeArea";
 import { formatDate, formatTime } from "./format";
 
@@ -105,15 +107,30 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const insets = useInsets();
   // In a wide browser window Settings opens over the right half; on phones it drops down full width under the header.
   const side = Platform.OS === "web" && width >= SIDE_SHEET_MIN_WIDTH;
+  // Wider still, the chat is a drawer on the right beside the tools (./ChatDrawer.tsx), open or closed as last left.
+  const docked = Platform.OS === "web" && width >= DRAWER_MIN_WIDTH;
+  const [drawer, setDrawerState] = useState(() => readFlag(DRAWER_KEY, false));
+  const setDrawer = (open: boolean) => {
+    writeFlag(DRAWER_KEY, open);
+    setDrawerState(open);
+  };
   const openHub = (tab: HubTab) => {
     setHubTab(tab);
     setScreen("hub");
     setPanel(null);
   };
   const openChat = () => {
-    setScreen("chat");
+    if (docked) setDrawer(true);
+    else setScreen("chat");
     setPanel(null);
   };
+  // The Chat button and Ctrl/Cmd+K: the drawer opens and closes; on a phone they go to the chat and back.
+  const toggleChat = () => {
+    if (docked) setDrawer(!drawer);
+    else if (screen === "chat") openHub(hubTab);
+    else openChat();
+  };
+  useChatShortcut(toggleChat);
   // The first-time tour (./Tour.tsx): once after setup, and again from Settings.
   const [touring, setTouring] = useState(false);
   const [tourStep, setTourStep] = useState(0);
@@ -272,7 +289,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             accessibilityRole="button"
             accessibilityLabel={s.openHistory}
           >
-            <Ionicons name="menu-outline" size={24} color={colors.text} />
+            <Icon name="history" size={22} color={colors.text} />
           </Pressable>
           {/* One line: the name with "not a doctor" beside it, so the note stays in view. */}
           <SingingBrand style={styles.singer}>
@@ -293,16 +310,28 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
               <Icon name="newChat" size={21} color={colors.text} />
             </Pressable>
           )}
-          <Pressable
-            style={({ pressed }) => [styles.dashButton, narrow && styles.dashButtonNarrow, pressed && styles.pressed]}
-            onPress={() => openHub("home")}
-            accessibilityRole="button"
-            accessibilityLabel={s.dashboard}
-          >
-            <Icon name="dashboard" size={18} color={colors.onPrimary} />
-            {/* Like the dashboard's Chat button: named, and just the icon on a phone so the header still fits. */}
-            {!narrow && <Text style={styles.dashText}>{s.dashboard}</Text>}
-          </Pressable>
+          {docked ? (
+            // In the drawer the dashboard is already beside it: this just closes the drawer.
+            <Pressable
+              style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+              onPress={() => setDrawer(false)}
+              accessibilityRole="button"
+              accessibilityLabel={s.closeChat}
+            >
+              <Ionicons name="close" size={22} color={colors.text} />
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.dashButton, narrow && styles.dashButtonNarrow, pressed && styles.pressed]}
+              onPress={() => openHub("home")}
+              accessibilityRole="button"
+              accessibilityLabel={s.dashboard}
+            >
+              <Icon name="dashboard" size={18} color={colors.onPrimary} />
+              {/* Like the dashboard's Chat button: named, and just the icon on a phone so the header still fits. */}
+              {!narrow && <Text style={styles.dashText}>{s.dashboard}</Text>}
+            </Pressable>
+          )}
           <Pressable
             style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             onPress={() => toggle("settings")}
@@ -310,7 +339,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
             accessibilityLabel={panel === "settings" || panel === "about" ? s.closeSettings : s.settings}
           >
             <SwapIcon id={panel === "settings" || panel === "about" ? "close" : "settings"}>
-              <Ionicons name={panel === "settings" || panel === "about" ? "close" : "settings-outline"} size={22} color={colors.text} />
+              {panel === "settings" || panel === "about" ? <Ionicons name="close" size={22} color={colors.text} /> : <Icon name="settings" size={22} color={colors.text} />}
             </SwapIcon>
           </Pressable>
         </View>
@@ -630,7 +659,14 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
 
   return (
     <View style={styles.container}>
-      {screen === "hub" ? (
+      {docked ? (
+        <View style={styles.docked}>
+          <HubPanel tab={hubTab} onTab={setHubTab} onClose={toggleChat} chatOpen={drawer} s={s} settingsOpen={panel !== null} onSettings={() => toggle("settings")}>
+            {panels}
+          </HubPanel>
+          <ChatDrawer open={drawer}>{chat}</ChatDrawer>
+        </View>
+      ) : screen === "hub" ? (
         <Enter key="hub" style={styles.container} fromX={-28}>
           <HubPanel tab={hubTab} onTab={setHubTab} onClose={openChat} s={s} settingsOpen={panel !== null} onSettings={() => toggle("settings")}>
             {panels}
@@ -652,8 +688,11 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   );
 }
 
+const DRAWER_KEY = "wellnest.chatDrawer";
+
 const styles = themed(() => ({
   container: { flex: 1, backgroundColor: colors.bg },
+  docked: { flex: 1, flexDirection: "row", backgroundColor: colors.bg },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",

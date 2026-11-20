@@ -12,6 +12,9 @@ import { colors, themed, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { Enter, SwapIcon } from "./Motion";
+import { Icon } from "./Icon";
+import { SegmentTabs } from "./SegmentTabs";
+import { QuestionList } from "./QuestionList";
 import { confirmAsk, errorText, showToast } from "./feedback";
 import { formatDateTime } from "./format";
 import { DateField, TimeField, dayString, timeString } from "./DateTimeField";
@@ -72,7 +75,6 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
   const setStatus = useMutation(api.visits.setStatus);
   const remove = useMutation(api.visits.remove);
   const suggest = useAction(api.questions.suggest);
-  const removeQuestion = useMutation(api.questions.remove);
   const [suggesting, setSuggesting] = useState(false);
   const [open, setOpen] = useState(false);
   const [prep, setPrep] = useState(item.prep ?? "");
@@ -151,14 +153,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
           {isVisit && item.status === "upcoming" && (
             <View style={styles.questions}>
               <Text style={styles.label}>{s.visitQuestions}</Text>
-              {item.questions?.map((q, i) => (
-                <View key={`${i}-${q}`} style={styles.question}>
-                  <Text style={[styles.questionText, styles.flex]}>• {q}</Text>
-                  <Tap onPress={() => void run(() => removeQuestion({ id, index: i }))} accessibilityRole="button" accessibilityLabel={s.remove} hitSlop={8}>
-                    <Ionicons name="close" size={16} color={colors.muted} />
-                  </Tap>
-                </View>
-              ))}
+              {!!item.questions?.length && <QuestionList id={id} questions={item.questions} s={s} run={(fn) => void run(fn)} />}
               {!!item.questions?.length && <Text style={styles.small}>{s.visitQuestionsNote}</Text>}
               <Tap
                 style={styles.action}
@@ -171,7 +166,7 @@ function VisitCard({ item, s, onPrepare }: { item: Item; s: Strings; onPrepare: 
                 accessibilityRole="button"
                 accessibilityState={{ busy: suggesting }}
               >
-                {suggesting ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
+                {suggesting ? <ActivityIndicator size="small" color={colors.primary} /> : <Icon name="suggest" size={16} color={colors.primary} />}
                 <Text style={styles.link}>{item.questions?.length ? s.visitNewQuestions : s.visitSuggestQuestions}</Text>
               </Tap>
             </View>
@@ -375,13 +370,14 @@ export function VisitsPanel({ s, onPrepare, openPrep = false }: { s: Strings; on
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
-      <View style={styles.views} accessibilityRole="tablist">
-        {(["list", "prep"] as const).map((v) => (
-          <Tap key={v} style={[styles.view, view === v && styles.viewOn]} onPress={() => setView(v)} accessibilityRole="tab" accessibilityState={{ selected: view === v }}>
-            <Text style={[styles.viewText, view === v && styles.viewTextOn]}>{v === "list" ? s.visitsTabList : s.visitsTabPrep}</Text>
-          </Tap>
-        ))}
-      </View>
+      <SegmentTabs
+        items={[
+          { key: "list", label: s.visitsTabList, icon: "visitList" },
+          { key: "prep", label: s.visitsTabPrep, icon: "guides" },
+        ]}
+        value={view}
+        onChange={setView}
+      />
       {view === "prep" ? (
         <Enter key="prep" from={6}>
           <VisitPrep s={s} onAdd={() => (setView("list"), setAdding(true))} />
@@ -473,11 +469,6 @@ const styles = themed(() => ({
   list: { gap: 10 },
   labelRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 8 },
   savedNote: { color: colors.muted, fontSize: 12 },
-  views: { flexDirection: "row", gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline },
-  view: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
-  viewOn: { backgroundColor: colors.primary },
-  viewText: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  viewTextOn: { color: colors.onPrimary },
   note: { color: colors.muted, fontSize: 14, lineHeight: 19 },
   empty: { ...ui.empty },
   small: { color: colors.muted, fontSize: 13 },
@@ -493,7 +484,6 @@ const styles = themed(() => ({
   label: { fontSize: 13, fontWeight: "600", color: colors.text },
   questions: { gap: 4, backgroundColor: colors.primarySoft, borderRadius: 12, padding: 8 },
   question: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  questionText: { fontSize: 14, color: colors.text, lineHeight: 20 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, flexWrap: "wrap" },
   action: { flexDirection: "row", alignItems: "center", gap: 4 },
   member: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 15, padding: 10 },

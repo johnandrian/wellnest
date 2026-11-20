@@ -12,7 +12,7 @@ import { careForModel } from "./care";
 import { refreshSoon } from "./weather";
 import { Chart, chartValidator } from "./lib/insights";
 import { aboutUserText } from "./lib/onboarding";
-import { localToday } from "./journal";
+import { localToday, notesText } from "./journal";
 import { exercisePatterns, journalText } from "./lib/journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
 import { glucoseToMgdl, tempToC, unitsOf, weightToKg } from "./lib/units";
@@ -285,11 +285,13 @@ export const respond = internalAction({
           const daily = await ctx.runQuery(internal.journal.dailyFrom, { userId, since });
           const tracked = await ctx.runQuery(internal.trackers.since, { userId, since });
           const text = journalText([...entries, ...painAsEntries(tracked.entries)], await healthDays(ctx, userId, Math.min(days, 90)), daily);
+          const notes = notesText(await ctx.runQuery(internal.journal.notesFrom, { userId, since }));
           const conditions = trackersText(tracked.entries, tracked.peakFlowBest);
           const ex = await ctx.runQuery(internal.exercises.adherenceFor, { userId, from: since, to: dateDaysAgo(Date.now(), 0) });
           const found = exercisePatterns([...entries, ...painAsEntries(tracked.entries)], ex.doneDates, ex.missedDates);
           return [
             text,
+            notes,
             conditions && `Condition trackers:\n${conditions}`,
             ex.text && `Exercises:\n${ex.text}`,
             found.length ? `Exercise patterns (associations, not causes):\n${found.join("\n")}` : "",

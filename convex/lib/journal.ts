@@ -4,7 +4,8 @@
 import { v } from "convex/values";
 import type { HealthDay } from "./health";
 
-export const entrySource = v.union(v.literal("chat"), v.literal("manual"), v.literal("checkin"));
+// "note": picked out of something the user wrote in the Journal (convex/journal.ts addNote).
+export const entrySource = v.union(v.literal("chat"), v.literal("manual"), v.literal("checkin"), v.literal("note"));
 
 export type Entry = { date: string; symptom: string; severity?: number; note?: string };
 

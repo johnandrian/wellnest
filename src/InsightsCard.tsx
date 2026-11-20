@@ -2,7 +2,7 @@
 // weather, air quality, pollen), how things changed after medication changes, and today's local weather.
 import { Text, View } from "react-native";
 import { useQuery } from "convex/react";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "./Icon";
 import { api } from "../convex/_generated/api";
 import { colors, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
@@ -13,7 +13,7 @@ export function InsightsCard({ today, s }: { today: string; s: Strings }) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Ionicons name="analytics-outline" size={18} color={colors.primary} />
+        <Icon name="insights" size={18} color={colors.primary} />
         <Text style={styles.title}>{s.insightsTitle}</Text>
       </View>
       {data.patterns.length ? (
@@ -37,7 +37,7 @@ export function InsightsCard({ today, s }: { today: string; s: Strings }) {
       )}
       {data.weather ? (
         <Text style={styles.weather}>
-          <Ionicons name="partly-sunny-outline" size={13} color={colors.muted} /> {data.weatherPlace ? s.weatherIn.replace("{place}", data.weatherPlace) : s.insightsWeather}: {data.weather}
+          <Icon name="weather" size={13} color={colors.muted} /> {data.weatherPlace ? s.weatherIn.replace("{place}", data.weatherPlace) : s.insightsWeather}: {data.weather}
         </Text>
       ) : (
         !data.hasLocation && <Text style={styles.muted}>{s.insightsNoLocation}</Text>

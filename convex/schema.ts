@@ -291,6 +291,16 @@ export default defineSchema({
     source: entrySource,
   }).index("by_user_and_date", ["userId", "date"]),
 
+  // What the user wrote in the Journal in their own words (convex/journal.ts addNote), and the symptoms the model
+  // picked out of it and logged (`logged`, filled in a moment later).
+  journalNotes: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // YYYY-MM-DD in the user's time zone
+    at: v.number(), // when it was written
+    text: v.string(),
+    logged: v.optional(v.array(v.object({ symptom: v.string(), severity: v.optional(v.number()) }))),
+  }).index("by_user_and_date", ["userId", "date"]),
+
   // The user's care team: doctors, nurses, therapists, pharmacists (convex/visits.ts).
   careTeam: defineTable({
     userId: v.id("users"),

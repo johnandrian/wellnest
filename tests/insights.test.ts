@@ -259,6 +259,19 @@ describe("questions for an appointment", () => {
     expect((await as.query(api.visits.list, { now: NOW }))!.upcoming[0].questions).toEqual(["¿Debo cambiar la dosis?"]);
   });
 
+  test("the user orders them: moving one up swaps it with the one above, and the ends stay put", async () => {
+    const t = setup();
+    const { as } = await createAppUser(t);
+    const other = await createAppUser(t, "b@example.com");
+    const id = await upcomingVisit(as);
+    await t.run((ctx) => ctx.db.patch(id, { questions: ["A", "B", "C", "D"] }));
+    await as.mutation(api.questions.move, { id, index: 3 });
+    await as.mutation(api.questions.move, { id, index: 0 });
+    await as.mutation(api.questions.move, { id, index: 9 });
+    expect((await as.query(api.visits.list, { now: NOW }))!.upcoming[0].questions).toEqual(["A", "B", "D", "C"]);
+    await expect(other.as.mutation(api.questions.move, { id, index: 1 })).rejects.toThrow(/Not found/);
+  });
+
   test("someone else's visit is refused; an unreadable answer is an error", async () => {
     const t = setup();
     mockApis({ core: [{ content: "Sorry, I can't." }] });

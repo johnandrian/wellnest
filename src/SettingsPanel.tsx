@@ -236,7 +236,7 @@ export function SettingsPanel({
           [
             { value: "system", icon: "phone-portrait-outline", label: s.themeSystem },
             { value: "light", icon: "sunny-outline", label: s.themeLight },
-            { value: "dark", icon: "moon-outline", label: s.themeDark },
+            { value: "dark", icon: "contrast-outline", label: s.themeDark },
           ] as const,
           me.appearance.theme,
           (theme) => void setAppearance({ appearance: { ...me.appearance, theme } }),

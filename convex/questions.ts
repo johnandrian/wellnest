@@ -144,3 +144,17 @@ export const remove = mutation({
     await ctx.db.patch(id, { questions: questions.length ? questions : undefined });
   },
 });
+
+// Move one question up a place, so the user picks which come first: the first 3 are the ones shown on the dashboard.
+export const move = mutation({
+  args: { id: v.id("visits"), index: v.number() },
+  handler: async (ctx, { id, index }) => {
+    const userId = await getAuthUserId(ctx);
+    const visit = await ctx.db.get(id);
+    if (!userId || !visit || visit.userId !== userId) throw new Error("Not found");
+    const questions = [...(visit.questions ?? [])];
+    if (!Number.isInteger(index) || index < 1 || index >= questions.length) return;
+    [questions[index - 1], questions[index]] = [questions[index], questions[index - 1]];
+    await ctx.db.patch(id, { questions });
+  },
+});

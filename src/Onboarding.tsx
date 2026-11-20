@@ -421,7 +421,7 @@ export function Onboarding({ mode, onDone }: { mode: SetupMode; onDone: () => vo
               </View>
             ) : (
               <Tap style={ui.addButton} onPress={() => void health.connect()} disabled={health.syncing} accessibilityRole="button">
-                {health.syncing ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="heart-outline" size={18} color={colors.primary} />}
+                {health.syncing ? <ActivityIndicator color={colors.primary} /> : <Icon name="healthApp" size={18} color={colors.primary} />}
                 <Text style={styles.link}>{s.ob_connect.replace("{source}", source)}</Text>
               </Tap>
             )}

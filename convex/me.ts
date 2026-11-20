@@ -110,7 +110,10 @@ export const overview = query({
     const summaries = await ctx.db.query("visitSummaries").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const analyses = await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const facts = await ctx.db.query("memoryFacts").withIndex("by_user", (q) => q.eq("userId", userId)).take(MAX_FACTS);
-    const journal = await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
+    const journal = [
+      ...(await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1)),
+      ...(await ctx.db.query("journalNotes").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1)),
+    ];
     const visits = await ctx.db.query("visits").withIndex("by_user_and_start", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const team = await ctx.db.query("careTeam").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
     const records = await ctx.db.query("records").withIndex("by_user", (q) => q.eq("userId", userId)).take(COUNT_CAP + 1);
@@ -203,6 +206,7 @@ export const exportRest = internalQuery({
       visitSummaries: await ctx.db.query("visitSummaries").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomAnalyses: await ctx.db.query("creaoRuns").withIndex("by_user", (q) => q.eq("userId", userId)).take(take),
       symptomJournal: await ctx.db.query("symptomEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
+      journalNotes: await ctx.db.query("journalNotes").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       conditionTrackers: await ctx.db.query("trackerEntries").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
       exercises: await ctx.db.query("exercises").withIndex("by_user_and_active", (q) => q.eq("userId", userId)).take(take),
       exerciseLog: await ctx.db.query("exerciseLogs").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).take(take),
@@ -271,7 +275,7 @@ const STEPS = {
   summaries: ["visitSummaries"],
   appointments: ["visits", "careTeam"],
   facts: ["memoryFacts"],
-  journal: ["symptomEntries"],
+  journal: ["symptomEntries", "journalNotes"],
   trackers: ["trackerEntries"],
   exercises: ["exerciseLogs", "exercises"],
   checkins: ["dailyLogs"],
@@ -404,6 +408,7 @@ async function purgeBatch(ctx: MutationCtx, userId: Id<"users">, step: Step): Pr
       return rows.length;
     }
     case "symptomEntries":
+    case "journalNotes":
     case "dailyLogs":
     case "trackerEntries":
     case "exerciseLogs":

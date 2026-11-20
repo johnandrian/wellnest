@@ -80,7 +80,18 @@ const SCHEDULED: Record<string, "run" | ((server: DemoServer, args: Record<strin
     await new Promise((r) => setTimeout(r, 1500));
     await server.run("visit:finish", { id: args.id, text: DEMO_CONTENT[server.lang].visitSummary }, "mutation");
   },
+  // A journal note's symptoms are picked out by the model on the server; the demo looks for a few common English names
+  // and the first number from 0 to 10.
+  "journal:extractNote": async (server, args) => {
+    const note = (await server.run("journal:noteFor", { id: args.id }, "query")) as { text: string } | null;
+    if (!note) return;
+    const text = note.text.toLowerCase();
+    const n = text.match(/\b(10|[0-9])\b/);
+    const symptoms = DEMO_SYMPTOMS.filter((x) => text.includes(x)).map((symptom) => (n ? { symptom, severity: Number(n[1]) } : { symptom }));
+    await server.run("journal:logFromNote", { id: args.id, symptoms }, "mutation");
+  },
 };
+const DEMO_SYMPTOMS = ["pain", "morning stiffness", "fatigue", "headache", "nausea", "dizziness", "tiredness"];
 
 // Thrown for anything that needs a real account (uploads, the model, outside services); the page says so.
 export class NeedsAccount extends Error {

@@ -253,7 +253,7 @@ function PersonView({ s, person, onBack }: { s: Strings; person: Person; onBack:
           )}
 
           <Tap style={styles.addButton} onPress={() => void openReport()} disabled={busy} accessibilityRole="button">
-            {busy ? <ActivityIndicator color={colors.primary} /> : <Icon name="reports" size={18} color={colors.primary} />}
+            {busy ? <ActivityIndicator color={colors.primary} /> : <Icon name="pdf" size={18} color={colors.primary} />}
             <Text style={styles.link}>{s.circleReport}</Text>
           </Tap>
           {error && <Text style={styles.error}>{error}</Text>}

@@ -7,7 +7,7 @@ import { useAction, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { api } from "../convex/_generated/api";
-import { colors, themed, ui } from "./theme";
+import { colors, themed, tint, ui } from "./theme";
 import { errorText } from "./feedback";
 import type { Strings } from "./i18n";
 import { deviceRegion, useEmergencyNumber } from "./emergency";
@@ -15,7 +15,9 @@ import { openNow, usesMiles } from "./openingHours";
 import { TelehealthCard } from "./TelehealthCard";
 import { EmergencyCard } from "./EmergencyCard";
 import { Icon, IconName } from "./Icon";
-import { SwapIcon } from "./Motion";
+import { Enter, SwapIcon } from "./Motion";
+import { IconHeading, SegmentTabs } from "./SegmentTabs";
+import { CirclePanel } from "./CirclePanel";
 import { formatDistance } from "./format";
 import { telUrl } from "../convex/lib/phone";
 
@@ -38,7 +40,30 @@ async function here(): Promise<{ lat: number; lon: number } | null> {
   return { lat: pos.coords.latitude, lon: pos.coords.longitude };
 }
 
-export function CarePanel({ s }: { s: Strings }) {
+// Care is one tool with two views: care nearby and the emergency plan, and the Care Circle (./CirclePanel.tsx).
+// `openCircle`: open on the Care Circle (from a join prompt, a Care Circle alert, or the "circle" tab).
+export function CarePanel({ s, openCircle = false }: { s: Strings; openCircle?: boolean }) {
+  const [view, setView] = useState<"care" | "circle">(openCircle ? "circle" : "care");
+  return (
+    <View style={styles.flex}>
+      <View style={styles.views}>
+        <SegmentTabs
+          items={[
+            { key: "care", label: s.careTabNearby, icon: "nearby" },
+            { key: "circle", label: s.tabCircle, icon: "circle" },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </View>
+      <Enter key={view} style={styles.flex} from={6}>
+        {view === "care" ? <CareNearby s={s} /> : <CirclePanel s={s} />}
+      </Enter>
+    </View>
+  );
+}
+
+function CareNearby({ s }: { s: Strings }) {
   const search = useAction(api.care.search);
   const sos = useEmergencyNumber(s);
   // Miles where that's the unit (the saved location's country, else the phone's region), else for people who chose
@@ -83,7 +108,7 @@ export function CarePanel({ s }: { s: Strings }) {
       <EmergencyCard s={s} />
       <TelehealthCard s={s} />
 
-      <Text style={styles.section}>{s.careNearby}</Text>
+      <IconHeading icon="nearby" text={s.careNearby} tint={tint.care.fg} />
       <View style={styles.kinds}>
         {KINDS.map((k) => (
           <Tap
@@ -174,6 +199,8 @@ export function CarePanel({ s }: { s: Strings }) {
 }
 
 const styles = themed(() => ({
+  flex: { flex: 1 },
+  views: { width: "100%", maxWidth: 760, alignSelf: "center", paddingHorizontal: 16, paddingTop: 12 },
   scroll: { flex: 1, backgroundColor: colors.bg },
   panel: { padding: 16, gap: 10, maxWidth: 760, width: "100%", alignSelf: "center" },
   openState: { fontSize: 13, fontWeight: "700" },
@@ -181,7 +208,6 @@ const styles = themed(() => ({
   closed: { color: colors.warningText },
   emergency: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.danger, borderRadius: 15, padding: 11 },
   emergencyText: { color: colors.onPrimary, fontWeight: "700", fontSize: 14 },
-  section: { fontSize: 17, fontWeight: "700", color: colors.text, marginTop: 6 },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   kind: { ...ui.chip, flexDirection: "row", alignItems: "center", gap: 5 },
   kindOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },

@@ -9,6 +9,7 @@ import { complete, CORE_MODEL } from "./lib/cortex";
 import { dateDaysAgo, healthReport } from "./lib/health";
 import { DEFAULT_VISIT_DAYS, VISIT_PROMPT, visitMaterial } from "./lib/visit";
 import { journalText } from "./lib/journal";
+import { notesText } from "./journal";
 import { painAsEntries, trackersText } from "./lib/trackers";
 import { saveAssistantReply } from "./pipeline";
 import { channel } from "./schema";
@@ -163,6 +164,7 @@ export const generate = internalAction({
       const entries = await ctx.runQuery(internal.journal.since, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
       const daily = await ctx.runQuery(internal.journal.dailyFrom, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
       const tracked = await ctx.runQuery(internal.trackers.since, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) });
+      const notes = notesText(await ctx.runQuery(internal.journal.notesFrom, { userId: data.row.userId, since: dateDaysAgo(now, data.row.days - 1) }));
       const conditions = trackersText(tracked.entries, tracked.peakFlowBest);
       const ex = await ctx.runQuery(internal.exercises.adherenceFor, { userId: data.row.userId, from: dateDaysAgo(now, data.row.days - 1), to: today });
       const appointments: string = await ctx.runQuery(internal.visits.textFor, { userId: data.row.userId, from: now - data.row.days * DAY_MS, to: now + 60 * DAY_MS });
@@ -176,7 +178,7 @@ export const generate = internalAction({
         medications: medications || undefined,
         facts,
         journal:
-          [entries.length || daily.length ? journalText([...entries, ...painAsEntries(tracked.entries)], data.healthDays, daily) : "", conditions && `Condition trackers:\n${conditions}`, ex.text && `Exercises and physical therapy:\n${ex.text}`]
+          [entries.length || daily.length ? journalText([...entries, ...painAsEntries(tracked.entries)], data.healthDays, daily) : "", notes, conditions && `Condition trackers:\n${conditions}`, ex.text && `Exercises and physical therapy:\n${ex.text}`]
             .filter(Boolean)
             .join("\n\n") || undefined,
         appointments: appointments || undefined,

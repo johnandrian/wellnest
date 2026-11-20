@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Tap } from "./Tap";
+import { Icon } from "./Icon";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -16,7 +17,8 @@ import { Reveal, SwapIcon } from "./Motion";
 
 const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
 const KEYS = ["mood", "energy", "sleepQuality"] as const;
-const ICONS = { mood: "happy-outline", energy: "flash-outline", sleepQuality: "moon-outline" } as const;
+// The same pictures as these measures everywhere else (src/iconMap.ts).
+const ICONS = { mood: "mood", energy: "energy", sleepQuality: "sleepQuality" } as const;
 // convex/lib/journal.ts FOOD_TAGS.
 const FOODS = ["alcohol", "dairy", "gluten", "sugar", "spicy", "fried", "late_meal", "skipped_meal"] as const;
 type Food = { foods: string[] | null; caffeine: number | null; onFoods: (foods: string[]) => void; onCaffeine: (n: number) => void };
@@ -25,18 +27,28 @@ export function localDate(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// `flush`: on the dashboard, which has its own margins.
-export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; inChat?: boolean; flush?: boolean }) {
+// `bare`: inside the dashboard's check-in tile, which has its own
+// title and frame, and stays (answers can still be changed) once today is answered. Food and drinks are in the Journal.
+export function DailyCard({ s, inChat = false, bare = false }: { s: Strings; inChat?: boolean; bare?: boolean }) {
   const date = localDate();
   const today = useQuery(api.daily.today, { date });
   const log = useMutation(api.daily.log);
   const skip = useMutation(api.daily.skip);
   const [open, setOpen] = useState(false);
   if (!today) return null;
+  if (bare)
+    return (
+      <DailyCardView
+        s={s}
+        values={today}
+        onPick={(k, v) => void log({ [k]: v, date })}
+        bare
+      />
+    );
   const answered = KEYS.every((k) => today[k] !== null);
   if (inChat && (answered || today.skipped)) return null;
   // In the chat: one line, so the messages keep the room.
-  if (inChat && !flush) {
+  if (inChat) {
     const done = KEYS.filter((k) => today[k] !== null).length;
     return (
       <View style={[styles.line, styles.inChat]}>
@@ -61,14 +73,7 @@ export function DailyCard({ s, inChat = false, flush = false }: { s: Strings; in
       s={s}
       values={today}
       onPick={(k, v) => void log({ [k]: v, date })}
-      onSkip={inChat ? () => void skip() : undefined}
-      inset={inChat && !flush}
-      food={
-        // The chat's check-in leaves it out; the dashboard's (also inChat, but flush) keeps it.
-        inChat && !flush
-          ? undefined
-          : { foods: today.foods, caffeine: today.caffeine, onFoods: (foods) => void log({ foods, date }), onCaffeine: (caffeine) => void log({ caffeine, date }) }
-      }
+      food={{ foods: today.foods, caffeine: today.caffeine, onFoods: (foods) => void log({ foods, date }), onCaffeine: (caffeine) => void log({ caffeine, date }) }}
     />
   );
 }
@@ -77,7 +82,7 @@ export type DailyKey = (typeof KEYS)[number];
 
 // The card itself, from values passed in (the public demo keeps its answers on the page).
 // `bare`: inside the chat's one-line check-in, which has its own title and frame.
-// `food`: the Food and drinks row, on the dashboard and in the Journal (not in the chat, or the demo).
+// `food`: the Food and drinks row, in the Journal (not on the dashboard, in the chat, or in the demo).
 export function DailyCardView({ s, values, onPick, onSkip, inset = false, bare = false, food }: {
   s: Strings;
   values: Record<DailyKey, number | null>;
@@ -95,7 +100,7 @@ export function DailyCardView({ s, values, onPick, onSkip, inset = false, bare =
       {KEYS.map((k) => (
         <View key={k} style={styles.row}>
           <View style={styles.labelRow}>
-            <Ionicons name={ICONS[k]} size={18} color={colors.primary} />
+            <Icon name={ICONS[k]} size={18} color={colors.primary} />
             <Text style={styles.label}>{label[k]}</Text>
           </View>
           <View>

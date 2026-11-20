@@ -5,6 +5,7 @@ import type { api } from "../convex/_generated/api";
 
 export type LogCall =
   | { fn: "journal.add"; args: FunctionArgs<typeof api.journal.add> }
+  | { fn: "journal.addNote"; args: FunctionArgs<typeof api.journal.addNote> }
   | { fn: "trackers.add"; args: FunctionArgs<typeof api.trackers.add> }
   | { fn: "reminders.mark"; args: FunctionArgs<typeof api.reminders.mark> }
   | { fn: "reminders.takeNow"; args: FunctionArgs<typeof api.reminders.takeNow> };
