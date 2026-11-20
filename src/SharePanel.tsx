@@ -8,6 +8,7 @@ import { ActivityIndicator, Platform, ScrollView, Share, Text, TextInput, View }
 import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
+import { Icon, type IconName } from "./Icon";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -24,10 +25,10 @@ import { formatDateTime } from "./format";
 import { Enter } from "./Motion";
 
 type Way = "summary" | "pdf" | "link";
-const WAYS: { way: Way; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { way: "summary", icon: "sparkles-outline" },
-  { way: "pdf", icon: "document-text-outline" },
-  { way: "link", icon: "link-outline" },
+const WAYS: { way: Way; icon: IconName }[] = [
+  { way: "summary", icon: "suggest" },
+  { way: "pdf", icon: "pdf" },
+  { way: "link", icon: "shareLink" },
 ];
 // The summary reads at most this many days back (convex/visit.ts).
 const SUMMARY_MAX_DAYS = 90;
@@ -60,7 +61,7 @@ export function SharePanel({ s, forVisit }: { s: Strings; forVisit?: { id?: stri
           const on = way === w.way;
           return (
             <Tap key={w.way} style={[styles.way, on && styles.wayOn]} onPress={() => setWay(w.way)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${title[w.way]}. ${desc[w.way]}`}>
-              <Ionicons name={w.icon} size={22} color={on ? colors.primary : colors.muted} />
+              <Icon name={w.icon} size={22} color={on ? colors.primary : colors.muted} />
               <Text style={[styles.wayTitle, on && styles.wayTitleOn]}>{title[w.way]}</Text>
               <Text style={styles.small}>{desc[w.way]}</Text>
             </Tap>
@@ -136,7 +137,7 @@ function SummaryAction({ s, days, forVisit }: { s: Strings; days: number; forVis
           <TextInput style={styles.input} placeholder={s.visitReasonOptional} placeholderTextColor={colors.muted} accessibilityLabel={s.visitReasonOptional} value={reason} onChangeText={setReason} maxLength={300} />
           <Text style={styles.small}>{s.shareSummaryDays.replace("{n}", String(days))}</Text>
           <Tap style={styles.button} onPress={() => void generate()} accessibilityRole="button">
-            <Ionicons name="sparkles-outline" size={18} color={colors.onPrimary} />
+            <Icon name="suggest" size={18} color={colors.onPrimary} />
             <Text style={styles.buttonText}>{s.writeSummary}</Text>
           </Tap>
           {latest?.status === "failed" && !composing && <Text style={styles.error}>{s.summaryFailed}</Text>}

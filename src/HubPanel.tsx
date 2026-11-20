@@ -35,7 +35,7 @@ export const TOOLS: { tab: ToolTab; icon: IconName; tint: keyof typeof tint; lab
   { tab: "reminders", icon: "medications", tint: "medications", label: (s) => s.tabMeds, desc: (s) => s.toolMedsDesc },
   { tab: "exercise", icon: "exercise", tint: "exercise", label: (s) => s.tabExercise, desc: (s) => s.toolExerciseDesc },
   { tab: "visits", icon: "appointments", tint: "appointments", label: (s) => s.tabVisits, desc: (s) => s.toolVisitsDesc },
-  { tab: "visit", icon: "reports", tint: "reports", label: (s) => s.tabVisit, desc: (s) => s.toolVisitDesc },
+  { tab: "visit", icon: "share", tint: "reports", label: (s) => s.tabVisit, desc: (s) => s.toolVisitDesc },
   { tab: "records", icon: "records", tint: "records", label: (s) => s.tabRecords, desc: (s) => s.toolRecordsDesc },
   { tab: "care", icon: "care", tint: "care", label: (s) => s.tabCare, desc: (s) => s.toolCareDesc },
   { tab: "circle", icon: "circle", tint: "circle", label: (s) => s.tabCircle, desc: (s) => s.toolCircleDesc },

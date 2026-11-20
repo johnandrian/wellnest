@@ -7,10 +7,11 @@ import { Tap } from "./Tap";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../convex/_generated/api";
-import { colors, themed, TOUCH, ui, radius } from "./theme";
+import { colors, themed, tint, TOUCH, ui, radius } from "./theme";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
+import { IconHeading } from "./SegmentTabs";
 import { errorText, removeWithUndo, showToast, useHidden } from "./feedback";
 import type { Id } from "../convex/_generated/dataModel";
 
@@ -80,10 +81,10 @@ export function ExercisePanel({ s }: { s: Strings }) {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.panel}>
       <Text style={styles.note}>{s.exIntro}</Text>
       {shown?.length === 0 && !adding && <Text style={styles.empty}>{s.exEmpty}</Text>}
-      {!!due.length && <Text style={styles.section}>{s.exToday}</Text>}
+      {!!due.length && <IconHeading icon="exToday" text={s.exToday} tint={tint.exercise.fg} />}
       {[...due, ...notDue].map((e, i) => (
         <View key={e._id}>
-          {i === due.length && notDue.length > 0 && <Text style={styles.section}>{s.exNotToday}</Text>}
+          {i === due.length && notDue.length > 0 && <IconHeading icon="exLater" text={s.exNotToday} tint={tint.exercise.fg} />}
           <View style={styles.card}>
             <View style={styles.head}>
               {e.dueToday && (

@@ -17,6 +17,7 @@ import { Reveal } from "./Motion";
 import type { Strings } from "./i18n";
 import { localDate } from "./DailyCard";
 import { SwapIcon } from "./Motion";
+import { Icon } from "./Icon";
 import { DateField } from "./DateTimeField";
 import { formatDateTime } from "./format";
 
@@ -175,7 +176,7 @@ export function LinkAction({ s, from, sections }: { s: Strings; from: string; se
         ))}
       </View>
       <Tap style={styles.button} onPress={() => void make()} disabled={!sections.length} accessibilityRole="button" accessibilityState={{ disabled: !sections.length }}>
-        <Ionicons name="link-outline" size={18} color={colors.onPrimary} />
+        <Icon name="shareLink" size={18} color={colors.onPrimary} />
         <Text style={styles.buttonText}>{s.shareCreate}</Text>
       </Tap>
       {!sections.length && <Text style={styles.small}>{s.shareNeedSection}</Text>}
