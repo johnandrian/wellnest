@@ -10,6 +10,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { Tap } from "./Tap";
 import { Icon } from "./Icon";
+import { QuestionList } from "./QuestionList";
 import { Enter, SwapIcon } from "./Motion";
 import { colors, radius, tint, TOUCH, ui, themed } from "./theme";
 import type { Strings } from "./i18n";
@@ -72,7 +73,6 @@ export function VisitPrep({ s, onAdd }: { s: Strings; onAdd: () => void }) {
     store.setQuery(api.visits.list, { now }, { ...current, upcoming: current.upcoming.map((v) => (v._id === id ? { ...v, checked: tick(v.checked) } : v)) });
   });
   const suggest = useAction(api.questions.suggest);
-  const removeQuestion = useMutation(api.questions.remove);
   const [picked, setPicked] = useState<string | null>(null);
   // Ticks while there's no appointment to keep them on.
   const [loose, setLoose] = useState<string[]>([]);
@@ -127,14 +127,7 @@ export function VisitPrep({ s, onAdd }: { s: Strings; onAdd: () => void }) {
             <Text style={styles.small}>{new Date(visit.startsAt).toLocaleString(s.locale, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}</Text>
             <Text style={[styles.sectionTitle, styles.gapTop]}>{s.guideQuestions}</Text>
             {visit.questions?.length ? (
-              visit.questions.map((q, i) => (
-                <View key={`${i}-${q}`} style={styles.question}>
-                  <Text style={[styles.itemText, styles.flex]}>• {q}</Text>
-                  <Tap onPress={() => void run(() => removeQuestion({ id: id!, index: i }))} accessibilityRole="button" accessibilityLabel={s.remove} hitSlop={8}>
-                    <Ionicons name="close" size={16} color={colors.muted} />
-                  </Tap>
-                </View>
-              ))
+              <QuestionList id={id!} questions={visit.questions} s={s} run={(fn) => void run(fn)} />
             ) : (
               <Text style={styles.small}>{s.guideQuestionsEmpty}</Text>
             )}
@@ -149,7 +142,7 @@ export function VisitPrep({ s, onAdd }: { s: Strings; onAdd: () => void }) {
               accessibilityState={{ busy: suggesting }}
             >
               <SwapIcon id={suggesting ? "busy" : "idle"}>
-                {suggesting ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="sparkles-outline" size={16} color={colors.primary} />}
+                {suggesting ? <ActivityIndicator size="small" color={colors.primary} /> : <Icon name="suggest" size={16} color={colors.primary} />}
               </SwapIcon>
               <Text style={styles.link}>{visit.questions?.length ? s.visitNewQuestions : s.visitSuggestQuestions}</Text>
             </Tap>
@@ -179,7 +172,6 @@ const styles = themed(() => ({
   head: { flexDirection: "row", alignItems: "center", gap: 12 },
   headIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, fontSize: 20, fontWeight: "700", color: colors.text },
-  flex: { flex: 1 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { ...ui.chip, maxWidth: 260, backgroundColor: colors.surface },
   chipOn: ui.chipOn,
@@ -189,7 +181,6 @@ const styles = themed(() => ({
   visitTitle: { fontSize: 17, fontWeight: "700", color: colors.text },
   small: { fontSize: 13, color: colors.muted, lineHeight: 18 },
   gapTop: { marginTop: 8 },
-  question: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   action: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: TOUCH, alignSelf: "flex-start" },
   link: { color: colors.primary, fontWeight: "600", fontSize: 14 },
   list: { gap: 12 },
