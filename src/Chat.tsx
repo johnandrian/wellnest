@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ElementRef, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -81,6 +81,21 @@ function startersFor(focus: string[], s: Strings) {
   return [...new Set([...picked, ...s.starters])].slice(0, 4);
 }
 
+
+// The web message box grows with what's typed, up to the style's maxHeight, then scrolls (native boxes do this
+// themselves). Measured from scratch each time so it shrinks again when text is deleted or sent.
+function useGrowingInput(text: string) {
+  const ref = useRef<ElementRef<typeof TextInput>>(null);
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const el = ref.current as unknown as HTMLTextAreaElement | null;
+    if (!el?.style) return;
+    el.style.height = "auto";
+    // scrollHeight leaves out the border, and the box is sized with it.
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [text]);
+  return ref;
+}
 export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const messages = useQuery(api.chat.list);
   const me = useQuery(api.chat.me);
@@ -98,6 +113,7 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
   const [viewing, setViewing] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
+  const inputRef = useGrowingInput(text);
   const [screen, setScreen] = useState<Screen>("hub");
   const [panel, setPanel] = useState<Panel | null>(null);
   const [hubTab, setHubTab] = useState<HubTab>("home");
@@ -332,16 +348,19 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
               {!narrow && <Text style={styles.dashText}>{s.dashboard}</Text>}
             </Pressable>
           )}
-          <Pressable
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-            onPress={() => toggle("settings")}
-            accessibilityRole="button"
-            accessibilityLabel={panel === "settings" || panel === "about" ? s.closeSettings : s.settings}
-          >
-            <SwapIcon id={panel === "settings" || panel === "about" ? "close" : "settings"}>
-              {panel === "settings" || panel === "about" ? <Ionicons name="close" size={22} color={colors.text} /> : <Icon name="settings" size={22} color={colors.text} />}
-            </SwapIcon>
-          </Pressable>
+          {/* In the drawer the tools' own top bar beside it already has the gear. */}
+          {!docked && (
+            <Pressable
+              style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+              onPress={() => toggle("settings")}
+              accessibilityRole="button"
+              accessibilityLabel={panel === "settings" || panel === "about" ? s.closeSettings : s.settings}
+            >
+              <SwapIcon id={panel === "settings" || panel === "about" ? "close" : "settings"}>
+                {panel === "settings" || panel === "about" ? <Ionicons name="close" size={22} color={colors.text} /> : <Icon name="settings" size={22} color={colors.text} />}
+              </SwapIcon>
+            </Pressable>
+          )}
         </View>
       </View>
       <ChatHistory open={history} s={s} onClose={() => setHistory(false)} />
@@ -594,7 +613,11 @@ export function Chat({ onRedoSetup }: { onRedoSetup: () => void }) {
         {/* Grows with the message up to about five lines, then scrolls. On a computer Enter sends and Shift+Enter
             starts a new line; on a phone the return key adds a line and the arrow sends. */}
         <TextInput
+          ref={inputRef}
           style={styles.input}
+          // On the web a multiline box starts two lines tall, which put the text above the buttons beside it; it starts
+          // at one line and grows with the message (useGrowingInput).
+          numberOfLines={Platform.OS === "web" ? 1 : undefined}
           placeholder={photo ? s.placeholderPhoto : s.placeholderVoice}
           placeholderTextColor={colors.muted}
           accessibilityLabel={s.messageLabel}
@@ -794,7 +817,7 @@ const styles = themed(() => ({
     borderColor: colors.border,
     borderRadius: 22,
     paddingHorizontal: 16,
-    paddingTop: 11,
+    paddingTop: 10, // with the border, one line is 44 tall like the buttons beside it
     paddingBottom: 11,
     fontSize: 16,
     lineHeight: 21,
